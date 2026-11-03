@@ -1,0 +1,753 @@
+45622: // Namespace: Mirror >>> public class NetworkAnimatorExtended : NetworkBehaviour // TypeDefIndex: 1126
+46209: // Namespace: Mirror.Examples.AdditiveLevels >>> public class AdditiveLevelsNetworkManager : NetworkManager // TypeDefIndex: 1136
+46363: // Namespace: Mirror.Examples.AdditiveLevels >>> public class FadeInOut : MonoBehaviour // TypeDefIndex: 1139
+46393: // Namespace: Mirror.Examples.AdditiveLevels >>> public class LookAtMainCamera : MonoBehaviour // TypeDefIndex: 1140
+46405: // Namespace: Mirror.Examples.AdditiveLevels >>> public class PhysicsSimulator : MonoBehaviour // TypeDefIndex: 1141
+46426: // Namespace: Mirror.Examples.AdditiveLevels >>> public class PlayerCamera : NetworkBehaviour // TypeDefIndex: 1142
+46454: // Namespace: Mirror.Examples.AdditiveLevels >>> public class PlayerController : NetworkBehaviour // TypeDefIndex: 1143
+46534: // Namespace: Mirror.Examples.AdditiveLevels >>> public class Portal : NetworkBehaviour // TypeDefIndex: 1145
+46590: // Namespace: Mirror.Examples.AdditiveLevels >>> public class RandomColor : NetworkBehaviour // TypeDefIndex: 1146
+54038: // Namespace: Assets.Build >>> public class PlotBuildSettings : ScriptableObject // TypeDefIndex: 1315
+54052: // Namespace: Assets.SimpleVKSignIn >>> public class Example : MonoBehaviour // TypeDefIndex: 1316
+54088: // Namespace: Assets.SimpleVKSignIn.Scripts >>> public class SavedAuth // TypeDefIndex: 1317
+54110: // Namespace: Assets.SimpleVKSignIn.Scripts >>> public class Settings : ScriptableObject // TypeDefIndex: 1318
+54145: // Namespace: Assets.SimpleVKSignIn.Scripts >>> public class TokenResponse // TypeDefIndex: 1319
+54161: // Namespace: Assets.SimpleVKSignIn.Scripts >>> public class UserInfo // TypeDefIndex: 1320
+54179: // Namespace: Assets.SimpleVKSignIn.Scripts >>> public static class Utils // TypeDefIndex: 1321
+54282: // Namespace: Assets.SimpleVKSignIn.Scripts >>> public class VKAuth : MonoBehaviour // TypeDefIndex: 1326
+54381: // Namespace: Assets.Projects.JTI.Scripts.Common.BlackTemple.Common >>> public class PoolGameObject : MonoBehaviour // TypeDefIndex: 1328
+54478: // Namespace: Assets.Projects.JTI.Scripts.Common.BlackTemple.Common >>> public class PoolMonoBehaviour : MonoBehaviour // TypeDefIndex: 1331
+54653: // Namespace: Assets.Localization >>> public class LocalizationManager : SingletonMonoSimple<LocalizationManager> // TypeDefIndex: 1338
+54741: // Namespace: Assets.Localization >>> public class TextUiLocalizer : MonoBehaviour // TypeDefIndex: 1339
+54797: // Namespace: Assets.Localization >>> public class TextUiLocalizerRow : MonoBehaviour // TypeDefIndex: 1341
+54823: // Namespace: Assets.RtsEngine.Scripts.Utils.Singleton >>> public class SingletonMono<T> : MonoBehaviour // TypeDefIndex: 1342
+54964: // Namespace: Assets.RtsEngine.Scripts.Utils.Helpers >>> public static class PrefsHelper // TypeDefIndex: 1344
+55283: // Namespace: Assets.RtsEngine.Scripts.Managers >>> public class AudioManager : SingletonMonoSimple<AudioManager> // TypeDefIndex: 1353
+55480: // Namespace: Assets.RtsEngine.Scripts.Managers >>> public class TimeManager : SingletonMono<TimeManager> // TypeDefIndex: 1354
+55600: // Namespace: Assets.Scripts.Helpers >>> public static class TimeHelper // TypeDefIndex: 1356
+55701: // Namespace: Assets.Worm.Scripts >>> public static class Utils // TypeDefIndex: 1362
+55916: // Namespace: Assets.Worm.Scripts.Data >>> public class LocalizationData : ScriptableObject // TypeDefIndex: 1363
+56023: // Namespace: Assets.Common.Scripts.Utils >>> public static class Common // TypeDefIndex: 1367
+56047: // Namespace: Assets.Common.Scripts.Static >>> public static class Enums // TypeDefIndex: 1369
+56051: // Namespace: Assets.Common.Scripts.Static >>> public enum LayersType // TypeDefIndex: 1370
+56062: // Namespace: Assets.Common.Scripts.Scenes.Login >>> public static class LoginAuthEmailValidator // TypeDefIndex: 1371
+56077: // Namespace: Assets.Common.Scripts.Scenes.Login >>> public static class LoginAuthMessages // TypeDefIndex: 1372
+56101: // Namespace: Assets.Common.Scripts.Scenes.Level >>> public static class GrenadeBouncePhysics // TypeDefIndex: 1374
+56141: // Namespace: Assets.Common.Scripts.Scenes.Level >>> public class GroundCollisionCallBack : MonoBehaviour // TypeDefIndex: 1375
+56179: // Namespace: Assets.Common.Scripts.Scenes.Level.Items >>> public interface IDamageable // TypeDefIndex: 1376
+56215: // Namespace: Assets.Common.Scripts.Scenes.Level.Items >>> public interface IInteractable // TypeDefIndex: 1377
+56553: // Namespace: Assets.Common.Scripts.Managers >>> public class ProviderManager : SingletonMono<ProviderManager> // TypeDefIndex: 1385
+56663: // Namespace: Assets.Common.Scripts.Helpers >>> public class ItemHelper // TypeDefIndex: 1389
+56774: // Namespace: Assets.Common.Scripts.Helpers >>> public static class WeaponGradientPattern // TypeDefIndex: 1390
+56826: // Namespace: Assets.Common.Scripts.Dto >>> public class ActivePromo : DtoData // TypeDefIndex: 1391
+56843: // Namespace: Assets.Common.Scripts.Dto >>> public class BattlePassSeasonSnapshot // TypeDefIndex: 1392
+56860: // Namespace: Assets.Common.Scripts.Dto >>> public class ClientEnterInfo : DtoData // TypeDefIndex: 1393
+56869: // Namespace: Assets.Common.Scripts.Dto >>> public class ClientEnterInfoGameClient : ClientEnterInfo // TypeDefIndex: 1394
+56878: // Namespace: Assets.Common.Scripts.Dto >>> public class ClientEnterInfoGameServer : ClientEnterInfo // TypeDefIndex: 1395
+56893: // Namespace: Assets.Common.Scripts.Dto >>> public class Contract : DtoData // TypeDefIndex: 1396
+56911: // Namespace: Assets.Common.Scripts.Dto >>> public class DailyReward : DtoData // TypeDefIndex: 1397
+56930: // Namespace: Assets.Common.Scripts.Dto >>> public abstract class DtoData // TypeDefIndex: 1398
+56939: // Namespace: Assets.Common.Scripts.Dto >>> public class Error : DtoData // TypeDefIndex: 1399
+56955: // Namespace: Assets.Common.Scripts.Dto >>> public class Friend : DtoData // TypeDefIndex: 1400
+56971: // Namespace: Assets.Common.Scripts.Dto >>> public class FriendRequest : DtoData // TypeDefIndex: 1401
+56987: // Namespace: Assets.Common.Scripts.Dto >>> public class GameServerInfo : DtoData // TypeDefIndex: 1402
+57061: // Namespace: Assets.Common.Scripts.Dto >>> public class GameServerStatistic : DtoData // TypeDefIndex: 1406
+57099: // Namespace: Assets.Common.Scripts.Dto >>> public class GameServerStatisticShort : DtoData // TypeDefIndex: 1408
+57154: // Namespace: Assets.Common.Scripts.Dto >>> public class Inventory : DtoData // TypeDefIndex: 1411
+57175: // Namespace: Assets.Common.Scripts.Dto >>> public class Item : DtoData // TypeDefIndex: 1412
+57193: // Namespace: Assets.Common.Scripts.Dto >>> public class ItemCharacterHandsSkin : Item // TypeDefIndex: 1413
+57208: // Namespace: Assets.Common.Scripts.Dto >>> public class ItemCharacterSkin : Item // TypeDefIndex: 1414
+57223: // Namespace: Assets.Common.Scripts.Dto >>> public class ItemChest : Item // TypeDefIndex: 1415
+57235: // Namespace: Assets.Common.Scripts.Dto >>> public class ItemEquip : Item // TypeDefIndex: 1416
+57250: // Namespace: Assets.Common.Scripts.Dto >>> public class ItemHelmetSkin : Item // TypeDefIndex: 1417
+57265: // Namespace: Assets.Common.Scripts.Dto >>> public class ItemKey : Item // TypeDefIndex: 1418
+57277: // Namespace: Assets.Common.Scripts.Dto >>> public class ItemModule : Item // TypeDefIndex: 1419
+57289: // Namespace: Assets.Common.Scripts.Dto >>> public class ItemModuleCounter : ItemModule // TypeDefIndex: 1420
+57304: // Namespace: Assets.Common.Scripts.Dto >>> public class ItemModuleStickers : ItemModule // TypeDefIndex: 1421
+57319: // Namespace: Assets.Common.Scripts.Dto >>> public class ItemShort : DtoData // TypeDefIndex: 1422
+57332: // Namespace: Assets.Common.Scripts.Dto >>> public class ItemSprayPaint : ItemEquip // TypeDefIndex: 1423
+57347: // Namespace: Assets.Common.Scripts.Dto >>> public class ItemSticker : Item // TypeDefIndex: 1424
+57366: // Namespace: Assets.Common.Scripts.Dto >>> public class ItemWeaponSkin : Item // TypeDefIndex: 1425
+57384: // Namespace: Assets.Common.Scripts.Dto >>> public sealed class LegacyWireContractBinder : DefaultSerializationBinder // TypeDefIndex: 1426
+57409: // Namespace: Assets.Common.Scripts.Dto >>> public class Level : DtoData // TypeDefIndex: 1427
+57418: // Namespace: Assets.Common.Scripts.Dto >>> public class LoginInfo : DtoData // TypeDefIndex: 1428
+57558: // Namespace: Assets.Common.Scripts.Dto >>> public class LoginServerInfo : DtoData // TypeDefIndex: 1429
+57570: // Namespace: Assets.Common.Scripts.Dto >>> public class PositionInt // TypeDefIndex: 1430
+57586: // Namespace: Assets.Common.Scripts.Dto >>> public class Map : DtoData // TypeDefIndex: 1431
+57609: // Namespace: Assets.Common.Scripts.Dto >>> public class MapEditorItem : DtoData // TypeDefIndex: 1432
+57624: // Namespace: Assets.Common.Scripts.Dto >>> public class MarketBuyRequest : DtoData // TypeDefIndex: 1433
+57640: // Namespace: Assets.Common.Scripts.Dto >>> public class MarketItemStats : DtoData // TypeDefIndex: 1434
+57655: // Namespace: Assets.Common.Scripts.Dto >>> public class MarketItemStatsHistory : DtoData // TypeDefIndex: 1435
+57670: // Namespace: Assets.Common.Scripts.Dto >>> public class MarketSellHistory : DtoData // TypeDefIndex: 1436
+57686: // Namespace: Assets.Common.Scripts.Dto >>> public class MarketSellRequest : DtoData // TypeDefIndex: 1437
+57704: // Namespace: Assets.Common.Scripts.Dto >>> public class Match : DtoData // TypeDefIndex: 1438
+57733: // Namespace: Assets.Common.Scripts.Dto >>> public class MatchStatistic : DtoData // TypeDefIndex: 1439
+57770: // Namespace: Assets.Common.Scripts.Dto >>> public class PlayerStatistic : DtoData // TypeDefIndex: 1441
+57783: // Namespace: Assets.Common.Scripts.Dto >>> public enum ProfileTag // TypeDefIndex: 1442
+57792: // Namespace: Assets.Common.Scripts.Dto >>> public class Profile : DtoData // TypeDefIndex: 1443
+57835: // Namespace: Assets.Common.Scripts.Dto >>> public class ProfileGameServer : DtoData // TypeDefIndex: 1444
+57862: // Namespace: Assets.Common.Scripts.Dto >>> public class ProfileShort : DtoData // TypeDefIndex: 1445
+57888: // Namespace: Assets.Common.Scripts.Dto >>> public class Quest : DtoData // TypeDefIndex: 1446
+57915: // Namespace: Assets.Common.Scripts.Dto >>> public class QuestTask : DtoData // TypeDefIndex: 1447
+57936: // Namespace: Assets.Common.Scripts.Dto >>> public class QuestTaskTargetValue : QuestTask // TypeDefIndex: 1448
+57957: // Namespace: Assets.Common.Scripts.Dto >>> public class ServerClientConfig : DtoData // TypeDefIndex: 1449
+58011: // Namespace: Assets.Common.Scripts.Dto >>> public class Social : DtoData // TypeDefIndex: 1452
+58106: // Namespace: Assets.Common.Scripts.Dto >>> public class Wallet : DtoData // TypeDefIndex: 1456
+58303: // Namespace: Assets.Common.Scripts.Data >>> public class Data : ScriptableObject // TypeDefIndex: 1465
+58526: // Namespace: Assets.Common.Scripts.Data >>> public class DataClient : ScriptableObject // TypeDefIndex: 1468
+58632: // Namespace: Assets.Common.Scripts.Data.Level >>> public class ApplicationSettings : ScriptableObject // TypeDefIndex: 1471
+58670: // Namespace: Assets.Common.Scripts.Data.Level >>> public class CharacterData : ScriptableObject // TypeDefIndex: 1472
+58743: // Namespace: Assets.Common.Scripts.Data.Level >>> public static class FrameRateSettings // TypeDefIndex: 1473
+58983: // Namespace: Assets.Common.Scripts.Data.Level >>> public class GameSettings : ScriptableObject // TypeDefIndex: 1483
+59194: // Namespace: Assets.Common.Scripts.Data.Level >>> public class ItemData : ScriptableObject // TypeDefIndex: 1493
+59292: // Namespace: Assets.Common.Scripts.Data.Level >>> public class ItemLevelData : ItemData // TypeDefIndex: 1494
+59319: // Namespace: Assets.Common.Scripts.Data.Level >>> public abstract class LevelFeature : ScriptableObject // TypeDefIndex: 1495
+59335: // Namespace: Assets.Common.Scripts.Data.Level >>> public class LevelFeatureBomb : LevelFeature // TypeDefIndex: 1496
+59348: // Namespace: Assets.Common.Scripts.Data.Level >>> public class LevelFeatureFreeForAll : LevelFeature // TypeDefIndex: 1497
+59358: // Namespace: Assets.Common.Scripts.Data.Level >>> public class LevelFeatureFriendlyFire : LevelFeature // TypeDefIndex: 1498
+59368: // Namespace: Assets.Common.Scripts.Data.Level >>> public class LevelFeatureMic : LevelFeature // TypeDefIndex: 1499
+59381: // Namespace: Assets.Common.Scripts.Data.Level >>> public class LevelFeatureShop : LevelFeature // TypeDefIndex: 1500
+59395: // Namespace: Assets.Common.Scripts.Data.Level >>> public class LevelFeatureStandartTeams : LevelFeature // TypeDefIndex: 1501
+59405: // Namespace: Assets.Common.Scripts.Data.Level >>> public class LevelFeatureTopPanel : LevelFeature // TypeDefIndex: 1502
+59418: // Namespace: Assets.Common.Scripts.Data.Level >>> public class LevelFeatureTopPanelTeams : LevelFeature // TypeDefIndex: 1503
+59431: // Namespace: Assets.Common.Scripts.Data.Level >>> public class LevelFeatureWinRequirement : LevelFeature // TypeDefIndex: 1504
+59441: // Namespace: Assets.Common.Scripts.Data.Level >>> public class LevelFeatureWinRequirementIndividualScore : LevelFeatureWinRequirement // TypeDefIndex: 1505
+59451: // Namespace: Assets.Common.Scripts.Data.Level >>> public class LevelFeatureWinRequirementTeamScore : LevelFeatureWinRequirement // TypeDefIndex: 1506
+59602: // Namespace: Assets.Common.Scripts.Data.Level >>> public abstract class LevelMode : ScriptableObject // TypeDefIndex: 1512
+59837: // Namespace: Assets.Common.Scripts.Data.Level >>> public class LevelModeDeathMatch : LevelMode // TypeDefIndex: 1513
+59857: // Namespace: Assets.Common.Scripts.Data.Level >>> public class LevelModeDefuse : LevelMode // TypeDefIndex: 1514
+59867: // Namespace: Assets.Common.Scripts.Data.Level >>> public class LevelModeSkirmish : LevelMode // TypeDefIndex: 1515
+60009: // Namespace: Assets.Common.Scripts.Data.Level >>> public class MapData : ScriptableObject // TypeDefIndex: 1521
+60133: // Namespace: Assets.Common.Scripts.Data.Level >>> public class WeaponCommonData : ItemEquipData // TypeDefIndex: 1522
+60157: // Namespace: Assets.Common.Scripts.Data.Level >>> public class WeaponData : ItemEquipData // TypeDefIndex: 1524
+60215: // Namespace: Assets.Common.Scripts.Data.Global >>> public class BattlePass : ScriptableObject // TypeDefIndex: 1527
+60286: // Namespace: Assets.Common.Scripts.Data.Global >>> public class BattlePassRewards : ScriptableObject // TypeDefIndex: 1529
+60353: // Namespace: Assets.Common.Scripts.Data.Global >>> public class Collections : ScriptableObject // TypeDefIndex: 1532
+60370: // Namespace: Assets.Common.Scripts.Data.Global >>> public class ItemCharacterHandsSkin : ItemData // TypeDefIndex: 1533
+60411: // Namespace: Assets.Common.Scripts.Data.Global >>> public class ItemCharacterSkin : ItemData // TypeDefIndex: 1534
+60457: // Namespace: Assets.Common.Scripts.Data.Global >>> public class ItemChest : ItemData // TypeDefIndex: 1536
+60484: // Namespace: Assets.Common.Scripts.Data.Global >>> public class ItemHelmetSkin : ItemData // TypeDefIndex: 1537
+60520: // Namespace: Assets.Common.Scripts.Data.Global >>> public class ItemKey : ItemData // TypeDefIndex: 1539
+60539: // Namespace: Assets.Common.Scripts.Data.Global >>> public class ItemSkin : ItemData // TypeDefIndex: 1541
+60574: // Namespace: Assets.Common.Scripts.Data.Global >>> public class ItemSprayPaint : ItemData // TypeDefIndex: 1542
+60600: // Namespace: Assets.Common.Scripts.Data.Global >>> public class ItemSticker : ItemData // TypeDefIndex: 1543
+60631: // Namespace: Assets.Common.Scripts.Data.Global >>> public class ItemWeaponSkin : ItemSkin // TypeDefIndex: 1544
+60681: // Namespace: Assets.Common.Scripts.Data.Global >>> public class LevelFinishRewards : ScriptableObject // TypeDefIndex: 1546
+60701: // Namespace: Assets.Common.Scripts.Data.Global >>> public class MapEditorItem // TypeDefIndex: 1547
+60729: // Namespace: Assets.Common.Scripts.Data.Global >>> public class ProgressRewardsData : ScriptableObject // TypeDefIndex: 1549
+60749: // Namespace: Assets.Common.Scripts.Data.Global >>> public class Quest : ScriptableObject // TypeDefIndex: 1550
+60778: // Namespace: Assets.Common.Scripts.Data.Global >>> public class QuestTask : ScriptableObject // TypeDefIndex: 1551
+60796: // Namespace: Assets.Common.Scripts.Data.Global >>> public class QuestTaskObjective : QuestTaskTargetValue // TypeDefIndex: 1552
+60816: // Namespace: Assets.Common.Scripts.Data.Global >>> public class QuestTaskTargetValue : QuestTask // TypeDefIndex: 1553
+60839: // Namespace: Assets.Common.Scripts.Data.Global >>> public class QuestTaskTargetValueDeath : QuestTaskTargetValue // TypeDefIndex: 1554
+60849: // Namespace: Assets.Common.Scripts.Data.Global >>> public class QuestTaskTargetValueGetExp : QuestTaskTargetValue // TypeDefIndex: 1555
+60859: // Namespace: Assets.Common.Scripts.Data.Global >>> public class QuestTaskTargetValueHeadShot : QuestTaskTargetValue // TypeDefIndex: 1556
+60869: // Namespace: Assets.Common.Scripts.Data.Global >>> public class QuestTaskTargetValueKill : QuestTaskTargetValue // TypeDefIndex: 1557
+60879: // Namespace: Assets.Common.Scripts.Data.Global >>> public class QuestTaskTargetValueKillWeapon : QuestTaskTargetValue // TypeDefIndex: 1558
+60899: // Namespace: Assets.Common.Scripts.Data.Global >>> public class QuestTaskTargetValueWinInMode : QuestTaskTargetValue // TypeDefIndex: 1559
+60935: // Namespace: Assets.Common.Scripts.Data.Global >>> public class Ranks : ScriptableObject // TypeDefIndex: 1561
+60980: // Namespace: Assets.Common.Scripts.Data.Global >>> public class RanksRating : ScriptableObject // TypeDefIndex: 1563
+61066: // Namespace: Assets.Common.Scripts.Data.Global >>> public class ShopPack : ScriptableObject // TypeDefIndex: 1567
+61157: // Namespace: Assets.Common.Scripts.Data.Global >>> public class TierReward : ScriptableObject // TypeDefIndex: 1568
+61198: // Namespace: Assets.Common.Scripts.Data.Global >>> public class TierRewards : ScriptableObject // TypeDefIndex: 1569
+61228: // Namespace: Assets.Common.Scripts.Data.Global >>> public class ItemModule : ItemData // TypeDefIndex: 1571
+61255: // Namespace: Assets.Common.Scripts.Data.Global >>> public class ItemModuleCounter : ItemModule // TypeDefIndex: 1572
+61268: // Namespace: Assets.Common.Scripts.Data.Global >>> public class ItemModuleStickers : ItemModule // TypeDefIndex: 1573
+61277: // Namespace: Assets.Common.Scripts.Core >>> public abstract class CoreData // TypeDefIndex: 1574
+61286: // Namespace: Assets.Common.Scripts.Core >>> public class Level : CoreData // TypeDefIndex: 1575
+61295: // Namespace: Assets.Common.Scripts.Core >>> public class LFM // TypeDefIndex: 1576
+61304: // Namespace: Assets.Common.Scripts.Core >>> public class Match : CoreData // TypeDefIndex: 1577
+61344: // Namespace: Assets.Game.Game.Scripts.NetworkHandlers >>> public interface INetworkAgent // TypeDefIndex: 1578
+61348: // Namespace: Assets.Game.Game.Scripts.NetworkHandlers >>> public interface INetworkHandler // TypeDefIndex: 1579
+61422: // Namespace: Assets.Game.Game.Scripts.NetworkHandlers >>> public class NetworkHandlerController : MonoBehaviour // TypeDefIndex: 1582
+61493: // Namespace: Assets.Game.Game.Scripts.NetworkHandlers.Client >>> public static class SharedMatchContracts // TypeDefIndex: 1584
+61497: // Namespace: Assets.Game.Game.Scripts.NetworkHandlers.Client >>> public class GameNetworkHandler : MonoBehaviour, INetworkHandler // TypeDefIndex: 1585
+61539: // Namespace: Assets.Game.Game.Scripts.NetworkHandlers.Client >>> public class Player // TypeDefIndex: 1586
+61916: // Namespace: Assets.Game.Game.Scripts.NetworkHandlers.Server >>> public static class SharedLobbyContracts // TypeDefIndex: 1601
+62038: // Namespace: Assets.Game.Game.Scripts.NetworkHandlers.Server >>> public abstract class NetworkHandlerControllerAsync : MonoBehaviour, INetworkHandler // TypeDefIndex: 1605
+62123: // Namespace: Assets.Game.Game.Scripts.NetworkHandlers.Server >>> public static class PremierModeRating // TypeDefIndex: 1606
+62161: // Namespace: Assets.Game.Scripts >>> internal static class um // TypeDefIndex: 1608
+62239: // Namespace: Assets.Game.Scripts >>> public class ScreenScratchSpriteRender : MonoBehaviour // TypeDefIndex: 1609
+62251: // Namespace: Assets.Game.Scripts.Utils >>> public class ButtonClickSound : MonoBehaviour, IPointerUpHandler, IEventSystemHandler // TypeDefIndex: 1610
+62306: // Namespace: Assets.Game.Scripts.Utils >>> public class UIButtonPressScale : MonoBehaviour, IPointerDownHandler, IEventSystemHandler, IPointerUpHandler, IPointerEnterHandler, IPointerExitHandler, IPointerClickHandler // TypeDefIndex: 1612
+62369: // Namespace: Assets.Game.Scripts.FriendsPresence >>> public static class FriendOnlineIndicatorUi // TypeDefIndex: 1613
+62438: // Namespace: Assets.Game.Scripts.FriendsPresence >>> public class FriendsOnlineStatusClient // TypeDefIndex: 1616
+62768: // Namespace: Assets.Game.Scripts.NetworkHandlers.Client >>> public class GamePlayerNetworkHandler : MonoBehaviour, INetworkHandler // TypeDefIndex: 1626
+63534: // Namespace: Assets.Game.Scripts.Managers >>> public class GameManagerClient : SingletonMonoSimple<GameManagerClient> // TypeDefIndex: 1636
+63900: // Namespace: Assets.Game.Scripts.Level.Character.Ai >>> public sealed class PlayerBehaviorRecorder : MonoBehaviour // TypeDefIndex: 1638
+64183: // Namespace: Assets.Game.Scripts.Level.Character.Ai >>> public class SceneLevelCharacterAi : MonoBehaviour // TypeDefIndex: 1646
+64749: // Namespace: Assets.Game.Scripts.Level.Character.Ai >>> public class SceneLevelCharacterAiScenario : MonoBehaviour // TypeDefIndex: 1647
+64792: // Namespace: Assets.Game.Scripts.Level.Character.Ai >>> internal sealed class vf // TypeDefIndex: 1648
+64901: // Namespace: Assets.Game.Scripts.Level.Character.Ai >>> internal sealed class vg // TypeDefIndex: 1649
+64957: // Namespace: Assets.Game.Scripts.Level.Character.Ai >>> internal static class vh // TypeDefIndex: 1650
+64990: // Namespace: Assets.Game.Scripts.Level.Character.Ai >>> internal sealed class vi // TypeDefIndex: 1651
+65060: // Namespace: Assets.Game.Scripts.Level.Character.Ai >>> internal static class vj // TypeDefIndex: 1652
+65105: // Namespace: Assets.Game.Scripts.Level.Character.Ai >>> internal sealed class vk // TypeDefIndex: 1653
+65189: // Namespace: Assets.Game.Scripts.Level.Character.Ai >>> public static class ServerBotNoise // TypeDefIndex: 1655
+65217: // Namespace: Assets.Game.Scripts.Level.Character.Ai >>> internal static class vl // TypeDefIndex: 1656
+65238: // Namespace: Assets.Game.Scripts.Level.Character.Ai >>> internal static class vm // TypeDefIndex: 1657
+65250: // Namespace: Assets.Game.Scripts.Level.Character.Ai >>> internal static class vn // TypeDefIndex: 1658
+65298: // Namespace: Assets.Game.Scripts.Level.Character.Ai >>> public sealed class ServerBotTeamFight : MonoBehaviour // TypeDefIndex: 1659
+65474: // Namespace: Assets.Game.Scripts.Services >>> public class PurchaseService : MonoBehaviour // TypeDefIndex: 1666
+65525: // Namespace: Assets.Game.Scripts.Events >>> public class GameEvent // TypeDefIndex: 1667
+65534: // Namespace: Assets.Game.Scripts.Events >>> public class OnCancelRequest : GameEvent // TypeDefIndex: 1668
+65543: // Namespace: Assets.Game.Scripts.Events >>> public class OnChangeServer : GameEvent // TypeDefIndex: 1669
+65552: // Namespace: Assets.Game.Scripts.Events >>> public class OnConnection : GameEvent // TypeDefIndex: 1670
+65564: // Namespace: Assets.Game.Scripts.Events >>> public class OnDisconnection : GameEvent // TypeDefIndex: 1671
+65573: // Namespace: Assets.Game.Scripts.Events >>> public class OnFindProfiler : GameEvent // TypeDefIndex: 1672
+65585: // Namespace: Assets.Game.Scripts.Events >>> public class OnFriendsOnlineStatusChanged : GameEvent // TypeDefIndex: 1673
+65594: // Namespace: Assets.Game.Scripts.Events >>> public class OnGetActivePromoInfo : GameEvent // TypeDefIndex: 1674
+65606: // Namespace: Assets.Game.Scripts.Events >>> public class OnGetBattlePass : GameEvent // TypeDefIndex: 1675
+65619: // Namespace: Assets.Game.Scripts.Events >>> public class OnGetContractResult : GameEvent // TypeDefIndex: 1676
+65631: // Namespace: Assets.Game.Scripts.Events >>> public class OnGetCustomMatchRequests : GameEvent // TypeDefIndex: 1677
+65643: // Namespace: Assets.Game.Scripts.Events >>> public class OnGetDailyRewardInfo : GameEvent // TypeDefIndex: 1678
+65655: // Namespace: Assets.Game.Scripts.Events >>> public class OnGetGameServerList : GameEvent // TypeDefIndex: 1679
+65667: // Namespace: Assets.Game.Scripts.Events >>> public class OnGetInventory : GameEvent // TypeDefIndex: 1680
+65679: // Namespace: Assets.Game.Scripts.Events >>> public class OnGetItem : GameEvent // TypeDefIndex: 1681
+65691: // Namespace: Assets.Game.Scripts.Events >>> public class OnGetMarketItemHistory : GameEvent // TypeDefIndex: 1682
+65703: // Namespace: Assets.Game.Scripts.Events >>> public class OnGetMarketItemInfo : GameEvent // TypeDefIndex: 1683
+65718: // Namespace: Assets.Game.Scripts.Events >>> public class OnGetMarketItemSellRequests : GameEvent // TypeDefIndex: 1684
+65730: // Namespace: Assets.Game.Scripts.Events >>> public class OnGetMarketItemsInfo : GameEvent // TypeDefIndex: 1685
+65742: // Namespace: Assets.Game.Scripts.Events >>> public class OnGetMyMarketRequests : GameEvent // TypeDefIndex: 1686
+65755: // Namespace: Assets.Game.Scripts.Events >>> public class OnGetNotification : GameEvent // TypeDefIndex: 1687
+65768: // Namespace: Assets.Game.Scripts.Events >>> public class OnMatchRating : GameEvent // TypeDefIndex: 1688
+65780: // Namespace: Assets.Game.Scripts.Events >>> public class OnGetPlayerStatistic : GameEvent // TypeDefIndex: 1689
+65792: // Namespace: Assets.Game.Scripts.Events >>> public class OnGetProfileShort : GameEvent // TypeDefIndex: 1690
+65804: // Namespace: Assets.Game.Scripts.Events >>> public class OnGetQuests : GameEvent // TypeDefIndex: 1691
+65816: // Namespace: Assets.Game.Scripts.Events >>> public class OnGetServerInfo : GameEvent // TypeDefIndex: 1692
+65831: // Namespace: Assets.Game.Scripts.Events >>> public class OnLogin : GameEvent // TypeDefIndex: 1693
+65843: // Namespace: Assets.Game.Scripts.Events >>> public class OnLoginFailed : GameEvent // TypeDefIndex: 1694
+65860: // Namespace: Assets.Game.Scripts.Events >>> public class OnPendingUpdate : GameEvent // TypeDefIndex: 1695
+65872: // Namespace: Assets.Game.Scripts.Events >>> public class OnRegistration : GameEvent // TypeDefIndex: 1696
+65885: // Namespace: Assets.Game.Scripts.Events >>> public class OnSettingsLanguageChangeEvent : GameEvent // TypeDefIndex: 1697
+65897: // Namespace: Assets.Game.Scripts.Events >>> public class OnShopPurchase : GameEvent // TypeDefIndex: 1698
+65910: // Namespace: Assets.Game.Scripts.Events >>> public class OnTradeUpdate : GameEvent // TypeDefIndex: 1699
+65922: // Namespace: Assets.Game.Scripts.Events >>> public class OnUpdateGroup : GameEvent // TypeDefIndex: 1700
+65934: // Namespace: Assets.Game.Scripts.Events >>> public class OnUpdateProfile : GameEvent // TypeDefIndex: 1701
+65943: // Namespace: Assets.Game.Scripts.Events >>> public class OnUpdateSocial : GameEvent // TypeDefIndex: 1702
+65952: // Namespace: Assets.Game.Scripts.Core >>> public class Friend : CoreData // TypeDefIndex: 1703
+65968: // Namespace: Assets.Game.Scripts.Core >>> public class FriendRequest : CoreData // TypeDefIndex: 1704
+66119: // Namespace: Assets.Game.Scripts.Core >>> public class Inventory : CoreData // TypeDefIndex: 1712
+66239: // Namespace: Assets.Game.Scripts.Core >>> public class Item : CoreData // TypeDefIndex: 1715
+66276: // Namespace: Assets.Game.Scripts.Core >>> public class ItemCharacterHandsSkin : Item // TypeDefIndex: 1716
+66291: // Namespace: Assets.Game.Scripts.Core >>> public class ItemCharacterSkin : Item // TypeDefIndex: 1717
+66306: // Namespace: Assets.Game.Scripts.Core >>> public class ItemChest : Item // TypeDefIndex: 1718
+66318: // Namespace: Assets.Game.Scripts.Core >>> public class ItemEquip : Item // TypeDefIndex: 1719
+66333: // Namespace: Assets.Game.Scripts.Core >>> public class ItemHelmetSkin : Item // TypeDefIndex: 1720
+66348: // Namespace: Assets.Game.Scripts.Core >>> public class ItemKey : Item // TypeDefIndex: 1721
+66360: // Namespace: Assets.Game.Scripts.Core >>> public class ItemModule : Item // TypeDefIndex: 1722
+66372: // Namespace: Assets.Game.Scripts.Core >>> public class ItemModuleCounter : ItemModule // TypeDefIndex: 1723
+66390: // Namespace: Assets.Game.Scripts.Core >>> public class ItemModuleStickers : ItemModule // TypeDefIndex: 1724
+66408: // Namespace: Assets.Game.Scripts.Core >>> public class ItemSprayPaint : ItemEquip // TypeDefIndex: 1725
+66423: // Namespace: Assets.Game.Scripts.Core >>> public class ItemSticker : Item // TypeDefIndex: 1726
+66442: // Namespace: Assets.Game.Scripts.Core >>> public class ItemWeaponSkin : Item // TypeDefIndex: 1727
+66460: // Namespace: Assets.Game.Scripts.Core >>> public class MarketBuyRequest : CoreData // TypeDefIndex: 1728
+66477: // Namespace: Assets.Game.Scripts.Core >>> public class MarketSellRequest : CoreData // TypeDefIndex: 1729
+66538: // Namespace: Assets.Game.Scripts.Core >>> public class Profile : CoreData // TypeDefIndex: 1731
+66608: // Namespace: Assets.Game.Scripts.Core >>> public class Social : CoreData // TypeDefIndex: 1732
+66625: // Namespace: Assets.Game.Scripts.Core >>> public class Wallet : CoreData // TypeDefIndex: 1733
+66679: // Namespace: Assets.Game.Scripts.Global.Mono.Utils >>> public class LookAtCamera : MonoBehaviour // TypeDefIndex: 1734
+66692: // Namespace: Assets.Game.Scripts.Global.Mono.Windows.Client >>> public class WindowBase : MonoBehaviour // TypeDefIndex: 1735
+66877: // Namespace: Assets.Game.Scripts.Global.Mono.Singleton >>> public class SceneManager : SingletonMono<SceneManager> // TypeDefIndex: 1739
+67170: // Namespace: Assets.Game.Scripts.Global.Mono.Singleton >>> public class WindowManager : SingletonMonoSimple<WindowManager> // TypeDefIndex: 1748
+67285: // Namespace: Assets.Game.Scripts.Scenes.Game.Mono.Controllers >>> public class SceneLevelController : MonoBehaviour // TypeDefIndex: 1749
+67369: // Namespace: Assets.Game.Scripts.Scenes.Game.Mono.Characters >>> public abstract class ItemConsumeArmorHeavy : ItemLevelData // TypeDefIndex: 1750
+67388: // Namespace: Assets.Game.Scripts.Scenes.Game.Mono.Characters >>> public abstract class ItemConsumeArmorLight : ItemLevelData // TypeDefIndex: 1751
+67407: // Namespace: Assets.Game.Scripts.Scenes.Game.Mono.Characters >>> public abstract class ItemConsumeData : ItemLevelData // TypeDefIndex: 1752
+67472: // Namespace: Assets.Game.Scripts.Scenes.Game.Mono.Characters >>> public abstract class ItemEquipData : ItemLevelData // TypeDefIndex: 1756
+67510: // Namespace: Assets.Game.Scripts.Scenes.Game.Mono.Characters >>> public class ItemEquipDataArmorHeavy : ItemEquipData // TypeDefIndex: 1757
+67530: // Namespace: Assets.Game.Scripts.Scenes.Game.Mono.Characters >>> public class ItemEquipDataArmorLight : ItemEquipData // TypeDefIndex: 1758
+67550: // Namespace: Assets.Game.Scripts.Scenes.Game.Mono.Characters >>> public class ItemEquipDataCFour : ItemEquipData // TypeDefIndex: 1759
+67601: // Namespace: Assets.Game.Scripts.Scenes.Game.Mono.Characters >>> public class ItemEquipDataDefuseKit : ItemEquipData // TypeDefIndex: 1760
+67611: // Namespace: Assets.Game.Scripts.Scenes.Game.Mono.Characters >>> public class WeaponDataGrenade : WeaponData // TypeDefIndex: 1761
+67643: // Namespace: Assets.Game.Scripts.Scenes.Game.Mono.Characters >>> public class WeaponDataGrenadeExplosion : WeaponDataGrenade // TypeDefIndex: 1762
+67669: // Namespace: Assets.Game.Scripts.Scenes.Game.Mono.Characters >>> public class WeaponDataGrenadeFlash : WeaponDataGrenade // TypeDefIndex: 1763
+67725: // Namespace: Assets.Game.Scripts.Scenes.Game.Mono.Characters >>> public class WeaponDataGrenadeMolotov : WeaponDataGrenade // TypeDefIndex: 1764
+67745: // Namespace: Assets.Game.Scripts.Scenes.Game.Mono.Characters >>> public class WeaponDataGrenadeSmoke : WeaponDataGrenade // TypeDefIndex: 1765
+67771: // Namespace: Assets.Game.Scripts.Scenes.Game.Mono.Characters >>> public class WeaponDataMelee : WeaponData // TypeDefIndex: 1766
+67785: // Namespace: Assets.Game.Scripts.Scenes.Game.Mono.Characters >>> public class WeaponDataRange : WeaponData // TypeDefIndex: 1767
+67818: // Namespace: Assets.Game.Scripts.Scenes.Game.Mono.Characters >>> public class CharacterAnimation : MonoBehaviour // TypeDefIndex: 1768
+67909: // Namespace: Assets.Game.Scripts.Scenes.Game.Mono.Characters >>> public class CharacterAnimationController : MonoBehaviour // TypeDefIndex: 1769
+68043: // Namespace: Assets.Game.Scripts.Scenes.Game.Mono.Characters >>> public class CharacterAnimationControllerClient : CharacterAnimationController // TypeDefIndex: 1771
+68101: // Namespace: Assets.Game.Scripts.Scenes.Game.Mono.Characters >>> public class CharacterAnimationControllerLocal : CharacterAnimationControllerClient // TypeDefIndex: 1772
+68122: // Namespace: Assets.Game.Scripts.Scenes.Game.Mono.Characters >>> public class CharacterAnimationControllerServer : CharacterAnimationController // TypeDefIndex: 1773
+68131: // Namespace: Assets.Game.Scripts.Scenes.Game.Mono.Characters >>> public class CharacterAnimationControllerServerLocal : CharacterAnimationController // TypeDefIndex: 1774
+68143: // Namespace: Assets.Game.Scripts.Scenes.Game.Mono.Characters >>> public class Button : MonoBehaviour // TypeDefIndex: 1775
+68181: // Namespace: Assets.Game.Scripts.Scenes.Game.Mono.Characters >>> public class ClickHandler : MonoBehaviour // TypeDefIndex: 1776
+68341: // Namespace: Assets.Game.Scripts.Scenes.Game.Mono.Characters >>> public class Joystick : MonoBehaviour // TypeDefIndex: 1777
+68420: // Namespace: Assets.Game.Scripts.Scenes.Game.Mono.Characters >>> public class RotatorTarget : MonoBehaviour // TypeDefIndex: 1778
+68470: // Namespace: Assets.Game.Scripts.Scenes.Game.Mono.Characters >>> public class Swipe : MonoBehaviour // TypeDefIndex: 1779
+68501: // Namespace: Assets.Game.Scripts.Scenes.Game.Mono.Characters >>> public class SwipeContinue : MonoBehaviour // TypeDefIndex: 1780
+68536: // Namespace: Assets.Game.Common.Utils.Events >>> public class EventManager : SingletonMono<EventManager> // TypeDefIndex: 1781
+68590: // Namespace: Assets.Game.Common.Utils.Events >>> public class EventManagerLocal<TO> // TypeDefIndex: 1782
+68708: // Namespace: Assets.Game.Common.Utils.Events >>> public class EventSubscriber // TypeDefIndex: 1785
+68801: // Namespace: Assets.Game.Common.Utils.Events >>> public class EventSubscriberLocal<TO> // TypeDefIndex: 1788
+68937: // Namespace: Assets.Game.Common.Utils.Events >>> public class EventSubscriberMonoLocal<TO> // TypeDefIndex: 1791
+69023: // Namespace: Assets.Game.Common.Scripts.Network.Request >>> public class Package // TypeDefIndex: 1792
+69035: // Namespace: Assets.Game.Common.Scripts.Network.Request >>> public class Request // TypeDefIndex: 1793
+69044: // Namespace: Assets.Game.Common.Scripts.Network.Request >>> public class Response // TypeDefIndex: 1794
+69053: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessage // TypeDefIndex: 1795
+69068: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBase : NetworkMessage // TypeDefIndex: 1796
+69108: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public abstract class NetworkMessageHandler<T> : IRequestHandler // TypeDefIndex: 1798
+69183: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessagePing : NetworkMessage // TypeDefIndex: 1799
+69192: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageRequest : NetworkMessage // TypeDefIndex: 1800
+69201: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageResponse : NetworkMessageBase // TypeDefIndex: 1801
+69213: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageGameServerEnterMatchRequest : NetworkMessage // TypeDefIndex: 1802
+69229: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageGameServerEnterMatchResponse : NetworkMessageResponse // TypeDefIndex: 1803
+69241: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageGameServerGetGameServerStatisticRequest : NetworkMessage // TypeDefIndex: 1804
+69253: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageGameServerGetGameServerStatisticResponse : NetworkMessageResponse // TypeDefIndex: 1805
+69265: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageGameServerGetInfoRequest : NetworkMessage // TypeDefIndex: 1806
+69274: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageGameServerGetInfoResponse : NetworkMessage // TypeDefIndex: 1807
+69286: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageGameServerIsReadyRequest : NetworkMessage // TypeDefIndex: 1808
+69295: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageGameServerIsReadyResponse : NetworkMessage // TypeDefIndex: 1809
+69307: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageGameServerQuestProgressSaved : NetworkMessage // TypeDefIndex: 1810
+69320: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageGameServerRequestGetPlayerMatchRequest : NetworkMessage // TypeDefIndex: 1811
+69332: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageGameServerRequestGetPlayerMatchResponse : NetworkMessageResponse // TypeDefIndex: 1812
+69344: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageGameServerSaveItem : NetworkMessage // TypeDefIndex: 1813
+69357: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageGameServerSaveQuestProgress : NetworkMessage // TypeDefIndex: 1814
+69373: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageGameServerStartMatchRequest : NetworkMessage // TypeDefIndex: 1815
+69385: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageGameServerStartMatchResponse : NetworkMessageResponse // TypeDefIndex: 1816
+69397: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageGameServerTryReservateRequest : NetworkMessage // TypeDefIndex: 1817
+69409: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageGameServerTryReservateResponse : NetworkMessageResponse // TypeDefIndex: 1818
+69421: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageLoginServerKickPlayerRequest : NetworkMessage // TypeDefIndex: 1819
+69438: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageLoginServerSoftShutdownRequest : NetworkMessage // TypeDefIndex: 1820
+69450: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageRequestGameServerEndMatch : NetworkMessage // TypeDefIndex: 1821
+69471: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageRequestGameServerItemsUpdate : NetworkMessage // TypeDefIndex: 1822
+69484: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageRequestGameServerPlayerLeaveMatch : NetworkMessage // TypeDefIndex: 1823
+69496: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageRequestGameServerStopMatch : NetworkMessage // TypeDefIndex: 1824
+69510: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageClientEnterRequest : NetworkMessage // TypeDefIndex: 1825
+69523: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageClientEnterResponse : NetworkMessage // TypeDefIndex: 1826
+69532: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageLoginServerContinueMatchRequest : NetworkMessage // TypeDefIndex: 1827
+69541: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageLoginServerGetPlayerMatchResponse : NetworkMessage // TypeDefIndex: 1828
+69553: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageLoginServerPlayerEnterMatchRequest : NetworkMessage // TypeDefIndex: 1829
+69565: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageLoginServerPlayerEnterMatchResponse : NetworkMessage // TypeDefIndex: 1830
+69577: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageLoginServerToGameServerInfoResponse : NetworkMessage // TypeDefIndex: 1831
+69589: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageProfileSocialUpdate : NetworkMessage // TypeDefIndex: 1832
+69601: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageRequestFriendEndMessage : NetworkMessageBase // TypeDefIndex: 1833
+69613: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageRequestFriendMessageSeen : NetworkMessage // TypeDefIndex: 1834
+69625: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageResponseGetItem : NetworkMessage // TypeDefIndex: 1835
+69637: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageResponseGroupStarted : NetworkMessage // TypeDefIndex: 1836
+69651: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageResponseGroupUpdate : NetworkMessage // TypeDefIndex: 1837
+69663: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageResponseNotification : NetworkMessage // TypeDefIndex: 1838
+69676: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageResponsePendingUpdate : NetworkMessage // TypeDefIndex: 1839
+69688: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageResponsePurchaseCompleted : NetworkMessage // TypeDefIndex: 1840
+69697: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageResponseSearchMatch : NetworkMessage // TypeDefIndex: 1841
+69709: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageResponseSearchMatchUpdateResponse : NetworkMessage // TypeDefIndex: 1842
+69721: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageResponseStartMatch : NetworkMessage // TypeDefIndex: 1843
+69736: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageResponseTradeInvite : NetworkMessage // TypeDefIndex: 1844
+69748: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageResponseTradeUpdate : NetworkMessage // TypeDefIndex: 1845
+69760: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseRequestActivePromoClaim : NetworkMessageBase // TypeDefIndex: 1846
+69769: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseRequestActivePromoGetState : NetworkMessageBase // TypeDefIndex: 1847
+69778: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseResponseActivePromoGetState : NetworkMessage // TypeDefIndex: 1848
+69790: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseRequestQuestProgress : NetworkMessageBase // TypeDefIndex: 1849
+69805: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseRequestBattlePassGetInfo : NetworkMessageBase // TypeDefIndex: 1850
+69818: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseResponseBattlePassGetInfo : NetworkMessage // TypeDefIndex: 1851
+69832: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseRequestBattlePassTake : NetworkMessageBase // TypeDefIndex: 1852
+69846: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseResponseBattlePassTake : NetworkMessage // TypeDefIndex: 1853
+69859: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseRequestBuyShopPack : NetworkMessageBase // TypeDefIndex: 1854
+69875: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseResponseBuyShopPack : NetworkMessage // TypeDefIndex: 1855
+69887: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseRequestChangeGameServer : NetworkMessageBase // TypeDefIndex: 1856
+69899: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseResponseChangeGameServer : NetworkMessage // TypeDefIndex: 1857
+69913: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseRequestCreateContract : NetworkMessageBase // TypeDefIndex: 1858
+69925: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseResponseCreateContract : NetworkMessage // TypeDefIndex: 1859
+69937: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseRequestDailyRewardGet : NetworkMessageBase // TypeDefIndex: 1860
+69946: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseResponseDailyRewardGet : NetworkMessage // TypeDefIndex: 1861
+69958: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseRequestDailyRewardGetState : NetworkMessageBase // TypeDefIndex: 1862
+69967: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseResponseDailyRewardGetState : NetworkMessage // TypeDefIndex: 1863
+69979: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseRequestFriendMessage : NetworkMessageBase // TypeDefIndex: 1864
+69992: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseResponseFriendMessage : NetworkMessage // TypeDefIndex: 1865
+70005: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseRequestFriendMessageSeen : NetworkMessageBase // TypeDefIndex: 1866
+70017: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseRequestFriendRemove : NetworkMessageBase // TypeDefIndex: 1867
+70029: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseResponseFriendRemove : NetworkMessage // TypeDefIndex: 1868
+70041: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseRequestFriendRequest : NetworkMessageBase // TypeDefIndex: 1869
+70053: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseResponseFriendRequest : NetworkMessage // TypeDefIndex: 1870
+70065: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseRequestFriendsOnlineStatus : NetworkMessageBase // TypeDefIndex: 1871
+70074: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseResponseFriendsOnlineStatus : NetworkMessage // TypeDefIndex: 1872
+70086: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageFriendOnlineStatusChanged : NetworkMessage // TypeDefIndex: 1873
+70099: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseRequestGetAvatar : NetworkMessageBase // TypeDefIndex: 1874
+70111: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseResponseGetAvatar : NetworkMessage // TypeDefIndex: 1875
+70124: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseRequestGetGameServers : NetworkMessageBase // TypeDefIndex: 1876
+70133: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseResponseGetGameServers : NetworkMessage // TypeDefIndex: 1877
+70145: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseRequestGetGroups : NetworkMessageBase // TypeDefIndex: 1878
+70154: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseResponseGetGroups : NetworkMessage // TypeDefIndex: 1879
+70166: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseRequestGetMarketItemsInfo : NetworkMessageBase // TypeDefIndex: 1880
+70175: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseResponseGetMarketItemsInfo : NetworkMessage // TypeDefIndex: 1881
+70187: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseRequestGetPlayerStatistic : NetworkMessageBase // TypeDefIndex: 1882
+70196: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseResponseGetPlayerStatistic : NetworkMessage // TypeDefIndex: 1883
+70209: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseRequestGetServerOnline : NetworkMessageBase // TypeDefIndex: 1884
+70221: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseResponseGetServerOnline : NetworkMessageResponse // TypeDefIndex: 1885
+70233: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseRequestSetModules : NetworkMessageBase // TypeDefIndex: 1886
+70246: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseRequestSetSticker : NetworkMessageBase // TypeDefIndex: 1887
+70259: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseRequestLeaveMatch : NetworkMessageBase // TypeDefIndex: 1888
+70268: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseResponseLeaveMatch : NetworkMessage // TypeDefIndex: 1889
+70277: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseRequestMarketCancelRequest : NetworkMessageBase // TypeDefIndex: 1890
+70289: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseResponseMarketCancelRequest : NetworkMessage // TypeDefIndex: 1891
+70298: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseRequestMarketGetItemHistory : NetworkMessageBase // TypeDefIndex: 1892
+70311: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseResponseMarketGetItemHistory : NetworkMessage // TypeDefIndex: 1893
+70323: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseRequestMarketGetItemInfo : NetworkMessageBase // TypeDefIndex: 1894
+70335: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseResponseMarketGetItemInfo : NetworkMessage // TypeDefIndex: 1895
+70350: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseRequestMarketGetItemSellRequests : NetworkMessageBase // TypeDefIndex: 1896
+70363: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseResponseMarketGetItemSellRequests : NetworkMessage // TypeDefIndex: 1897
+70375: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseRequestMarketGetProfileRequests : NetworkMessageBase // TypeDefIndex: 1898
+70387: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseResponseMarketGetProfileRequests : NetworkMessage // TypeDefIndex: 1899
+70400: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseRequestMarketSetItemBuy : NetworkMessageBase // TypeDefIndex: 1900
+70413: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseResponseMarketSetItemBuy : NetworkMessage // TypeDefIndex: 1901
+70425: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseRequestMarketSetItemSell : NetworkMessageBase // TypeDefIndex: 1902
+70438: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseResponseMarketSetItemSell : NetworkMessageBase // TypeDefIndex: 1903
+70450: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseRequestMatchEnd : NetworkMessageBase // TypeDefIndex: 1904
+70459: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseResponseMatchEnd : NetworkMessage // TypeDefIndex: 1905
+70468: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseRequestMatchEnter : NetworkMessageBase // TypeDefIndex: 1906
+70481: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseResponseMatchEnter : NetworkMessage // TypeDefIndex: 1907
+70490: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseRequestMatchPending : NetworkMessageBase // TypeDefIndex: 1908
+70502: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseResponseMatchPending : NetworkMessage // TypeDefIndex: 1909
+70514: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseRequestMatchSearchEnd : NetworkMessageBase // TypeDefIndex: 1910
+70523: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseResponseMatchSearchEnd : NetworkMessage // TypeDefIndex: 1911
+70532: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseRequestOpenChest : NetworkMessageBase // TypeDefIndex: 1912
+70544: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseResponseOpenChest : NetworkMessage // TypeDefIndex: 1913
+70557: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseRequestProfileShort : NetworkMessageBase // TypeDefIndex: 1914
+70569: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseResponseProfileShort : NetworkMessage // TypeDefIndex: 1915
+70581: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseRequestQuestsGet : NetworkMessageBase // TypeDefIndex: 1916
+70593: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseResponseQuestsGet : NetworkMessageResponse // TypeDefIndex: 1917
+70610: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseRequestQuestsSet : NetworkMessageBase // TypeDefIndex: 1918
+70623: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseResponseQuestsSet : NetworkMessage // TypeDefIndex: 1919
+70635: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseRequestRegistration : NetworkMessageBase // TypeDefIndex: 1920
+70649: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseResponseRegistration : NetworkMessage // TypeDefIndex: 1921
+70662: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseResponseGetProfile : NetworkMessage // TypeDefIndex: 1922
+70674: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseRequestSearchMatch : NetworkMessageBase // TypeDefIndex: 1923
+70688: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseResponseSearchMatch : NetworkMessage // TypeDefIndex: 1924
+70700: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseRequestServerInfo : NetworkMessageBase // TypeDefIndex: 1925
+70713: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseResponseServerInfo : NetworkMessage // TypeDefIndex: 1926
+70730: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseRequestSetGroupSettings : NetworkMessageBase // TypeDefIndex: 1927
+70743: // Namespace: Assets.Game.Common.Scripts.Network.Events >>> public class NetworkMessageBaseResponseSetGroupSettings : NetworkMessage // TypeDefIndex: 1928
+70755: // Namespace: Assets.Game.Common.Scripts.Utils.Events >>> public sealed class EventHandler : MulticastDelegate // TypeDefIndex: 1929
+70773: // Namespace: Assets.Game.Common.Scripts.Utils.Events >>> public sealed class EventHandler<T> : MulticastDelegate // TypeDefIndex: 1930
+70823: // Namespace: Assets.Game.Common.Scripts.Utils.Events >>> public sealed class EventHandler<T, T2> : MulticastDelegate // TypeDefIndex: 1931
+70861: // Namespace: Assets.Game.Common.Scripts.Utils.Events >>> public sealed class EventHandler<T, T2, T3> : MulticastDelegate // TypeDefIndex: 1932
+70899: // Namespace: Assets.Game.Common.Scripts.Utils.Events >>> public sealed class EventHandler<T, T2, T3, T4> : MulticastDelegate // TypeDefIndex: 1933
+70937: // Namespace: Assets.Game.Common.Scripts.Utils.Events >>> public sealed class EventHandler<T, T2, T3, T4, T5> : MulticastDelegate // TypeDefIndex: 1934
+71045: // Namespace: Assets.Game.Common.Scripts.Scenes.Level >>> public class SceneLevelMaster : MonoBehaviour // TypeDefIndex: 1937
+71216: // Namespace: Assets.Game.Common.Scripts.Events >>> public class LevelActionKillEvent : LevelEvent // TypeDefIndex: 1938
+71237: // Namespace: Assets.Game.Common.Scripts.Events >>> public class LevelAwakeEvent : LevelEvent // TypeDefIndex: 1939
+71246: // Namespace: Assets.Game.Common.Scripts.Events >>> public class LevelRoundEndEvent : LevelEvent // TypeDefIndex: 1940
+71258: // Namespace: Assets.Game.Common.Scripts.Events >>> public class LevelCharacterCreateEvent : LevelEvent // TypeDefIndex: 1941
+71270: // Namespace: Assets.Game.Common.Scripts.Events >>> public class LevelCharacterDeathEvent : LevelEvent // TypeDefIndex: 1942
+71283: // Namespace: Assets.Game.Common.Scripts.Events >>> public class LevelCharacterDestroyEvent : LevelEvent // TypeDefIndex: 1943
+71295: // Namespace: Assets.Game.Common.Scripts.Events >>> public class LevelCharacterSpawnEvent : LevelEvent // TypeDefIndex: 1944
+71307: // Namespace: Assets.Game.Common.Scripts.Events >>> public class LevelChatMessageEvent : LevelEvent // TypeDefIndex: 1945
+71319: // Namespace: Assets.Game.Common.Scripts.Events >>> public class LevelEvent // TypeDefIndex: 1946
+71331: // Namespace: Assets.Game.Common.Scripts.Events >>> public class LevelGrenadeThrow : LevelEvent // TypeDefIndex: 1947
+71343: // Namespace: Assets.Game.Common.Scripts.Events >>> public class LevelItemChangeOwnerEvent : LevelEvent // TypeDefIndex: 1948
+71355: // Namespace: Assets.Game.Common.Scripts.Events >>> public class LevelItemDestroyEvent : LevelEvent // TypeDefIndex: 1949
+71367: // Namespace: Assets.Game.Common.Scripts.Events >>> public class LevelItemDropEvent : LevelEvent // TypeDefIndex: 1950
+71379: // Namespace: Assets.Game.Common.Scripts.Events >>> public class LevelItemSpawnEvent : LevelEvent // TypeDefIndex: 1951
+71391: // Namespace: Assets.Game.Common.Scripts.Events >>> public class LevelItemTakeEvent : LevelEvent // TypeDefIndex: 1952
+71404: // Namespace: Assets.Game.Common.Scripts.Events >>> public class LevelMatchEndEvent : LevelEvent // TypeDefIndex: 1953
+71416: // Namespace: Assets.Game.Common.Scripts.Events >>> public class LevelMatchStartEvent : LevelEvent // TypeDefIndex: 1954
+71425: // Namespace: Assets.Game.Common.Scripts.Events >>> public class LevelMatchUpdateEvent : LevelEvent // TypeDefIndex: 1955
+71434: // Namespace: Assets.Game.Common.Scripts.Events >>> public class LevelNotificationEvent : LevelEvent // TypeDefIndex: 1956
+71446: // Namespace: Assets.Game.Common.Scripts.Events >>> public class LevelPlanedBombEvent : LevelEvent // TypeDefIndex: 1957
+71455: // Namespace: Assets.Game.Common.Scripts.Events >>> public class LevelPlayerDestroyEvent : LevelEvent // TypeDefIndex: 1958
+71467: // Namespace: Assets.Game.Common.Scripts.Events >>> public class LevelPlayerDisconnectedEvent : LevelEvent // TypeDefIndex: 1959
+71479: // Namespace: Assets.Game.Common.Scripts.Events >>> public class LevelPlayerSetTeamEvent : LevelEvent // TypeDefIndex: 1960
+71492: // Namespace: Assets.Game.Common.Scripts.Events >>> public class LevelPlayerSpawnEvent : LevelEvent // TypeDefIndex: 1961
+71504: // Namespace: Assets.Game.Common.Scripts.Events >>> public class LevelPrepareEvent : LevelEvent // TypeDefIndex: 1962
+71513: // Namespace: Assets.Game.Common.Scripts.Events >>> public class LevelQuestDamageEvent : LevelEvent // TypeDefIndex: 1963
+71530: // Namespace: Assets.Game.Common.Scripts.Events >>> public class LevelChangeStatusEvent : LevelEvent // TypeDefIndex: 1964
+71542: // Namespace: Assets.Game.Common.Scripts.Events >>> public class LevelRoundStartEvent : LevelEvent // TypeDefIndex: 1965
+71554: // Namespace: Assets.Game.Common.Scripts.Events >>> public class LevelStartEvent : LevelEvent // TypeDefIndex: 1966
+71563: // Namespace: Assets.Game.Common.Scripts.Events >>> public class LevelStartRoundFreezeEvent : LevelEvent // TypeDefIndex: 1967
+71572: // Namespace: Assets.Game.Common.Scripts.Events >>> public class LevelSwitchSidesEvent : LevelEvent // TypeDefIndex: 1968
+71581: // Namespace: Assets.Game.Common.Scripts.Events >>> public class LevelUnPlanedBombEvent : LevelEvent // TypeDefIndex: 1969
+71590: // Namespace: Assets.Game.Common.Scripts.Events >>> public class LevelUpdateEvent : LevelEvent // TypeDefIndex: 1970
+71599: // Namespace: Assets.Game.Common.Scripts.Events >>> public class OnLevelChatMessageSent : LevelEvent // TypeDefIndex: 1971
+71611: // Namespace: Assets.Game.Common.Scripts.Events >>> public struct SecondTickEvent // TypeDefIndex: 1972
+71615: // Namespace: Assets.Game.Common.Scripts.Events >>> public class LobbyEndFindMatchEvent : GameEvent // TypeDefIndex: 1973
+71627: // Namespace: Assets.Game.Common.Scripts.Events >>> public class LobbyStartFindMatchEvent : GameEvent // TypeDefIndex: 1974
+71637: // Namespace: Assets.Game.Common.Containers >>> public class CurrencyContainer // TypeDefIndex: 1975
+71651: // Namespace: Assets.Game.Common.Containers >>> public class StringFloatContainer // TypeDefIndex: 1976
+71732: // Namespace: Mirror >>> public static class GeneratedNetworkCode // TypeDefIndex: 1988
+642924: // Namespace: CodeStage.AntiCheat.Utils >>> internal class AppEventsDispatcher : MonoBehaviour // TypeDefIndex: 10373
+642971: // Namespace: CodeStage.AntiCheat.Utils >>> internal static class Base64Utils // TypeDefIndex: 10374
+642989: // Namespace: CodeStage.AntiCheat.Utils >>> internal static class CryptoUtils // TypeDefIndex: 10375
+643031: // Namespace: CodeStage.AntiCheat.Utils >>> internal class NonValidatingCertificateHandler : CertificateHandler // TypeDefIndex: 10376
+643043: // Namespace: CodeStage.AntiCheat.Utils >>> internal static class NumUtils // TypeDefIndex: 10377
+643053: // Namespace: CodeStage.AntiCheat.Utils >>> internal static class ProgressExtensionMethods // TypeDefIndex: 10378
+643063: // Namespace: CodeStage.AntiCheat.Utils >>> internal static class RandomUtils // TypeDefIndex: 10379
+643102: // Namespace: CodeStage.AntiCheat.Utils >>> public static class StringUtils // TypeDefIndex: 10380
+643132: // Namespace: CodeStage.AntiCheat.Utils >>> public class ThreadSafeDisposablesPool<T> // TypeDefIndex: 10381
+643186: // Namespace: CodeStage.AntiCheat.Utils >>> public static class ThreadSafeRandom // TypeDefIndex: 10382
+643218: // Namespace: CodeStage.AntiCheat.Utils >>> internal static class TimeUtils // TypeDefIndex: 10383
+643239: // Namespace: CodeStage.AntiCheat.Utils >>> public static class xxHash // TypeDefIndex: 10384
+643260: // Namespace: CodeStage.AntiCheat.Time >>> public class SpeedHackProofTime : KeepAliveBehaviour<SpeedHackProofTime> // TypeDefIndex: 10385
+643333: // Namespace: CodeStage.AntiCheat.Storage >>> public enum StorageDataType // TypeDefIndex: 10386
+643373: // Namespace: CodeStage.AntiCheat.Storage >>> internal struct ObscuredPrefsData // TypeDefIndex: 10387
+643386: // Namespace: CodeStage.AntiCheat.Storage >>> internal static class StorageDataConverter // TypeDefIndex: 10388
+643984: // Namespace: CodeStage.AntiCheat.Storage >>> internal static class StorageDataTypeClassifier // TypeDefIndex: 10389
+644106: // Namespace: CodeStage.AntiCheat.Storage >>> internal class UnsupportedDataTypeException : Exception // TypeDefIndex: 10390
+644133: // Namespace: CodeStage.AntiCheat.Storage >>> public class DeviceIdHolder // TypeDefIndex: 10392
+644190: // Namespace: CodeStage.AntiCheat.Storage >>> public enum DeviceLockLevel // TypeDefIndex: 10393
+644200: // Namespace: CodeStage.AntiCheat.Storage >>> public class DeviceLockSettings // TypeDefIndex: 10394
+644235: // Namespace: CodeStage.AntiCheat.Storage >>> public enum DeviceLockTamperingSensitivity // TypeDefIndex: 10395
+644245: // Namespace: CodeStage.AntiCheat.Storage >>> internal class DeviceUniqueIdentifierException : BackgroundThreadAccessException // TypeDefIndex: 10396
+644254: // Namespace: CodeStage.AntiCheat.Storage >>> internal class PersistentDataPathException : BackgroundThreadAccessException // TypeDefIndex: 10397
+644263: // Namespace: CodeStage.AntiCheat.Storage >>> internal class VendorIdentifierException : BackgroundThreadAccessException // TypeDefIndex: 10398
+644272: // Namespace: CodeStage.AntiCheat.Storage >>> public class ObscuredFile // TypeDefIndex: 10399
+644369: // Namespace: CodeStage.AntiCheat.Storage >>> internal static class ObscuredFileCrypto // TypeDefIndex: 10400
+644410: // Namespace: CodeStage.AntiCheat.Storage >>> internal struct ObscuredFileHeader // TypeDefIndex: 10401
+644506: // Namespace: CodeStage.AntiCheat.Storage >>> public enum ObscuredFileErrorCode // TypeDefIndex: 10402
+644520: // Namespace: CodeStage.AntiCheat.Storage >>> public struct ObscuredFileError // TypeDefIndex: 10403
+644554: // Namespace: CodeStage.AntiCheat.Storage >>> public struct ObscuredFileReadResult // TypeDefIndex: 10404
+644623: // Namespace: CodeStage.AntiCheat.Storage >>> public struct ObscuredFileWriteResult // TypeDefIndex: 10405
+644666: // Namespace: CodeStage.AntiCheat.Storage >>> public static class ObscuredFilePrefs // TypeDefIndex: 10406
+645257: // Namespace: CodeStage.AntiCheat.Storage >>> internal static class ObscuredFilePrefsAutoSaver // TypeDefIndex: 10407
+645285: // Namespace: CodeStage.AntiCheat.Storage >>> internal static class PrefsSerialization // TypeDefIndex: 10408
+645442: // Namespace: CodeStage.AntiCheat.Storage >>> internal enum ACTkSerializationKind // TypeDefIndex: 10409
+645450: // Namespace: CodeStage.AntiCheat.Storage >>> internal class SerializationSettings // TypeDefIndex: 10410
+645470: // Namespace: CodeStage.AntiCheat.Storage >>> internal class BinarySerializer : IObscuredFilePrefsSerializer // TypeDefIndex: 10411
+645640: // Namespace: CodeStage.AntiCheat.Storage >>> internal interface IObscuredFilePrefsSerializer // TypeDefIndex: 10412
+645668: // Namespace: CodeStage.AntiCheat.Storage >>> internal class JsonSerializer : IObscuredFilePrefsSerializer // TypeDefIndex: 10413
+645831: // Namespace: CodeStage.AntiCheat.Storage >>> public enum ObscurationMode // TypeDefIndex: 10414
+645840: // Namespace: CodeStage.AntiCheat.Storage >>> public class EncryptionSettings // TypeDefIndex: 10415
+645870: // Namespace: CodeStage.AntiCheat.Storage >>> public interface IObscuredFileSettings // TypeDefIndex: 10416
+645898: // Namespace: CodeStage.AntiCheat.Storage >>> public enum ObscuredFileLocation // TypeDefIndex: 10417
+645907: // Namespace: CodeStage.AntiCheat.Storage >>> public class ObscuredFileSettings : IObscuredFileSettings // TypeDefIndex: 10418
+645984: // Namespace: CodeStage.AntiCheat.Storage >>> public static class ObscuredPrefs // TypeDefIndex: 10419
+646841: // Namespace: CodeStage.AntiCheat.ObscuredTypes >>> public interface IObscuredType // TypeDefIndex: 10420
+646851: // Namespace: CodeStage.AntiCheat.ObscuredTypes >>> public struct ObscuredBigInteger : IFormattable, IEquatable<ObscuredBigInteger>, IEquatable<BigInteger>, IComparable<ObscuredBigInteger>, IComparable<BigInteger>, IComparable, IObscuredType // TypeDefIndex: 10421
+647165: // Namespace: CodeStage.AntiCheat.ObscuredTypes >>> internal struct SerializableBigInteger : IEquatable<SerializableBigInteger> // TypeDefIndex: 10423
+647199: // Namespace: CodeStage.AntiCheat.ObscuredTypes >>> public struct ObscuredBool : IEquatable<ObscuredBool>, IEquatable<bool>, IComparable<ObscuredBool>, IComparable<bool>, IComparable, IObscuredType // TypeDefIndex: 10424
+647312: // Namespace: CodeStage.AntiCheat.ObscuredTypes >>> public struct ObscuredByte : IFormattable, IEquatable<ObscuredByte>, IEquatable<byte>, IComparable<ObscuredByte>, IComparable<byte>, IComparable, IObscuredType // TypeDefIndex: 10425
+647451: // Namespace: CodeStage.AntiCheat.ObscuredTypes >>> public struct ObscuredChar : IEquatable<ObscuredChar>, IEquatable<char>, IComparable<ObscuredChar>, IComparable<char>, IComparable, IObscuredType // TypeDefIndex: 10426
+647570: // Namespace: CodeStage.AntiCheat.ObscuredTypes >>> public struct ObscuredDateTime : IFormattable, IEquatable<ObscuredDateTime>, IEquatable<DateTime>, IComparable<ObscuredDateTime>, IComparable<DateTime>, IComparable, IConvertible, IObscuredType // TypeDefIndex: 10427
+647807: // Namespace: CodeStage.AntiCheat.ObscuredTypes >>> public struct ObscuredDecimal : IFormattable, IEquatable<ObscuredDecimal>, IEquatable<Decimal>, IComparable<ObscuredDecimal>, IComparable<Decimal>, IComparable, IObscuredType // TypeDefIndex: 10429
+647974: // Namespace: CodeStage.AntiCheat.ObscuredTypes >>> public struct ObscuredDouble : IFormattable, IEquatable<ObscuredDouble>, IEquatable<double>, IComparable<ObscuredDouble>, IComparable<double>, IComparable, IObscuredType // TypeDefIndex: 10431
+648148: // Namespace: CodeStage.AntiCheat.ObscuredTypes >>> public struct ObscuredFloat : IFormattable, IEquatable<ObscuredFloat>, IEquatable<float>, IComparable<ObscuredFloat>, IComparable<float>, IComparable, IObscuredType // TypeDefIndex: 10433
+648287: // Namespace: CodeStage.AntiCheat.ObscuredTypes >>> public struct ObscuredInt : IFormattable, IEquatable<ObscuredInt>, IEquatable<int>, IComparable<ObscuredInt>, IComparable<int>, IComparable, IObscuredType // TypeDefIndex: 10434
+648428: // Namespace: CodeStage.AntiCheat.ObscuredTypes >>> public struct ObscuredLong : IFormattable, IEquatable<ObscuredLong>, IEquatable<long>, IComparable<ObscuredLong>, IComparable<long>, IComparable, IObscuredType // TypeDefIndex: 10435
+648580: // Namespace: CodeStage.AntiCheat.ObscuredTypes >>> public struct ObscuredQuaternion : IEquatable<ObscuredQuaternion>, IEquatable<Quaternion>, IObscuredType // TypeDefIndex: 10437
+648704: // Namespace: CodeStage.AntiCheat.ObscuredTypes >>> public struct ObscuredSByte : IFormattable, IEquatable<ObscuredSByte>, IEquatable<sbyte>, IComparable<ObscuredSByte>, IComparable<sbyte>, IComparable, IObscuredType // TypeDefIndex: 10438
+648829: // Namespace: CodeStage.AntiCheat.ObscuredTypes >>> public struct ObscuredShort : IFormattable, IEquatable<ObscuredShort>, IEquatable<short>, IComparable<ObscuredShort>, IComparable<short>, IComparable, IObscuredType // TypeDefIndex: 10439
+648960: // Namespace: CodeStage.AntiCheat.ObscuredTypes >>> public sealed class ObscuredString : IEquatable<ObscuredString>, IEquatable<string>, IComparable<ObscuredString>, IComparable<string>, IComparable, IObscuredType // TypeDefIndex: 10440
+649157: // Namespace: CodeStage.AntiCheat.ObscuredTypes >>> public struct ObscuredUInt : IFormattable, IEquatable<ObscuredUInt>, IEquatable<uint>, IComparable<ObscuredUInt>, IComparable<uint>, IComparable, IObscuredType // TypeDefIndex: 10441
+649290: // Namespace: CodeStage.AntiCheat.ObscuredTypes >>> public struct ObscuredULong : IFormattable, IEquatable<ObscuredULong>, IEquatable<ulong>, IComparable<ObscuredULong>, IComparable<ulong>, IComparable, IObscuredType // TypeDefIndex: 10442
+649420: // Namespace: CodeStage.AntiCheat.ObscuredTypes >>> public struct ObscuredUShort : IFormattable, IEquatable<ObscuredUShort>, IEquatable<ushort>, IComparable<ObscuredUShort>, IComparable<ushort>, IComparable, IObscuredType // TypeDefIndex: 10443
+649566: // Namespace: CodeStage.AntiCheat.ObscuredTypes >>> public struct ObscuredVector2 : IEquatable<ObscuredVector2>, IEquatable<Vector2>, IObscuredType // TypeDefIndex: 10445
+649739: // Namespace: CodeStage.AntiCheat.ObscuredTypes >>> public struct ObscuredVector2Int : IEquatable<ObscuredVector2Int>, IEquatable<Vector2Int>, IObscuredType // TypeDefIndex: 10447
+649897: // Namespace: CodeStage.AntiCheat.ObscuredTypes >>> public struct ObscuredVector3 : IEquatable<ObscuredVector3>, IEquatable<Vector3>, IObscuredType // TypeDefIndex: 10449
+650122: // Namespace: CodeStage.AntiCheat.ObscuredTypes >>> public struct ObscuredVector3Int : IEquatable<ObscuredVector3Int>, IEquatable<Vector3Int>, IObscuredType // TypeDefIndex: 10451
+650322: // Namespace: CodeStage.AntiCheat.ObscuredTypes.Converters >>> public class ObscuredTypesNewtonsoftConverter : JsonConverter // TypeDefIndex: 10453
+650364: // Namespace: CodeStage.AntiCheat.Genuine.CodeHash >>> public class BuildHashes // TypeDefIndex: 10455
+650483: // Namespace: CodeStage.AntiCheat.Genuine.CodeHash >>> public class CodeHashGenerator : KeepAliveBehaviour<CodeHashGenerator>, ICodeHashGenerator // TypeDefIndex: 10458
+650557: // Namespace: CodeStage.AntiCheat.Genuine.CodeHash >>> public class FileHash // TypeDefIndex: 10459
+650611: // Namespace: CodeStage.AntiCheat.Genuine.CodeHash >>> internal struct FilesProgress // TypeDefIndex: 10461
+650630: // Namespace: CodeStage.AntiCheat.Genuine.CodeHash >>> internal class FileFilter // TypeDefIndex: 10462
+650657: // Namespace: CodeStage.AntiCheat.Genuine.CodeHash >>> internal enum FilterGroup // TypeDefIndex: 10463
+650667: // Namespace: CodeStage.AntiCheat.Genuine.CodeHash >>> internal class FilteringData // TypeDefIndex: 10464
+650717: // Namespace: CodeStage.AntiCheat.Genuine.CodeHash >>> internal class FilteringSettings : ScriptableObject // TypeDefIndex: 10465
+650742: // Namespace: CodeStage.AntiCheat.Genuine.CodeHash >>> internal static class FiltersProducer // TypeDefIndex: 10466
+650775: // Namespace: CodeStage.AntiCheat.Genuine.CodeHash >>> public class HashGeneratorResult // TypeDefIndex: 10467
+650834: // Namespace: CodeStage.AntiCheat.Genuine.CodeHash >>> public sealed class HashGeneratorResultHandler : MulticastDelegate // TypeDefIndex: 10468
+650852: // Namespace: CodeStage.AntiCheat.Genuine.CodeHash >>> public interface ICodeHashGenerator // TypeDefIndex: 10469
+650874: // Namespace: CodeStage.AntiCheat.Genuine.CodeHash >>> public class SHA1Wrapper : IDisposable // TypeDefIndex: 10470
+650895: // Namespace: CodeStage.AntiCheat.Genuine.CodeHash >>> internal abstract class BaseWorker // TypeDefIndex: 10471
+650999: // Namespace: CodeStage.AntiCheat.Genuine.CodeHash >>> internal class StandaloneWindowsWorker : BaseWorker // TypeDefIndex: 10475
+651023: // Namespace: CodeStage.AntiCheat.Genuine.Android >>> public enum AndroidAppSource // TypeDefIndex: 10476
+651037: // Namespace: CodeStage.AntiCheat.Genuine.Android >>> public class AppInstallationSource // TypeDefIndex: 10477
+651067: // Namespace: CodeStage.AntiCheat.Genuine.Android >>> public static class AppInstallationSourceValidator // TypeDefIndex: 10478
+651080: // Namespace: CodeStage.AntiCheat.Detectors >>> public abstract class ACTkDetectorBase<T> : KeepAliveBehaviour<T> // TypeDefIndex: 10479
+651315: // Namespace: CodeStage.AntiCheat.Detectors >>> public class InjectionDetector : ACTkDetectorBase<InjectionDetector> // TypeDefIndex: 10481
+651346: // Namespace: CodeStage.AntiCheat.Detectors >>> public class ObscuredCheatingDetectionInfo // TypeDefIndex: 10482
+651386: // Namespace: CodeStage.AntiCheat.Detectors >>> public class ObscuredCheatingDetector : ACTkDetectorBase<ObscuredCheatingDetector> // TypeDefIndex: 10483
+651457: // Namespace: CodeStage.AntiCheat.Detectors >>> public class SpeedHackDetector : ACTkDetectorBase<SpeedHackDetector> // TypeDefIndex: 10484
+651880: // Namespace: CodeStage.AntiCheat.Detectors >>> public class TimeCheatingDetector : ACTkDetectorBase<TimeCheatingDetector> // TypeDefIndex: 10497
+652225: // Namespace: CodeStage.AntiCheat.Detectors >>> public class WallHackDetector : ACTkDetectorBase<WallHackDetector> // TypeDefIndex: 10500
+652435: // Namespace: CodeStage.AntiCheat.Common >>> public static class ACTk // TypeDefIndex: 10501
+652470: // Namespace: CodeStage.AntiCheat.Common >>> internal struct ACTkByte16 : IEquatable<ACTkByte16> // TypeDefIndex: 10502
+652504: // Namespace: CodeStage.AntiCheat.Common >>> internal struct ACTkByte4 // TypeDefIndex: 10503
+652523: // Namespace: CodeStage.AntiCheat.Common >>> internal struct ACTkByte8 // TypeDefIndex: 10504
+652545: // Namespace: CodeStage.AntiCheat.Common >>> internal class BackgroundThreadAccessException : Exception // TypeDefIndex: 10505
+652565: // Namespace: CodeStage.AntiCheat.Common >>> internal static class ContainerHolder // TypeDefIndex: 10506
+652602: // Namespace: CodeStage.AntiCheat.Common >>> public abstract class KeepAliveBehaviour<T> : MonoBehaviour // TypeDefIndex: 10507
+652711: // Namespace: CodeStage.AntiCheat.Common >>> public static class UnityApiResultsHolder // TypeDefIndex: 10508
+656603: // Namespace: Mirror >>> public class SyncVarAttribute : PropertyAttribute // TypeDefIndex: 10589
+656616: // Namespace: Mirror >>> public class CommandAttribute : Attribute // TypeDefIndex: 10590
+656630: // Namespace: Mirror >>> public class ClientRpcAttribute : Attribute // TypeDefIndex: 10591
+656644: // Namespace: Mirror >>> public class TargetRpcAttribute : Attribute // TypeDefIndex: 10592
+656657: // Namespace: Mirror >>> public class ServerAttribute : Attribute // TypeDefIndex: 10593
+656667: // Namespace: Mirror >>> public class ServerCallbackAttribute : Attribute // TypeDefIndex: 10594
+656677: // Namespace: Mirror >>> public class ClientAttribute : Attribute // TypeDefIndex: 10595
+656687: // Namespace: Mirror >>> public class ClientCallbackAttribute : Attribute // TypeDefIndex: 10596
+656696: // Namespace: Mirror >>> public class SceneAttribute : PropertyAttribute // TypeDefIndex: 10597
+656706: // Namespace: Mirror >>> public class ShowInInspectorAttribute : Attribute // TypeDefIndex: 10598
+656715: // Namespace: Mirror >>> public class Batcher // TypeDefIndex: 10599
+656739: // Namespace: Mirror >>> public class Unbatcher // TypeDefIndex: 10600
+656768: // Namespace: Mirror >>> public static class Compression // TypeDefIndex: 10601
+656812: // Namespace: Mirror >>> public class ExponentialMovingAverage // TypeDefIndex: 10602
+656831: // Namespace: Mirror >>> public static class Extensions // TypeDefIndex: 10603
+656868: // Namespace: Mirror >>> public abstract class InterestManagement : MonoBehaviour // TypeDefIndex: 10604
+656906: // Namespace: Mirror >>> public class LocalConnectionToClient : NetworkConnectionToClient // TypeDefIndex: 10605
+656936: // Namespace: Mirror >>> public class LocalConnectionToServer : NetworkConnectionToServer // TypeDefIndex: 10606
+656978: // Namespace: Mirror >>> public static class Mathd // TypeDefIndex: 10607
+657280: // Namespace: Mirror >>> public static class MessagePacking // TypeDefIndex: 10610
+657567: // Namespace: Mirror >>> public struct ReadyMessage : NetworkMessage // TypeDefIndex: 10611
+657571: // Namespace: Mirror >>> public struct NotReadyMessage : NetworkMessage // TypeDefIndex: 10612
+657575: // Namespace: Mirror >>> public struct AddPlayerMessage : NetworkMessage // TypeDefIndex: 10613
+657579: // Namespace: Mirror >>> public struct SceneMessage : NetworkMessage // TypeDefIndex: 10614
+657588: // Namespace: Mirror >>> public enum SceneOperation // TypeDefIndex: 10615
+657598: // Namespace: Mirror >>> public struct CommandMessage : NetworkMessage // TypeDefIndex: 10616
+657608: // Namespace: Mirror >>> public struct RpcMessage : NetworkMessage // TypeDefIndex: 10617
+657618: // Namespace: Mirror >>> public struct SpawnMessage : NetworkMessage // TypeDefIndex: 10618
+657633: // Namespace: Mirror >>> public struct ChangeOwnerMessage : NetworkMessage // TypeDefIndex: 10619
+657642: // Namespace: Mirror >>> public struct ObjectSpawnStartedMessage : NetworkMessage // TypeDefIndex: 10620
+657646: // Namespace: Mirror >>> public struct ObjectSpawnFinishedMessage : NetworkMessage // TypeDefIndex: 10621
+657650: // Namespace: Mirror >>> public struct ObjectDestroyMessage : NetworkMessage // TypeDefIndex: 10622
+657657: // Namespace: Mirror >>> public struct ObjectHideMessage : NetworkMessage // TypeDefIndex: 10623
+657664: // Namespace: Mirror >>> public struct EntityStateMessage : NetworkMessage // TypeDefIndex: 10624
+657672: // Namespace: Mirror >>> public struct NetworkPingMessage : NetworkMessage // TypeDefIndex: 10625
+657684: // Namespace: Mirror >>> public struct NetworkPongMessage : NetworkMessage // TypeDefIndex: 10626
+657693: // Namespace: Mirror >>> public class UnityEventNetworkConnection : UnityEvent<NetworkConnectionToClient> // TypeDefIndex: 10627
+657703: // Namespace: Mirror >>> public abstract class NetworkAuthenticator : MonoBehaviour // TypeDefIndex: 10628
+657752: // Namespace: Mirror >>> public enum SyncMode // TypeDefIndex: 10629
+657806: // Namespace: Mirror >>> public abstract class NetworkBehaviour : MonoBehaviour // TypeDefIndex: 10632
+658224: // Namespace: Mirror >>> public enum ConnectState // TypeDefIndex: 10633
+658457: // Namespace: Mirror >>> public static class NetworkClient // TypeDefIndex: 10640
+658794: // Namespace: Mirror >>> public abstract class NetworkConnection // TypeDefIndex: 10641
+658942: // Namespace: Mirror >>> public class NetworkConnectionToClient : NetworkConnection // TypeDefIndex: 10642
+658986: // Namespace: Mirror >>> public class NetworkConnectionToServer : NetworkConnection // TypeDefIndex: 10643
+659023: // Namespace: Mirror >>> public static class NetworkDiagnostics // TypeDefIndex: 10645
+659191: // Namespace: Mirror >>> public enum Visibility // TypeDefIndex: 10646
+659201: // Namespace: Mirror >>> public struct NetworkIdentitySerialization // TypeDefIndex: 10647
+659232: // Namespace: Mirror >>> public sealed class NetworkIdentity : MonoBehaviour // TypeDefIndex: 10649
+659528: // Namespace: Mirror >>> public static class NetworkLoop // TypeDefIndex: 10652
+659558: // Namespace: Mirror >>> public enum PlayerSpawnMethod // TypeDefIndex: 10653
+659567: // Namespace: Mirror >>> public enum NetworkManagerMode // TypeDefIndex: 10654
+659614: // Namespace: Mirror >>> public class NetworkManager : MonoBehaviour // TypeDefIndex: 10656
+659935: // Namespace: Mirror >>> public class NetworkManagerHUD : MonoBehaviour // TypeDefIndex: 10657
+659964: // Namespace: Mirror >>> public interface NetworkMessage // TypeDefIndex: 10658
+659968: // Namespace: Mirror >>> public class NetworkReader // TypeDefIndex: 10659
+660255: // Namespace: Mirror >>> public static class Reader<T> // TypeDefIndex: 10660
+660263: // Namespace: Mirror >>> public static class NetworkReaderExtensions // TypeDefIndex: 10661
+660584: // Namespace: Mirror >>> public static class NetworkReaderPool // TypeDefIndex: 10663
+660618: // Namespace: Mirror >>> public sealed class PooledNetworkReader : NetworkReaderPooled // TypeDefIndex: 10664
+660630: // Namespace: Mirror >>> public class NetworkReaderPooled : NetworkReader, IDisposable // TypeDefIndex: 10665
+660680: // Namespace: Mirror >>> public static class NetworkServer // TypeDefIndex: 10668
+661062: // Namespace: Mirror >>> public class NetworkStartPosition : MonoBehaviour // TypeDefIndex: 10669
+661077: // Namespace: Mirror >>> public static class NetworkTime // TypeDefIndex: 10670
+661142: // Namespace: Mirror >>> public class NetworkWriter // TypeDefIndex: 10671
+661420: // Namespace: Mirror >>> public static class Writer<T> // TypeDefIndex: 10672
+661436: // Namespace: Mirror >>> public static class NetworkWriterExtensions // TypeDefIndex: 10674
+661757: // Namespace: Mirror >>> public static class NetworkWriterPool // TypeDefIndex: 10676
+661784: // Namespace: Mirror >>> public sealed class PooledNetworkWriter : NetworkWriterPooled // TypeDefIndex: 10677
+661793: // Namespace: Mirror >>> public class NetworkWriterPooled : NetworkWriter, IDisposable // TypeDefIndex: 10678
+661805: // Namespace: Mirror >>> public class Pool<T> // TypeDefIndex: 10679
+661874: // Namespace: Mirror >>> public interface Snapshot // TypeDefIndex: 10680
+661896: // Namespace: Mirror >>> public static class SnapshotInterpolation // TypeDefIndex: 10681
+662038: // Namespace: Mirror >>> public class SyncIDictionary<TKey, TValue> : SyncObject, IDictionary<TKey, TValue>, ICollection<KeyValuePair<TKey, TValue>>, IEnumerable<KeyValuePair<TKey, TValue>>, IEnumerable, IReadOnlyDictionary<TKey, TValue>, IReadOnlyCollection<KeyValuePair<TKey, TValue>> // TypeDefIndex: 10685
+662306: // Namespace: Mirror >>> public class SyncDictionary<TKey, TValue> : SyncIDictionary<TKey, TValue> // TypeDefIndex: 10686
+662532: // Namespace: Mirror >>> public class SyncList<T> : SyncObject, IList<T>, ICollection<T>, IEnumerable<T>, IEnumerable, IReadOnlyList<T>, IReadOnlyCollection<T> // TypeDefIndex: 10691
+662952: // Namespace: Mirror >>> public abstract class SyncObject // TypeDefIndex: 10693
+663043: // Namespace: Mirror >>> public class SyncSet<T> : SyncObject, ISet<T>, ICollection<T>, IEnumerable<T>, IEnumerable // TypeDefIndex: 10697
+663330: // Namespace: Mirror >>> public class SyncHashSet<T> : SyncSet<T> // TypeDefIndex: 10698
+663360: // Namespace: Mirror >>> public class SyncSortedSet<T> : SyncSet<T> // TypeDefIndex: 10699
+663391: // Namespace: Mirror >>> public class SyncVar<T> : SyncObject, IEquatable<T> // TypeDefIndex: 10700
+663681: // Namespace: Mirror >>> public class SyncVarGameObject : SyncVar<uint> // TypeDefIndex: 10701
+663750: // Namespace: Mirror >>> public class SyncVarNetworkBehaviour<T> : SyncVar<ulong> // TypeDefIndex: 10702
+663989: // Namespace: Mirror >>> public class SyncVarNetworkIdentity : SyncVar<uint> // TypeDefIndex: 10703
+664052: // Namespace: Mirror >>> public abstract class Transport : MonoBehaviour // TypeDefIndex: 10704
+664143: // Namespace: Mirror >>> internal struct QueuedMessage // TypeDefIndex: 10705
+664154: // Namespace: Mirror >>> public class LatencySimulation : Transport // TypeDefIndex: 10706
+664271: // Namespace: Mirror >>> public abstract class MiddlewareTransport : Transport // TypeDefIndex: 10707
+664367: // Namespace: Mirror >>> public class MultiplexTransport : Transport // TypeDefIndex: 10709
+664463: // Namespace: Mirror >>> public class TelepathyTransport : Transport // TypeDefIndex: 10710
+664592: // Namespace: Mirror >>> public sealed class NetworkMessageDelegate : MulticastDelegate // TypeDefIndex: 10711
+664610: // Namespace: Mirror >>> public sealed class SpawnDelegate : MulticastDelegate // TypeDefIndex: 10712
+664628: // Namespace: Mirror >>> public sealed class SpawnHandlerDelegate : MulticastDelegate // TypeDefIndex: 10713
+664646: // Namespace: Mirror >>> public sealed class UnSpawnDelegate : MulticastDelegate // TypeDefIndex: 10714
+664664: // Namespace: Mirror >>> public static class Channels // TypeDefIndex: 10715
+664672: // Namespace: Mirror >>> public static class Utils // TypeDefIndex: 10716
+664696: // Namespace: Mirror.RemoteCalls >>> public enum RemoteCallType // TypeDefIndex: 10717
+664705: // Namespace: Mirror.RemoteCalls >>> public sealed class RemoteCallDelegate : MulticastDelegate // TypeDefIndex: 10718
+664723: // Namespace: Mirror.RemoteCalls >>> internal class Invoker // TypeDefIndex: 10719
+664741: // Namespace: Mirror.RemoteCalls >>> public static class RemoteProcedureCalls // TypeDefIndex: 10720
+664797: // Namespace: Mirror >>> public static class GeneratedNetworkCode // TypeDefIndex: 10724
+687148: // Namespace: Mirror >>> internal struct LogEntry // TypeDefIndex: 11416
+687161: // Namespace: Mirror >>> public class GUIConsole : MonoBehaviour // TypeDefIndex: 11417
+687191: // Namespace: Mirror >>> public class DistanceInterestManagement : InterestManagement // TypeDefIndex: 11418
+687227: // Namespace: Mirror >>> public class DistanceInterestManagementCustomRange : NetworkBehaviour // TypeDefIndex: 11419
+687244: // Namespace: Mirror >>> public class MatchInterestManagement : InterestManagement // TypeDefIndex: 11420
+687286: // Namespace: Mirror >>> public class NetworkMatch : NetworkBehaviour // TypeDefIndex: 11421
+687302: // Namespace: Mirror >>> public class SceneInterestManagement : InterestManagement // TypeDefIndex: 11422
+687335: // Namespace: Mirror >>> public class Grid2D<T> // TypeDefIndex: 11423
+687410: // Namespace: Mirror >>> public class SpatialHashingInterestManagement : InterestManagement // TypeDefIndex: 11425
+687456: // Namespace: Mirror >>> public class NetworkTeam : NetworkBehaviour // TypeDefIndex: 11426
+687475: // Namespace: Mirror >>> public class TeamInterestManagement : InterestManagement // TypeDefIndex: 11427
+687520: // Namespace: Mirror >>> public class NetworkAnimator : NetworkBehaviour // TypeDefIndex: 11428
+687734: // Namespace: Mirror >>> public class NetworkLobbyManager : NetworkRoomManager // TypeDefIndex: 11429
+687747: // Namespace: Mirror >>> public class NetworkLobbyPlayer : NetworkRoomPlayer // TypeDefIndex: 11430
+687762: // Namespace: Mirror >>> public class NetworkPingDisplay : MonoBehaviour // TypeDefIndex: 11431
+687811: // Namespace: Mirror >>> public class NetworkRoomManager : NetworkManager // TypeDefIndex: 11434
+688006: // Namespace: Mirror >>> public class NetworkRoomPlayer : NetworkBehaviour // TypeDefIndex: 11435
+688094: // Namespace: Mirror >>> public class NetworkStatistics : MonoBehaviour // TypeDefIndex: 11436
+688160: // Namespace: Mirror >>> public class NetworkTransform : NetworkTransformBase // TypeDefIndex: 11437
+688178: // Namespace: Mirror >>> public abstract class NetworkTransformBase : NetworkBehaviour // TypeDefIndex: 11438
+688399: // Namespace: Mirror >>> public class NetworkTransformChild : NetworkTransformBase // TypeDefIndex: 11439
+688421: // Namespace: Mirror >>> public struct NTSnapshot : Snapshot // TypeDefIndex: 11440
+688466: // Namespace: Mirror.Experimental >>> public class NetworkLerpRigidbody : NetworkBehaviour // TypeDefIndex: 11441
+688575: // Namespace: Mirror.Experimental >>> public class NetworkRigidbody : NetworkBehaviour // TypeDefIndex: 11443
+688810: // Namespace: Mirror.Experimental >>> public class NetworkRigidbody2D : NetworkBehaviour // TypeDefIndex: 11445
+689029: // Namespace: Mirror.Experimental >>> public class NetworkTransform : NetworkTransformBase // TypeDefIndex: 11446
+689068: // Namespace: Mirror.Experimental >>> public abstract class NetworkTransformBase : NetworkBehaviour // TypeDefIndex: 11448
+689335: // Namespace: Mirror.Experimental >>> public class NetworkTransformChild : NetworkTransformBase // TypeDefIndex: 11449
+689358: // Namespace: Mirror.Discovery >>> public class ServerFoundUnityEvent : UnityEvent<ServerResponse> // TypeDefIndex: 11450
+689369: // Namespace: Mirror.Discovery >>> public class NetworkDiscovery : NetworkDiscoveryBase<ServerRequest, ServerResponse> // TypeDefIndex: 11451
+689557: // Namespace: Mirror.Discovery >>> public abstract class NetworkDiscoveryBase<Request, Response> : MonoBehaviour // TypeDefIndex: 11456
+689826: // Namespace: Mirror.Discovery >>> public class NetworkDiscoveryHUD : MonoBehaviour // TypeDefIndex: 11457
+689855: // Namespace: Mirror.Discovery >>> public struct ServerRequest : NetworkMessage // TypeDefIndex: 11458
+689859: // Namespace: Mirror.Discovery >>> public struct ServerResponse : NetworkMessage // TypeDefIndex: 11459
+689900: // Namespace: Mirror >>> public static class GeneratedNetworkCode // TypeDefIndex: 11463
+705998: // Namespace: CodeStage.AntiCheat.Examples >>> internal class ExamplesGUI : MonoBehaviour // TypeDefIndex: 11911
+706050: // Namespace: CodeStage.AntiCheat.Examples >>> internal class InfiniteRotator : MonoBehaviour // TypeDefIndex: 11912
+706067: // Namespace: CodeStage.AntiCheat.Examples >>> internal class InfiniteRotatorReliable : MonoBehaviour // TypeDefIndex: 11913
+706084: // Namespace: CodeStage.AntiCheat.Examples >>> internal class ObscuredPerformanceTests : MonoBehaviour // TypeDefIndex: 11914
+706167: // Namespace: CodeStage.AntiCheat.Examples >>> internal class DetectorsExamples : MonoBehaviour // TypeDefIndex: 11915
+706246: // Namespace: CodeStage.AntiCheat.Examples >>> internal class GenuineChecksExamples : MonoBehaviour // TypeDefIndex: 11917
+706413: // Namespace: CodeStage.AntiCheat.Examples >>> internal class ObscuredFilePrefsExamples : MonoBehaviour // TypeDefIndex: 11923
+706570: // Namespace: CodeStage.AntiCheat.Examples >>> internal class ObscuredPrefsExamples : MonoBehaviour // TypeDefIndex: 11924
+706692: // Namespace: CodeStage.AntiCheat.Examples >>> internal class ObscuredTypesExamples : MonoBehaviour // TypeDefIndex: 11927
+717087: // Namespace: Mirror.SimpleWeb >>> public enum ClientState // TypeDefIndex: 12172
+717098: // Namespace: Mirror.SimpleWeb >>> public abstract class SimpleWebClient // TypeDefIndex: 12173
+717178: // Namespace: Mirror.SimpleWeb >>> internal class ClientHandshake // TypeDefIndex: 12174
+717190: // Namespace: Mirror.SimpleWeb >>> internal class ClientSslHelper // TypeDefIndex: 12175
+717225: // Namespace: Mirror.SimpleWeb >>> public class WebSocketClientStandAlone : SimpleWebClient // TypeDefIndex: 12177
+717259: // Namespace: Mirror.SimpleWeb >>> internal static class SimpleWebJSLib // TypeDefIndex: 12178
+717277: // Namespace: Mirror.SimpleWeb >>> public class WebSocketClientWebGl : SimpleWebClient // TypeDefIndex: 12179
+717334: // Namespace: Mirror.SimpleWeb >>> public interface IBufferOwner // TypeDefIndex: 12180
+717343: // Namespace: Mirror.SimpleWeb >>> public sealed class ArrayBuffer : IDisposable // TypeDefIndex: 12181
+717398: // Namespace: Mirror.SimpleWeb >>> internal class BufferBucket : IBufferOwner // TypeDefIndex: 12182
+717426: // Namespace: Mirror.SimpleWeb >>> public class BufferPool // TypeDefIndex: 12183
+717448: // Namespace: Mirror.SimpleWeb >>> internal sealed class Connection : IDisposable // TypeDefIndex: 12184
+717476: // Namespace: Mirror.SimpleWeb >>> internal static class Constants // TypeDefIndex: 12185
+717499: // Namespace: Mirror.SimpleWeb >>> public enum EventType // TypeDefIndex: 12186
+717522: // Namespace: Mirror.SimpleWeb >>> public static class Log // TypeDefIndex: 12188
+717573: // Namespace: Mirror.SimpleWeb >>> public struct Message // TypeDefIndex: 12189
+717603: // Namespace: Mirror.SimpleWeb >>> public static class MessageProcessor // TypeDefIndex: 12190
+717675: // Namespace: Mirror.SimpleWeb >>> public static class ReadHelper // TypeDefIndex: 12192
+717691: // Namespace: Mirror.SimpleWeb >>> public class ReadHelperException : Exception // TypeDefIndex: 12193
+717732: // Namespace: Mirror.SimpleWeb >>> internal static class ReceiveLoop // TypeDefIndex: 12196
+717762: // Namespace: Mirror.SimpleWeb >>> public static class SendLoopConfig // TypeDefIndex: 12197
+717787: // Namespace: Mirror.SimpleWeb >>> internal static class SendLoop // TypeDefIndex: 12199
+717802: // Namespace: Mirror.SimpleWeb >>> internal sealed class MaskHelper : IDisposable // TypeDefIndex: 12200
+717822: // Namespace: Mirror.SimpleWeb >>> public struct TcpConfig // TypeDefIndex: 12201
+717839: // Namespace: Mirror.SimpleWeb >>> internal static class Utils // TypeDefIndex: 12202
+717848: // Namespace: Mirror.SimpleWeb >>> internal class ServerHandshake // TypeDefIndex: 12203
+717894: // Namespace: Mirror.SimpleWeb >>> public struct SslConfig // TypeDefIndex: 12204
+717909: // Namespace: Mirror.SimpleWeb >>> internal class ServerSslHelper // TypeDefIndex: 12205
+717931: // Namespace: Mirror.SimpleWeb >>> public class SimpleWebServer // TypeDefIndex: 12206
+718056: // Namespace: Mirror.SimpleWeb >>> public class WebSocketServer // TypeDefIndex: 12209
+718103: // Namespace: Mirror.SimpleWeb >>> public class SimpleWebTransport : Transport // TypeDefIndex: 12210
+718252: // Namespace: Mirror.SimpleWeb >>> public class SslConfigLoader // TypeDefIndex: 12212
+729239: // Namespace: Mirror.Authenticators >>> public class BasicAuthenticator : NetworkAuthenticator // TypeDefIndex: 12569
+729298: // Namespace: Mirror.Authenticators >>> public class DeviceAuthenticator : NetworkAuthenticator // TypeDefIndex: 12572
+729372: // Namespace: Mirror.Authenticators >>> public class TimeoutAuthenticator : NetworkAuthenticator // TypeDefIndex: 12574
+729433: // Namespace: Mirror >>> public static class GeneratedNetworkCode // TypeDefIndex: 12578
+751247: // Namespace: CodeStage.AntiCheat.Examples.Genuine >>> public class GenuineValidatorExample : MonoBehaviour // TypeDefIndex: 13324

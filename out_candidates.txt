@@ -1,0 +1,1170 @@
+409:public class LocalizationLanguage : ScriptableObject // TypeDefIndex: 5
+459:public class LocalizationString // TypeDefIndex: 6
+496:public class PlayerSettingsValue // TypeDefIndex: 8
+559:public sealed class BattlePassMissionCatalog.Spec // TypeDefIndex: 11
+583:private sealed class BattlePassMissionCatalog.n // TypeDefIndex: 12
+598:public static class BattlePassMissionCatalog // TypeDefIndex: 13
+615:private sealed class BattlePassMissionGroups.<>c // TypeDefIndex: 14
+647:private sealed class BattlePassMissionGroups.o // TypeDefIndex: 15
+672:private sealed class BattlePassMissionGroups.u // TypeDefIndex: 16
+691:private sealed class BattlePassMissionGroups.w // TypeDefIndex: 17
+718:public static class BattlePassMissionGroups // TypeDefIndex: 18
+763:private sealed class BattlePassSeason.<>c // TypeDefIndex: 19
+782:public static class BattlePassSeason // TypeDefIndex: 20
+2163:public class GameNetworkManager : NetworkManager // TypeDefIndex: 65
+2358:private sealed class MatchAssetPreloader.<>c // TypeDefIndex: 71
+2382:private sealed class MatchAssetPreloader.by // TypeDefIndex: 72
+2426:private sealed class MatchAssetPreloader.bz // TypeDefIndex: 73
+2447:private sealed class MatchAssetPreloader.ca : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 74
+2491:public static class MatchAssetPreloader // TypeDefIndex: 75
+2512:public sealed class MatchPreloadRunner : MonoBehaviour // TypeDefIndex: 76
+2767:public class LobbyLoadingOverlay : MonoBehaviour // TypeDefIndex: 85
+2888:private sealed class LobbyTelegramPopup.ch : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 89
+2927:private sealed class LobbyTelegramPopup.ci : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 90
+2967:public class LobbyTelegramPopup : MonoBehaviour // TypeDefIndex: 91
+3048:public class Entity : MonoBehaviour // TypeDefIndex: 93
+3130:private sealed class SceneHubMatchNetworkHandler.<>c // TypeDefIndex: 96
+3158:private sealed class SceneHubMatchNetworkHandler.ck // TypeDefIndex: 97
+3180:private sealed class SceneHubMatchNetworkHandler.cl // TypeDefIndex: 98
+3199:private sealed class SceneHubMatchNetworkHandler.cm // TypeDefIndex: 99
+3225:private sealed class SceneHubMatchNetworkHandler.cn // TypeDefIndex: 100
+3245:private sealed class SceneHubMatchNetworkHandler.co // TypeDefIndex: 101
+3274:private sealed class SceneHubMatchNetworkHandler.cp // TypeDefIndex: 102
+3296:private sealed class SceneHubMatchNetworkHandler.cq // TypeDefIndex: 103
+3321:private sealed class SceneHubMatchNetworkHandler.cr // TypeDefIndex: 104
+3337:private sealed class SceneHubMatchNetworkHandler.cs // TypeDefIndex: 105
+3356:private sealed class SceneHubMatchNetworkHandler.ct // TypeDefIndex: 106
+3372:private sealed class SceneHubMatchNetworkHandler.cu // TypeDefIndex: 107
+3397:private sealed class SceneHubMatchNetworkHandler.cv : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 108
+3436:private sealed class SceneHubMatchNetworkHandler.cw : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 109
+3477:private sealed class SceneHubMatchNetworkHandler.cx : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 110
+3516:private sealed class SceneHubMatchNetworkHandler.cy : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 111
+3556:public class SceneHubMatchNetworkHandler : NetworkBehaviour // TypeDefIndex: 112
+3943:public class GrenadeLocalVisualSpin : MonoBehaviour // TypeDefIndex: 118
+4182:public class ItemViewItemEquipWeapon : ItemView // TypeDefIndex: 122
+4203:public class ItemViewItemEquipWeaponRange : ItemViewItemEquipWeapon // TypeDefIndex: 123
+4228:private sealed class ItemViewItemEquipWeaponRangeFireHoleLeaver.da : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 124
+4268:public class ItemViewItemEquipWeaponRangeFireHoleLeaver : MonoBehaviour // TypeDefIndex: 125
+4324:private sealed class ItemViewItemEquipWeaponRangeImpactLeaver.db : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 126
+4364:public class ItemViewItemEquipWeaponRangeImpactLeaver : MonoBehaviour // TypeDefIndex: 127
+4405:public class ItemViewItemEquipWeaponRangeSpecialAim : MonoBehaviour // TypeDefIndex: 128
+4429:public class ItemViewItemEquipWeaponRangeTrace : MonoBehaviour // TypeDefIndex: 129
+4493:private sealed class ItemViewItemEquipWeaponRangeTraceLeaver.dc : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 130
+4534:public class ItemViewItemEquipWeaponRangeTraceLeaver : MonoBehaviour // TypeDefIndex: 131
+4947:private sealed class LoginCharacterPreview.dg : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 139
+4985:public class LoginCharacterPreview : MonoBehaviour // TypeDefIndex: 140
+5387:public sealed class BattlePassInspectScope : MonoBehaviour // TypeDefIndex: 148
+6032:private class WindowChooseTeam.ds // TypeDefIndex: 165
+6050:private sealed class WindowChooseTeam.<>c // TypeDefIndex: 166
+6086:private sealed class WindowChooseTeam.du // TypeDefIndex: 167
+6127:private sealed class WindowChooseTeam.dv // TypeDefIndex: 168
+6152:private sealed class WindowChooseTeam.dw // TypeDefIndex: 169
+6172:private sealed class WindowChooseTeam.dx // TypeDefIndex: 170
+6200:private sealed class WindowChooseTeam.dy : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 171
+6239:private sealed class WindowChooseTeam.dz : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 172
+6278:public class WindowChooseTeam : WindowBase // TypeDefIndex: 173
+6528:public class WindowChooseTeamItem : MonoBehaviour // TypeDefIndex: 176
+7287:public class WindowDeveloperGameServerStatisticMatchItem : MonoBehaviour // TypeDefIndex: 196
+7322:public class WindowDeveloperGameServerStatisticPlayerItem : MonoBehaviour // TypeDefIndex: 197
+9466:private sealed class WindowLeaveMatchWarning.fg // TypeDefIndex: 249
+9482:private sealed class WindowLeaveMatchWarning.fh // TypeDefIndex: 250
+9506:public class WindowLeaveMatchWarning : WindowBase // TypeDefIndex: 251
+10596:public class WindowMatchInvitation : WindowBase // TypeDefIndex: 275
+11124:public class CFX_Demo_RotateCamera : MonoBehaviour // TypeDefIndex: 291
+12321:private sealed class AuthoritativeNetworkLoop.gn // TypeDefIndex: 320
+12339:public static class AuthoritativeNetworkLoop // TypeDefIndex: 321
+12376:public class AuthoritativeNetworkManager : MonoBehaviour // TypeDefIndex: 322
+12410:public class NetworkMessageHandlerExample : NetworkMessageHandler<NetworkMessageRequestExample> // TypeDefIndex: 323
+12419:public class NetworkMessageRequestExample : NetworkMessageBase // TypeDefIndex: 324
+12428:public class NetworkMessageExample : NetworkMessageBase // TypeDefIndex: 325
+12437:public interface NetworkMessageIRequestContent // TypeDefIndex: 326
+12596:public class DemoPlayerController : MonoBehaviour // TypeDefIndex: 331
+12625:public class ExempleWeapon // TypeDefIndex: 332
+12990:public class CameraDisableFogAndLightProbes : MonoBehaviour // TypeDefIndex: 345
+13076:public class GameNetworkManagerWrapperClient : MonoBehaviour // TypeDefIndex: 349
+13300:public sealed class CharacterHelmetFit.Pose // TypeDefIndex: 357
+13323:public sealed class CharacterHelmetFit.BodyMesh // TypeDefIndex: 358
+13337:public sealed class CharacterHelmetFit : MonoBehaviour // TypeDefIndex: 359
+13357:public static class CharacterModelLodUtility // TypeDefIndex: 360
+13539:private struct SceneLevelCharacter.LookSnapshot // TypeDefIndex: 365
+13549:public struct SceneLevelCharacter.FlashBlindResult // TypeDefIndex: 366
+13578:private sealed class SceneLevelCharacter.<>c // TypeDefIndex: 367
+13598:private sealed class SceneLevelCharacter.gs // TypeDefIndex: 368
+13630:private sealed class SceneLevelCharacter.gt // TypeDefIndex: 369
+13655:private sealed class SceneLevelCharacter.gu // TypeDefIndex: 370
+13677:private sealed class SceneLevelCharacter.gv // TypeDefIndex: 371
+13693:private sealed class SceneLevelCharacter.gw // TypeDefIndex: 372
+13721:private sealed class SceneLevelCharacter.gx // TypeDefIndex: 373
+13743:private sealed class SceneLevelCharacter.gy : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 374
+13781:public class SceneLevelCharacter : NetworkObject // TypeDefIndex: 375
+14852:private sealed class SceneLevelCharacterController.gz : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 376
+14891:public class SceneLevelCharacterController : MonoBehaviour // TypeDefIndex: 377
+15091:public class SceneLevelCharacterControllerClient : SceneLevelCharacterController // TypeDefIndex: 378
+15139:private sealed class SceneLevelCharacterControllerClientLocal.<>c // TypeDefIndex: 379
+15164:private sealed class SceneLevelCharacterControllerClientLocal.<>c__76<T> // TypeDefIndex: 380
+15209:private sealed class SceneLevelCharacterControllerClientLocal.<>c__77<T> // TypeDefIndex: 381
+15253:private sealed class SceneLevelCharacterControllerClientLocal.ha : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 382
+15292:public class SceneLevelCharacterControllerClientLocal : SceneLevelCharacterControllerClient // TypeDefIndex: 383
+15536:private sealed class SceneLevelCharacterControllerClientOther.hb // TypeDefIndex: 384
+15556:private sealed class SceneLevelCharacterControllerClientOther.hc : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 385
+15596:private sealed class SceneLevelCharacterControllerClientOther.hd : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 386
+15636:private sealed class SceneLevelCharacterControllerClientOther.he : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 387
+15676:public class SceneLevelCharacterControllerClientOther : SceneLevelCharacterControllerClient // TypeDefIndex: 388
+15808:private sealed class SceneLevelCharacterControllerServer.<>c // TypeDefIndex: 389
+15836:private sealed class SceneLevelCharacterControllerServer.hf : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 390
+15876:public class SceneLevelCharacterControllerServer : SceneLevelCharacterController // TypeDefIndex: 391
+15956:public class SceneLevelCharacterControllerServerLocal : SceneLevelCharacterControllerServer // TypeDefIndex: 392
+15992:public class SceneLevelCharacterControllerServerOther : SceneLevelCharacterControllerServer // TypeDefIndex: 393
+16001:public class SceneLevelCharacterInputs : MonoBehaviour // TypeDefIndex: 394
+16152:public class SceneLevelCharacterInputsMobile : SceneLevelCharacterInputs // TypeDefIndex: 397
+16212:private sealed class SceneLevelCharacterInputsPC.<>c // TypeDefIndex: 398
+16244:private sealed class SceneLevelCharacterInputsPC.hg // TypeDefIndex: 399
+16271:public class SceneLevelCharacterInputsPC : SceneLevelCharacterInputs // TypeDefIndex: 400
+16298:public class SceneLevelCharacterInteraction : MonoBehaviour // TypeDefIndex: 401
+16329:private struct SceneLevelCharacterModel.SkinnedBoneRemap // TypeDefIndex: 402
+16337:private struct SceneLevelCharacterModel.MaterialFadeState // TypeDefIndex: 403
+16356:public class SceneLevelCharacterModel : MonoBehaviour // TypeDefIndex: 404
+16562:public class SceneLevelCharacterMovementBase : MonoBehaviour // TypeDefIndex: 405
+16677:public class SceneLevelCharacterMovementLocal : SceneLevelCharacterMovementBase // TypeDefIndex: 406
+16783:public class SceneLevelCharacterMovementServer : SceneLevelCharacterMovementBase // TypeDefIndex: 407
+16874:public class SceneLevelCharacterRemoteVisibility : MonoBehaviour // TypeDefIndex: 408
+17493:public sealed class MatchUiCameraRenderer : MonoBehaviour // TypeDefIndex: 422
+18037:public class SceneLevelCamera.CameraState // TypeDefIndex: 433
+18075:public class SceneLevelCamera.CameraStateFree : SceneLevelCamera.CameraState // TypeDefIndex: 434
+18090:public class SceneLevelCamera.CameraStateFallowSelf : SceneLevelCamera.CameraState // TypeDefIndex: 435
+18117:public class SceneLevelCamera.CameraStateFallow : SceneLevelCamera.CameraState // TypeDefIndex: 436
+18151:public class SceneLevelCamera.CameraStateBomb : SceneLevelCamera.CameraState // TypeDefIndex: 437
+18175:public class SceneLevelCamera.CameraStateDeath : SceneLevelCamera.CameraState // TypeDefIndex: 438
+18199:public class SceneLevelCamera : MonoBehaviour // TypeDefIndex: 439
+18410:public class SceneLevelCharacterTrigger : MonoBehaviour // TypeDefIndex: 440
+18425:public class SceneLevelCharacterTriggerBomb : MonoBehaviour, IInteractable // TypeDefIndex: 441
+18481:public class SceneLevelCharacterTriggerGround : MonoBehaviour, IInteractable // TypeDefIndex: 442
+18540:public class SceneLevelCharacterTriggerShop : MonoBehaviour, IInteractable // TypeDefIndex: 443
+18593:public class SceneLevelChatNetwork : NetworkBehaviour // TypeDefIndex: 444
+19234:public class SceneLevelMasterNetwork.DamageInfo // TypeDefIndex: 451
+19249:public class SceneLevelMasterNetwork.MatchResult.PlayerResult // TypeDefIndex: 452
+19281:public class SceneLevelMasterNetwork.MatchResult // TypeDefIndex: 453
+19312:public class SceneLevelMasterNetwork.PlayerStatistic // TypeDefIndex: 455
+19324:public class SceneLevelMasterNetwork.Reservation // TypeDefIndex: 456
+19337:private class SceneLevelMasterNetwork.hl // TypeDefIndex: 457
+19359:public struct SceneLevelMasterNetwork.PingMessage : NetworkMessage // TypeDefIndex: 458
+19363:public class SceneLevelMasterNetwork.LevelMasterMessage // TypeDefIndex: 459
+19374:private sealed class SceneLevelMasterNetwork.<>c // TypeDefIndex: 460
+19510:private sealed class SceneLevelMasterNetwork.hm // TypeDefIndex: 461
+19526:private sealed class SceneLevelMasterNetwork.hn // TypeDefIndex: 462
+19551:private sealed class SceneLevelMasterNetwork.ho // TypeDefIndex: 463
+19574:private sealed class SceneLevelMasterNetwork.hp // TypeDefIndex: 464
+19593:private sealed class SceneLevelMasterNetwork.hq // TypeDefIndex: 465
+19621:private sealed class SceneLevelMasterNetwork.hr // TypeDefIndex: 466
+19640:private sealed class SceneLevelMasterNetwork.hs // TypeDefIndex: 467
+19659:private sealed class SceneLevelMasterNetwork.ht // TypeDefIndex: 468
+19684:private sealed class SceneLevelMasterNetwork.hu // TypeDefIndex: 469
+19709:private sealed class SceneLevelMasterNetwork.hv // TypeDefIndex: 470
+19725:private sealed class SceneLevelMasterNetwork.hw // TypeDefIndex: 471
+19744:private sealed class SceneLevelMasterNetwork.hx // TypeDefIndex: 472
+19760:private sealed class SceneLevelMasterNetwork.hy // TypeDefIndex: 473
+19788:private sealed class SceneLevelMasterNetwork.hz // TypeDefIndex: 474
+19816:private sealed class SceneLevelMasterNetwork.ia<T> // TypeDefIndex: 475
+19866:private sealed class SceneLevelMasterNetwork.ib : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 476
+19907:private sealed class SceneLevelMasterNetwork.ic : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 477
+19946:private sealed class SceneLevelMasterNetwork.ie : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 478
+19985:private sealed class SceneLevelMasterNetwork.if<T> : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 479
+20058:private struct SceneLevelMasterNetwork.<PlayerEnterRequest>d__164 : IAsyncStateMachine // TypeDefIndex: 480
+20076:private struct SceneLevelMasterNetwork.<ProceedPlayerEnterRequest>d__154 : IAsyncStateMachine // TypeDefIndex: 481
+20094:private sealed class SceneLevelMasterNetwork.ig : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 482
+20133:public class SceneLevelMasterNetwork : NetworkBehaviour // TypeDefIndex: 483
+21186:public class SceneLevelNetworkHandler : NetworkBehaviour // TypeDefIndex: 484
+21198:public class SceneLevelOtherPlayerTextBar : MonoBehaviour // TypeDefIndex: 485
+21267:public class SceneLevelPlayer : NetworkBehaviour // TypeDefIndex: 487
+24330:public static class SceneLevelUiTopPanelHealthBar // TypeDefIndex: 530
+24446:private sealed class SceneLevelUiTopPanelTeamFight.ix // TypeDefIndex: 533
+24470:public class SceneLevelUiTopPanelTeamFight : MonoBehaviour // TypeDefIndex: 534
+24754:public static class SceneLevelNetworkHelper // TypeDefIndex: 539
+25696:public class WallLocal : MonoBehaviour // TypeDefIndex: 561
+25727:public class LobbyMatchSettings : MonoBehaviour // TypeDefIndex: 563
+25737:public class LobbyUiRankRatingShower.RankLevelConfig // TypeDefIndex: 564
+25752:private sealed class LobbyUiRankRatingShower.<>c // TypeDefIndex: 565
+25771:public class LobbyUiRankRatingShower : MonoBehaviour // TypeDefIndex: 566
+25825:public class NetworkMessageBaseRequestActivatePromoCode : NetworkMessageBase // TypeDefIndex: 567
+25837:public class NetworkMessageBaseRequestAddExperience : NetworkMessageBase // TypeDefIndex: 568
+25851:public class NetworkMessageBaseResponseAddExperience : NetworkMessageResponse // TypeDefIndex: 569
+25860:public class NetworkMessageBaseRequestGetShortProfile : NetworkMessageBase // TypeDefIndex: 570
+25872:public class NetworkMessageBaseResponseGetShortProfile : NetworkMessageResponse // TypeDefIndex: 571
+25881:public class NetworkMessageBaseRequestBuyBattleBassLevels : NetworkMessageBase // TypeDefIndex: 572
+25895:public class NetworkMessageBaseResponseBuyBattleBassLevels : NetworkMessageResponse // TypeDefIndex: 573
+25904:public class NetworkMessageBaseRequestChangeNickName : NetworkMessageBase // TypeDefIndex: 574
+25916:public class NetworkMessageBaseResponseChangeNickName : NetworkMessageResponse // TypeDefIndex: 575
+25929:public class NetworkMessageBaseRequestCurrencyExchange : NetworkMessageBase // TypeDefIndex: 576
+25942:public class NetworkMessageBaseResponseCurrencyExchange : NetworkMessageResponse // TypeDefIndex: 577
+25954:public class NetworkMessageBaseRequestEquipSkin : NetworkMessageBase // TypeDefIndex: 578
+25967:public class NetworkMessageBaseResponseEquipSkin : NetworkMessageResponse // TypeDefIndex: 579
+25976:public class NetworkMessageBaseRequestFindProfile : NetworkMessageBase // TypeDefIndex: 580
+25988:public class NetworkMessageBaseResponseFindProfile : NetworkMessageResponse // TypeDefIndex: 581
+26000:public class NetworkMessageBaseRequestFriendRequestAnswer : NetworkMessageBase // TypeDefIndex: 582
+26013:public class NetworkMessageBaseResponseFriendRequestAnswer : NetworkMessageResponse // TypeDefIndex: 583
+26022:public class NetworkMessageBaseRequestGetGameServerStatistic : NetworkMessageBase // TypeDefIndex: 584
+26034:public class NetworkMessageBaseResponseGetGameServerStatistic : NetworkMessageResponse // TypeDefIndex: 585
+26047:public class NetworkMessageBaseRequestGetGameServerStatistics : NetworkMessageBase // TypeDefIndex: 586
+26059:public class NetworkMessageBaseResponseGetGameServerStatistics : NetworkMessageResponse // TypeDefIndex: 587
+26071:public class NetworkMessageBaseRequestGetInventoryItems : NetworkMessageBase // TypeDefIndex: 588
+26084:public class NetworkMessageBaseResponseAddInventoryItem : NetworkMessageResponse // TypeDefIndex: 589
+26096:public class NetworkMessageBaseResponseGetInventoryItems : NetworkMessageResponse // TypeDefIndex: 590
+26108:public class NetworkMessageBaseResponseRemoveInventoryItem : NetworkMessageResponse // TypeDefIndex: 591
+26120:public class NetworkMessageBaseRequestGetMatchStatus : NetworkMessageBase // TypeDefIndex: 592
+26132:public class NetworkMessageBaseResponseGetMatchStatus : NetworkMessageResponse // TypeDefIndex: 593
+26141:public class NetworkMessageBaseRequestGetPlayerSetting : NetworkMessageBase // TypeDefIndex: 594
+26153:public class NetworkMessageBaseResponseGetPlayerSetting : NetworkMessageResponse // TypeDefIndex: 595
+26165:public class NetworkMessageBaseRequestGroupCreate : NetworkMessageBase // TypeDefIndex: 596
+26181:public class NetworkMessageBaseResponseGroupCreate : NetworkMessageResponse // TypeDefIndex: 597
+26190:public class NetworkMessageBaseRequestGroupInvitation : NetworkMessageBase // TypeDefIndex: 598
+26206:public class NetworkMessageBaseResponseGroupInvitation : NetworkMessageResponse // TypeDefIndex: 599
+26241:public class NetworkMessageBaseRequestGroupJoin : NetworkMessageBase // TypeDefIndex: 600
+26254:public class NetworkMessageBaseResponseGroupJoin : NetworkMessageResponse // TypeDefIndex: 601
+26267:public class NetworkMessageBaseRequestGroupLeave : NetworkMessageBase // TypeDefIndex: 602
+26276:public class NetworkMessageBaseResponseGroupLeave : NetworkMessageResponse // TypeDefIndex: 603
+26285:public class NetworkMessageBaseRequestGroupReady : NetworkMessageBase // TypeDefIndex: 604
+26294:public class NetworkMessageBaseResponseGroupReady : NetworkMessageResponse // TypeDefIndex: 605
+26303:public class NetworkMessageBaseRequestGroupSearchMatch : NetworkMessageBase // TypeDefIndex: 606
+26316:public class NetworkMessageBaseResponseGroupSearchMatch : NetworkMessageResponse // TypeDefIndex: 607
+26329:public class NetworkMessageBaseRequestSetModeAndMap : NetworkMessageBase // TypeDefIndex: 608
+26342:public class NetworkMessageBaseResponseSetModeAndMap : NetworkMessageResponse // TypeDefIndex: 609
+26351:public class NetworkMessageBaseRequestInventoryItemAdd : NetworkMessageBase // TypeDefIndex: 610
+26363:public class NetworkMessageBaseResponseInventoryItemAdd : NetworkMessageResponse // TypeDefIndex: 611
+26375:public class NetworkMessageBaseRequestInventoryItemRemove : NetworkMessageBase // TypeDefIndex: 612
+26387:public class NetworkMessageBaseResponseInventoryItemRemove : NetworkMessageResponse // TypeDefIndex: 613
+26399:public class NetworkMessageBaseRequestInventoryItemSeen : NetworkMessageBase // TypeDefIndex: 614
+26411:public class NetworkMessageBaseRequestLogin : NetworkMessageBase // TypeDefIndex: 615
+26429:public class NetworkMessageBaseResponseLogin : NetworkMessageResponse // TypeDefIndex: 616
+26441:public class NetworkMessageBaseResponseLoginFailed : NetworkMessageResponse // TypeDefIndex: 617
+26458:public class NetworkMessageBaseRequestMarketRequestBuy : NetworkMessageBase // TypeDefIndex: 618
+26470:public class NetworkMessageBaseResponseMarketRequestBuy : NetworkMessageResponse // TypeDefIndex: 619
+26483:public class NetworkMessageBaseRequestQuestsTakeReward : NetworkMessageBase // TypeDefIndex: 620
+26497:public class NetworkMessageBaseResponseQuestsTakeReward : NetworkMessageResponse // TypeDefIndex: 621
+26506:public class NetworkMessageBaseRequestRemoveAccount : NetworkMessageBase // TypeDefIndex: 622
+26515:public class NetworkMessageBaseResponseRemoveAccount : NetworkMessageResponse // TypeDefIndex: 623
+26524:public class NetworkMessageBaseRequestChangeAvatar : NetworkMessageBase // TypeDefIndex: 624
+26536:public class NetworkMessageBaseResponseChangeAvatar : NetworkMessageResponse // TypeDefIndex: 625
+26548:public class NetworkMessageBaseRequestSendErrors : NetworkMessageBase // TypeDefIndex: 626
+26572:public class NetworkMessageBaseResponseSendErrors : NetworkMessageResponse // TypeDefIndex: 627
+26581:public class NetworkMessageBaseRequestSetGroupModeAndMap : NetworkMessageBase // TypeDefIndex: 628
+26594:public class NetworkMessageBaseResponseSetGroupModeAndMap : NetworkMessageResponse // TypeDefIndex: 629
+26603:public class NetworkMessageBaseRequestSetPlayerSetting : NetworkMessageBase // TypeDefIndex: 630
+26615:public class NetworkMessageBaseResponseSetPlayerSetting : NetworkMessageResponse // TypeDefIndex: 631
+26627:public class NetworkMessageBaseRequestTierBuyReward : NetworkMessageBase // TypeDefIndex: 632
+26640:public class NetworkMessageBaseResponseTierBuyReward : NetworkMessageResponse // TypeDefIndex: 633
+26649:public class NetworkMessageBaseRequestTradeAddItem : NetworkMessageBase // TypeDefIndex: 634
+26662:public class NetworkMessageBaseResponseTradeAddItem : NetworkMessageResponse // TypeDefIndex: 635
+26671:public class NetworkMessageBaseRequestTradeCancel : NetworkMessageBase // TypeDefIndex: 636
+26680:public class NetworkMessageBaseResponseTradeCancel : NetworkMessageResponse // TypeDefIndex: 637
+26689:public class NetworkMessageBaseRequestTradeConfirm : NetworkMessageBase // TypeDefIndex: 638
+26698:public class NetworkMessageBaseResponseTradeConfirm : NetworkMessageResponse // TypeDefIndex: 639
+26707:public class NetworkMessageBaseRequestTradeInvitationAgree : NetworkMessageBase // TypeDefIndex: 640
+26719:public class NetworkMessageBaseResponseTradeInvitationAgree : NetworkMessageResponse // TypeDefIndex: 641
+26731:public class NetworkMessageBaseRequestTradeInvite : NetworkMessageBase // TypeDefIndex: 642
+26743:public class NetworkMessageBaseResponseTradeInvite : NetworkMessageResponse // TypeDefIndex: 643
+26752:public class NetworkMessageBaseRequestTradeReady : NetworkMessageBase // TypeDefIndex: 644
+26764:public class NetworkMessageBaseResponseTradeReady : NetworkMessageResponse // TypeDefIndex: 645
+26773:public class NetworkMessageBaseRequestUpLoadAvatar : NetworkMessageBase // TypeDefIndex: 646
+26785:public class NetworkMessageBaseResponseUpLoadAvatar : NetworkMessageResponse // TypeDefIndex: 647
+26797:public class NetworkMessageBaseRequestWalletAddCurrency : NetworkMessageBase // TypeDefIndex: 648
+26810:public class NetworkMessageBaseResponseWalletAddCurrency : NetworkMessageResponse // TypeDefIndex: 649
+28603:public class LevelMapSwitchTeamPreview : MonoBehaviour // TypeDefIndex: 684
+29266:private sealed class LevelUiPlayerView.<>c // TypeDefIndex: 697
+29285:public class LevelUiPlayerView : MonoBehaviour // TypeDefIndex: 698
+30052:public class SceneLevelCharacterDamageTrigger : SceneLevelDamageTrigger // TypeDefIndex: 709
+30088:public class SceneLevelCharacterDamageZoneApplier.Zone // TypeDefIndex: 710
+30105:private sealed class SceneLevelCharacterDamageZoneApplier.jz // TypeDefIndex: 711
+30129:public class SceneLevelCharacterDamageZoneApplier : MonoBehaviour // TypeDefIndex: 712
+30265:private sealed class SwitchWeaponPanel.ka // TypeDefIndex: 715
+30293:private sealed class SwitchWeaponPanel.kb : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 716
+30331:public class SwitchWeaponPanel : MonoBehaviour // TypeDefIndex: 717
+30403:public class SwitchWeaponPanelItem : MonoBehaviour // TypeDefIndex: 718
+31225:private sealed class SceneLevelUiShopTabePlayerView.<>c // TypeDefIndex: 735
+31248:public class SceneLevelUiShopTabePlayerView : MonoBehaviour // TypeDefIndex: 736
+31453:public class ShotPivotAimPreview : MonoBehaviour // TypeDefIndex: 740
+31497:public class WeaponModel : ItemModel // TypeDefIndex: 741
+31556:public static class ClientBattlePassOwnership // TypeDefIndex: 742
+31580:private sealed class ClientBattlePassProgress.<>c // TypeDefIndex: 743
+31607:public static class ClientBattlePassProgress // TypeDefIndex: 744
+31685:public class BattlePassDaysLeftText : MonoBehaviour // TypeDefIndex: 745
+31766:public sealed class LobbyBattlePassCompactUi.RewardView // TypeDefIndex: 748
+31781:public sealed class LobbyBattlePassCompactUi.MissionView // TypeDefIndex: 749
+31800:private sealed class LobbyBattlePassCompactUi.<>c // TypeDefIndex: 750
+31820:private sealed class LobbyBattlePassCompactUi.kg // TypeDefIndex: 751
+31845:private sealed class LobbyBattlePassCompactUi.kh // TypeDefIndex: 752
+31864:private sealed class LobbyBattlePassCompactUi.ki // TypeDefIndex: 753
+31887:private sealed class LobbyBattlePassCompactUi.kj : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 754
+31925:public sealed class LobbyBattlePassCompactUi : MonoBehaviour // TypeDefIndex: 755
+32064:public sealed class LobbyBattlePassMissionFold : MonoBehaviour // TypeDefIndex: 756
+32093:public sealed class LobbyBattlePassProgressImage : Image // TypeDefIndex: 757
+32106:public class BattlePassCheckmark : MaskableGraphic // TypeDefIndex: 758
+32119:public class BattlePassGradient : BaseMeshEffect // TypeDefIndex: 759
+32140:public class BattlePassGrid : MaskableGraphic // TypeDefIndex: 760
+32156:private sealed class BattlePassItemPreview.kk : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 761
+32204:public sealed class BattlePassItemPreview : MonoBehaviour // TypeDefIndex: 762
+32245:public class BattlePassLinearProgress : Image // TypeDefIndex: 763
+32258:private sealed class BattlePassMissionPageRow.kl // TypeDefIndex: 764
+32282:public class BattlePassMissionPageRow : MonoBehaviour // TypeDefIndex: 765
+32314:private sealed class BattlePassMissionsPage.<>c // TypeDefIndex: 766
+32342:private sealed class BattlePassMissionsPage.km // TypeDefIndex: 767
+32358:private sealed class BattlePassMissionsPage.kn // TypeDefIndex: 768
+32374:private sealed class BattlePassMissionsPage.ko // TypeDefIndex: 769
+32406:private sealed class BattlePassMissionsPage.kp // TypeDefIndex: 770
+32422:private sealed class BattlePassMissionsPage.kq // TypeDefIndex: 771
+32450:public class BattlePassMissionsPage : MonoBehaviour // TypeDefIndex: 772
+32553:public class BattlePassResponsiveLayout : MonoBehaviour // TypeDefIndex: 773
+32571:public class BattlePassRewardAppearance : MonoBehaviour // TypeDefIndex: 774
+32601:public class BattlePassWindowAppearance : MonoBehaviour // TypeDefIndex: 775
+32627:private sealed class WindowBattlePass.<>c // TypeDefIndex: 776
+32647:private sealed class WindowBattlePass.kr // TypeDefIndex: 777
+32666:private sealed class WindowBattlePass.ks // TypeDefIndex: 778
+32695:private sealed class WindowBattlePass.kt // TypeDefIndex: 779
+32720:private sealed class WindowBattlePass.ku // TypeDefIndex: 780
+32739:private sealed class WindowBattlePass.kv // TypeDefIndex: 781
+32757:public class WindowBattlePass : WindowBase // TypeDefIndex: 782
+32885:public class WindowBattlePassItem : MonoBehaviour // TypeDefIndex: 783
+32954:private sealed class WindowBattlePassQuestItem.kw // TypeDefIndex: 784
+32969:public class WindowBattlePassQuestItem : MonoBehaviour // TypeDefIndex: 785
+33012:private sealed class LobbyChangeServerItemUi.kx : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 786
+33053:public class LobbyChangeServerItemUi : MonoBehaviour // TypeDefIndex: 787
+33084:private sealed class LobbyChangeServerUi.<>c // TypeDefIndex: 788
+33103:public class LobbyChangeServerUi : MonoBehaviour // TypeDefIndex: 789
+33167:public sealed class LobbyCharacterPreviewBlobShadow.Handle // TypeDefIndex: 790
+33181:public static class LobbyCharacterPreviewBlobShadow // TypeDefIndex: 791
+33232:private sealed class LobbyCharacterPreviewUtil.<>c // TypeDefIndex: 792
+33252:private sealed class LobbyCharacterPreviewUtil.ky // TypeDefIndex: 793
+33267:public static class LobbyCharacterPreviewUtil // TypeDefIndex: 794
+33319:public class LobbyChatUi : LobbyUiBase<LobbyUiConfig> // TypeDefIndex: 795
+33333:private sealed class LobbyConnectionUi.<>c // TypeDefIndex: 796
+33353:private sealed class LobbyConnectionUi.kz : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 797
+33391:public class LobbyConnectionUi : LobbyUiBase<LobbyUiConfig> // TypeDefIndex: 798
+33431:public class LobbyDropSelectorRowUi : MonoBehaviour // TypeDefIndex: 799
+33453:private sealed class LobbyDropSelectorStickerSlotUi.la // TypeDefIndex: 800
+33474:public class LobbyDropSelectorStickerSlotUi : MonoBehaviour // TypeDefIndex: 801
+33507:public class LobbyFightUi : LobbyUiBase<LobbyUiConfig> // TypeDefIndex: 802
+33530:private sealed class LobbyFightUiChooseMode.<>c // TypeDefIndex: 803
+33594:private sealed class LobbyFightUiChooseMode.lb // TypeDefIndex: 804
+33614:private sealed class LobbyFightUiChooseMode.lc // TypeDefIndex: 805
+33630:private sealed class LobbyFightUiChooseMode.ld // TypeDefIndex: 806
+33658:private sealed class LobbyFightUiChooseMode.le // TypeDefIndex: 807
+33680:private sealed class LobbyFightUiChooseMode.lf // TypeDefIndex: 808
+33708:private sealed class LobbyFightUiChooseMode.lg // TypeDefIndex: 809
+33727:private sealed class LobbyFightUiChooseMode.lh // TypeDefIndex: 810
+33752:private sealed class LobbyFightUiChooseMode.li // TypeDefIndex: 811
+33768:private sealed class LobbyFightUiChooseMode.lj // TypeDefIndex: 812
+33788:private sealed class LobbyFightUiChooseMode.lk : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 813
+33828:private sealed class LobbyFightUiChooseMode.ll : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 814
+33867:public class LobbyFightUiChooseMode : LobbyUiBase<LobbyUiConfig> // TypeDefIndex: 815
+34140:private sealed class LobbyFightUiChooseModeCreateMatch.<>c // TypeDefIndex: 816
+34159:public class LobbyFightUiChooseModeCreateMatch : MonoBehaviour // TypeDefIndex: 817
+34216:public class LobbyFightUiChooseModeMapItem : MonoBehaviour // TypeDefIndex: 818
+34261:public class LobbyFightUiChooseModeModeItemUi : MonoBehaviour // TypeDefIndex: 819
+34333:public class LobbyFightUiCustomMatches : LobbyUiBase<LobbyUiConfig> // TypeDefIndex: 820
+34360:private sealed class LobbyFightUiCustomMatchesItem.lm // TypeDefIndex: 821
+34387:public class LobbyFightUiCustomMatchesItem : MonoBehaviour // TypeDefIndex: 822
+34434:private sealed class LobbyFightUiMatches.<>c // TypeDefIndex: 823
+34457:public class LobbyFightUiMatches : LobbyUiBase<LobbyUiConfig> // TypeDefIndex: 824
+34496:private sealed class LobbyFightUiMatchesItem.ln // TypeDefIndex: 825
+34524:public class LobbyFightUiMatchesItem : MonoBehaviour // TypeDefIndex: 826
+34558:public class LobbyInventoryItemPercentUi : LobbyInventoryItemUi // TypeDefIndex: 827
+34587:public class LobbyInventoryItemUi.RarityColor // TypeDefIndex: 828
+34601:private sealed class LobbyInventoryItemUi.lo // TypeDefIndex: 829
+34628:public class LobbyInventoryItemUi : MonoBehaviour // TypeDefIndex: 830
+34764:public class LobbyInventorySortDropdownUi : MonoBehaviour // TypeDefIndex: 831
+34795:public sealed class LobbyItemFilter // TypeDefIndex: 833
+34841:private sealed class LobbyItemOrdering.<>c__1<T> // TypeDefIndex: 834
+34921:private sealed class LobbyItemOrdering.lp<T> // TypeDefIndex: 835
+34952:public static class LobbyItemOrdering // TypeDefIndex: 836
+34981:public class LobbyItemsInventoryDropDownSelectorUi.RarityColor // TypeDefIndex: 837
+34995:public class LobbyItemsInventoryDropDownSelectorUi.OptionIcon // TypeDefIndex: 838
+35019:public class LobbyItemsInventoryDropDownSelectorUi.ItemOption // TypeDefIndex: 840
+35033:public class LobbyItemsInventoryDropDownSelectorUi.ItemOptionCheck : LobbyItemsInventoryDropDownSelectorUi.ItemOption // TypeDefIndex: 841
+35047:private sealed class LobbyItemsInventoryDropDownSelectorUi.<>c // TypeDefIndex: 842
+35079:private sealed class LobbyItemsInventoryDropDownSelectorUi.lq // TypeDefIndex: 843
+35098:private sealed class LobbyItemsInventoryDropDownSelectorUi.lr // TypeDefIndex: 844
+35117:private sealed class LobbyItemsInventoryDropDownSelectorUi.ls // TypeDefIndex: 845
+35144:private sealed class LobbyItemsInventoryDropDownSelectorUi.lt // TypeDefIndex: 846
+35158:private sealed class LobbyItemsInventoryDropDownSelectorUi.lu // TypeDefIndex: 847
+35177:public class LobbyItemsInventoryDropDownSelectorUi : MonoBehaviour // TypeDefIndex: 848
+35310:private sealed class LobbyItemsInventoryUi.<>c // TypeDefIndex: 849
+35402:private sealed class LobbyItemsInventoryUi.lv // TypeDefIndex: 850
+35424:private sealed class LobbyItemsInventoryUi.lw // TypeDefIndex: 851
+35454:private sealed class LobbyItemsInventoryUi.lx // TypeDefIndex: 852
+35483:private sealed class LobbyItemsInventoryUi.ly // TypeDefIndex: 853
+35503:private sealed class LobbyItemsInventoryUi.lz // TypeDefIndex: 854
+35529:private sealed class LobbyItemsInventoryUi.ma // TypeDefIndex: 855
+35546:private sealed class LobbyItemsInventoryUi.mb // TypeDefIndex: 856
+35566:private sealed class LobbyItemsInventoryUi.mc // TypeDefIndex: 857
+35595:private sealed class LobbyItemsInventoryUi.md // TypeDefIndex: 858
+35616:public class LobbyItemsInventoryUi : LobbyUiBase<LobbyUiConfig> // TypeDefIndex: 859
+35734:private sealed class LobbyItemsMarketBazarUi.<>c // TypeDefIndex: 860
+35778:private sealed class LobbyItemsMarketBazarUi.me // TypeDefIndex: 861
+35797:private sealed class LobbyItemsMarketBazarUi.mf // TypeDefIndex: 862
+35843:public class LobbyItemsMarketBazarUi : LobbyUiBase<LobbyUiConfig> // TypeDefIndex: 863
+35950:public class LobbyItemsMarketItemRequestUi : MonoBehaviour // TypeDefIndex: 864
+36025:public class LobbyItemsMarketItemUiConfig : LobbyUiConfig // TypeDefIndex: 865
+36042:private sealed class LobbyItemsMarketItemUi.<>c // TypeDefIndex: 866
+36082:private sealed class LobbyItemsMarketItemUi.mg // TypeDefIndex: 867
+36104:private sealed class LobbyItemsMarketItemUi.mh // TypeDefIndex: 868
+36129:private sealed class LobbyItemsMarketItemUi.mi // TypeDefIndex: 869
+36149:private sealed class LobbyItemsMarketItemUi.mj // TypeDefIndex: 870
+36165:private sealed class LobbyItemsMarketItemUi.mk // TypeDefIndex: 871
+36186:public class LobbyItemsMarketItemUi : LobbyUiBase<LobbyUiConfig> // TypeDefIndex: 872
+36350:public class LobbyItemsMarketRequestItemUi : MonoBehaviour // TypeDefIndex: 873
+36389:private sealed class LobbyItemsMarketRequestsUi.ml // TypeDefIndex: 874
+36411:private sealed class LobbyItemsMarketRequestsUi.mm // TypeDefIndex: 875
+36426:public class LobbyItemsMarketRequestsUi : LobbyUiBase<LobbyUiConfig> // TypeDefIndex: 876
+36484:public class LobbyItemsMarketUi : LobbyUiBase<LobbyUiConfig> // TypeDefIndex: 877
+36512:private sealed class LobbyItemsToolbarUi.mn // TypeDefIndex: 878
+36535:private sealed class LobbyItemsToolbarUi.mo // TypeDefIndex: 879
+36555:private sealed class LobbyItemsToolbarUi.mp // TypeDefIndex: 880
+36578:private sealed class LobbyItemsToolbarUi.mq // TypeDefIndex: 881
+36605:public sealed class LobbyItemsToolbarUi : MonoBehaviour // TypeDefIndex: 882
+36802:public class LobbyItemsUi : LobbyUiBase<LobbyUiConfig> // TypeDefIndex: 883
+36817:public class LobbyLeftPanelSectionBonusIndicatorUi : MonoBehaviour // TypeDefIndex: 884
+36892:public class LobbyLeftPanelUi : MonoBehaviour // TypeDefIndex: 885
+36946:private sealed class LobbyMainBattlePassUi.<>c // TypeDefIndex: 886
+36965:public class LobbyMainBattlePassUi : MonoBehaviour // TypeDefIndex: 887
+37059:public class LobbyMainBattlePassUiStatisticItem : MonoBehaviour // TypeDefIndex: 888
+37077:public class LobbyMainDailyRewardUi : MonoBehaviour // TypeDefIndex: 889
+37160:private sealed class LobbyMainNewsUi.NewsLinkCatcher : MonoBehaviour, IPointerClickHandler, IEventSystemHandler // TypeDefIndex: 890
+37176:private sealed class LobbyMainNewsUi.ms : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 891
+37215:public class LobbyMainNewsUi : MonoBehaviour // TypeDefIndex: 892
+37334:public class LobbyMainShopOffer : MonoBehaviour // TypeDefIndex: 893
+37359:private struct LobbyMainUi.ProfileBoneFollow // TypeDefIndex: 894
+37383:private sealed class LobbyMainUi.<>c // TypeDefIndex: 895
+37435:private sealed class LobbyMainUi.mt // TypeDefIndex: 896
+37486:private sealed class LobbyMainUi.mu // TypeDefIndex: 897
+37505:private sealed class LobbyMainUi.mv // TypeDefIndex: 898
+37521:private sealed class LobbyMainUi.mw // TypeDefIndex: 899
+37580:private sealed class LobbyMainUi.mx : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 900
+37621:public class LobbyMainUi : LobbyUiBase<LobbyUiConfig> // TypeDefIndex: 901
+37924:public class LobbyMainUiFightStart : MonoBehaviour // TypeDefIndex: 902
+37969:public class LobbyMarketItemUi.RarityColor // TypeDefIndex: 903
+37982:public class LobbyMarketItemUi : MonoBehaviour // TypeDefIndex: 904
+38072:private sealed class LobbyMenuCameraScene.my // TypeDefIndex: 905
+38094:public sealed class LobbyMenuCameraScene : IDisposable // TypeDefIndex: 906
+38177:public class LobbyMessagesChatUi : LobbyUiBase<LobbyUiConfig> // TypeDefIndex: 907
+38191:private sealed class LobbyMessagesUi.<>c // TypeDefIndex: 908
+38211:private sealed class LobbyMessagesUi.mz // TypeDefIndex: 909
+38236:private sealed class LobbyMessagesUi.na // TypeDefIndex: 910
+38257:public class LobbyMessagesUi : LobbyUiBase<LobbyUiConfig> // TypeDefIndex: 911
+38311:public class LobbyMessagesUiChatPlayerItem : MonoBehaviour // TypeDefIndex: 912
+38357:public class LobbyNotificationItemUi : MonoBehaviour // TypeDefIndex: 913
+38409:private sealed class LobbyNotificationUi.nb // TypeDefIndex: 914
+38431:private sealed class LobbyNotificationUi.nc : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 915
+38472:private sealed class LobbyNotificationUi.nd : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 916
+38511:public class LobbyNotificationUi : MonoBehaviour // TypeDefIndex: 917
+38560:public struct LobbyPlayerLoadoutResolver.Loadout // TypeDefIndex: 918
+38572:public static class LobbyPlayerLoadoutResolver // TypeDefIndex: 919
+38587:public class LobbyPopUpFriendItem : MonoBehaviour // TypeDefIndex: 920
+38612:public class LobbyPopUpFriendsListUi : MonoBehaviour // TypeDefIndex: 921
+38705:public class LobbyPopUpFriendsUi : MonoBehaviour // TypeDefIndex: 922
+38761:public sealed class LobbyPreviewFootSupport : MonoBehaviour // TypeDefIndex: 923
+38790:public static class LobbyPreviewRealtimeShadowUtility // TypeDefIndex: 924
+38816:private sealed class LobbyRankProgressUi.<>c // TypeDefIndex: 925
+38863:public class LobbyRankProgressUi : LobbyUiBase<LobbyUiConfig> // TypeDefIndex: 926
+38924:public class LobbyRewardUi : LobbyUiBase<LobbyUiConfig> // TypeDefIndex: 927
+38934:public class LobbyRightPanelUi.LobbyRightPanelUiItem // TypeDefIndex: 928
+38949:private sealed class LobbyRightPanelUi.<>c // TypeDefIndex: 929
+38976:public class LobbyRightPanelUi : MonoBehaviour // TypeDefIndex: 930
+39077:public class LobbySceneMaster : SingletonMonoSimple<LobbySceneMaster> // TypeDefIndex: 931
+39102:public class LobbySectionActiveBonusUi : MonoBehaviour // TypeDefIndex: 932
+39176:public class LobbySectionEnterPromoUi : MonoBehaviour // TypeDefIndex: 933
+39196:public class LobbySectionPage1Ui : LobbyUiBase<LobbyUiConfig> // TypeDefIndex: 934
+39205:public class LobbySectionPage2Ui : LobbyUiBase<LobbyUiConfig> // TypeDefIndex: 935
+39214:public class LobbySectionUi : LobbyUiBase<LobbyUiConfig> // TypeDefIndex: 936
+39228:private sealed class LobbySectionWeeklyRewardsUi.<>c // TypeDefIndex: 937
+39247:public class LobbySectionWeeklyRewardsUi : MonoBehaviour // TypeDefIndex: 938
+39322:public class LobbySettingsAccountUi : LobbySettingsNestedUi // TypeDefIndex: 939
+39333:private sealed class LobbySettingsCommonUi.<>c // TypeDefIndex: 940
+39352:public class LobbySettingsCommonUi : LobbyUiBase<LobbyUiConfig> // TypeDefIndex: 941
+39450:public class LobbySettingsControlsUi : LobbySettingsNestedUi // TypeDefIndex: 942
+39459:public class LobbySettingsNestedUi : LobbySettingsCommonUi // TypeDefIndex: 943
+39471:public class LobbySettingsSoundUi : LobbyUiBase<LobbyUiConfig> // TypeDefIndex: 944
+39513:private sealed class LobbySettingsUi.<>c__5<T> // TypeDefIndex: 945
+39547:public class LobbySettingsUi : LobbyUiBase<LobbyUiConfig> // TypeDefIndex: 946
+39579:private sealed class LobbySettingsVideoUi.<>c // TypeDefIndex: 947
+39599:private sealed class LobbySettingsVideoUi.ne // TypeDefIndex: 948
+39615:public class LobbySettingsVideoUi : LobbyUiBase<LobbyUiConfig> // TypeDefIndex: 949
+39797:public class LobbyShadowPipeline : MonoBehaviour // TypeDefIndex: 950
+39834:private sealed class LobbyShopCurrencyUi.<>c // TypeDefIndex: 951
+39854:private sealed class LobbyShopCurrencyUi.nf // TypeDefIndex: 952
+39878:public class LobbyShopCurrencyUi : LobbyUiBase<LobbyUiConfig> // TypeDefIndex: 953
+39903:private sealed class LobbyShopItemsUi.<>c // TypeDefIndex: 954
+39927:private sealed class LobbyShopItemsUi.ng // TypeDefIndex: 955
+39956:private sealed class LobbyShopItemsUi.nh // TypeDefIndex: 956
+40006:public class LobbyShopItemsUi : LobbyUiBase<LobbyUiConfig> // TypeDefIndex: 957
+40063:public class LobbyShopItemUi : MonoBehaviour // TypeDefIndex: 958
+40145:public class LobbyShopUi : LobbyUiBase<LobbyUiConfig> // TypeDefIndex: 959
+40157:public class LobbySocialClanUi : LobbyUiBase<LobbyUiConfig> // TypeDefIndex: 960
+40166:public class LobbySocialFriendItem : MonoBehaviour // TypeDefIndex: 961
+40242:public class LobbySocialFriendsUi : LobbyUiBase<LobbyUiConfig> // TypeDefIndex: 962
+40312:public class LobbySocialRequestsUi : LobbyUiBase<LobbyUiConfig> // TypeDefIndex: 963
+40360:private sealed class LobbySocialSearchingUi.ni // TypeDefIndex: 964
+40397:private sealed class LobbySocialSearchingUi.nj : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 965
+40435:public class LobbySocialSearchingUi : LobbyUiBase<LobbyUiConfig> // TypeDefIndex: 966
+40491:public class LobbySocialTableUi : LobbyUiBase<LobbyUiConfig> // TypeDefIndex: 967
+40500:public class LobbySocialTournamentUi : LobbyUiBase<LobbyUiConfig> // TypeDefIndex: 968
+40509:public class LobbySocialUi : LobbyUiBase<LobbyUiConfig> // TypeDefIndex: 969
+40522:private sealed class LobbySoundtrack.nk : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 970
+40562:private sealed class LobbySoundtrack.nl : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 971
+40605:public sealed class LobbySoundtrack : MonoBehaviour // TypeDefIndex: 972
+40659:private sealed class LobbyTradeUi.nm // TypeDefIndex: 973
+40686:public class LobbyTradeUi : LobbyUiBase<LobbyUiConfig> // TypeDefIndex: 974
+40795:public class LobbyTradeUiItem.RarityColor // TypeDefIndex: 975
+40808:public class LobbyTradeUiItem : MonoBehaviour // TypeDefIndex: 976
+40851:public class LobbyUi : LobbyUiBase<LobbyUiConfig> // TypeDefIndex: 977
+40898:public class LobbyUiConfig // TypeDefIndex: 978
+40909:private sealed class LobbyUiBase.<>c__8<B, T> // TypeDefIndex: 979
+40943:public class LobbyUiBase<B> : MonoBehaviour // TypeDefIndex: 980
+41155:public class LobbyUiRightPanelItem : MonoBehaviour // TypeDefIndex: 981
+41205:public sealed class LobbyUpdateAnnouncement : MonoBehaviour, IPointerClickHandler, IEventSystemHandler // TypeDefIndex: 982
+41245:private sealed class LobbyWeaponAnimationSet.nn // TypeDefIndex: 983
+41259:public static class LobbyWeaponAnimationSet // TypeDefIndex: 984
+41287:public static class LobbyWeaponPreviewMaterials // TypeDefIndex: 985
+41323:public class MatchBattlePassTargets : MonoBehaviour // TypeDefIndex: 986
+42788:private sealed class SceneLobbyUiConnectionStatus.nz : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 1036
+42826:public class SceneLobbyUiConnectionStatus : MonoBehaviour // TypeDefIndex: 1037
+42957:private struct UnityLocalPushNotificationServiceAdapter.<AsyncAuthorizationRequest>d__2 : IAsyncStateMachine // TypeDefIndex: 1043
+42976:public class UnityLocalPushNotificationServiceAdapter // TypeDefIndex: 1044
+43224:public class CanvasCameraFinder : MonoBehaviour // TypeDefIndex: 1052
+43345:public class UiCamera : MonoBehaviour // TypeDefIndex: 1058
+43384:public class VideoPlayerSmooth : MonoBehaviour // TypeDefIndex: 1059
+43626:public class WindowLobbyMatchSettings : MonoBehaviour // TypeDefIndex: 1063
+43641:public class SceneLevelCharacterTriggerLadder : MonoBehaviour // TypeDefIndex: 1064
+44058:private sealed class LobbyFightUiWorkshop.<>c // TypeDefIndex: 1074
+44078:private sealed class LobbyFightUiWorkshop.oc // TypeDefIndex: 1075
+44093:public class LobbyFightUiWorkshop : LobbyUiBase<LobbyUiConfig> // TypeDefIndex: 1076
+44119:public class LobbyFightUiWorkshopItem : MonoBehaviour // TypeDefIndex: 1077
+44477:public class SceneLevelTraningAim : MonoBehaviour, IDamageable // TypeDefIndex: 1090
+44533:private class SceneLevelTraningNetwork.SceneLevelTraningNetworkServer : MonoBehaviour // TypeDefIndex: 1091
+44563:private class SceneLevelTraningNetwork.SceneLevelTraningNetworkClient : MonoBehaviour // TypeDefIndex: 1092
+44572:public class SceneLevelTraningNetwork : NetworkBehaviour // TypeDefIndex: 1093
+45058:public class CameraLook : MonoBehaviour // TypeDefIndex: 1106
+45622:public class NetworkAnimatorExtended : NetworkBehaviour // TypeDefIndex: 1126
+45843:private sealed class AdditiveLevelsNetworkManager.oh // TypeDefIndex: 1127
+45871:private sealed class AdditiveLevelsNetworkManager.oi // TypeDefIndex: 1128
+45920:private sealed class AdditiveLevelsNetworkManager.oj // TypeDefIndex: 1129
+45959:private sealed class AdditiveLevelsNetworkManager.ok : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 1130
+46000:private sealed class AdditiveLevelsNetworkManager.ol : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 1131
+46040:private sealed class AdditiveLevelsNetworkManager.om : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 1132
+46085:private sealed class AdditiveLevelsNetworkManager.on : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 1133
+46127:private sealed class AdditiveLevelsNetworkManager.oo : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 1134
+46167:private sealed class AdditiveLevelsNetworkManager.op : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 1135
+46209:public class AdditiveLevelsNetworkManager : NetworkManager // TypeDefIndex: 1136
+46393:public class LookAtMainCamera : MonoBehaviour // TypeDefIndex: 1140
+46426:public class PlayerCamera : NetworkBehaviour // TypeDefIndex: 1142
+46454:public class PlayerController : NetworkBehaviour // TypeDefIndex: 1143
+50235:public class LobbyPreviewRotator : MonoBehaviour // TypeDefIndex: 1255
+50438:public class TextUiLocalizerLocal : MonoBehaviour // TypeDefIndex: 1258
+50544:private sealed class LocalizationManagerLocal.rn // TypeDefIndex: 1261
+50566:private sealed class LocalizationManagerLocal.ro // TypeDefIndex: 1262
+50600:private sealed class LocalizationManagerLocal.rp // TypeDefIndex: 1263
+50616:private sealed class LocalizationManagerLocal.rq // TypeDefIndex: 1264
+50632:private sealed class LocalizationManagerLocal.rr // TypeDefIndex: 1265
+50653:public class LocalizationManagerLocal : MonoBehaviour // TypeDefIndex: 1266
+52226:public class ItemEquipWeapon.LocalHit // TypeDefIndex: 1288
+52245:public class ItemEquipWeapon.Hit // TypeDefIndex: 1289
+52269:public class ItemEquipWeapon : ItemEquip // TypeDefIndex: 1290
+52354:private sealed class ItemEquipWeaponGrenade.rw : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 1291
+52396:private sealed class ItemEquipWeaponGrenade.rx : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 1292
+52437:public class ItemEquipWeaponGrenade : ItemEquipWeapon // TypeDefIndex: 1293
+52683:public class ItemEquipWeaponGrenadeExplosion : ItemEquipWeaponGrenade // TypeDefIndex: 1294
+52739:public class ItemEquipWeaponGrenadeFlash : ItemEquipWeaponGrenade // TypeDefIndex: 1295
+52792:private sealed class ItemEquipWeaponGrenadeMolotov.ry : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 1296
+52833:public class ItemEquipWeaponGrenadeMolotov : ItemEquipWeaponGrenadePersistent // TypeDefIndex: 1297
+52972:public abstract class ItemEquipWeaponGrenadePersistent : ItemEquipWeaponGrenade // TypeDefIndex: 1298
+53002:public class ItemEquipWeaponGrenadeSmoke : ItemEquipWeaponGrenade // TypeDefIndex: 1299
+53068:private sealed class ItemEquipWeaponMelee.rz : IComparer<RaycastHit> // TypeDefIndex: 1300
+53087:private sealed class ItemEquipWeaponMelee.sa // TypeDefIndex: 1301
+53114:public class ItemEquipWeaponMelee : ItemEquipWeapon // TypeDefIndex: 1302
+53246:private sealed class ItemEquipWeaponRange.<>c // TypeDefIndex: 1303
+53266:private sealed class ItemEquipWeaponRange.sb // TypeDefIndex: 1304
+53282:private sealed class ItemEquipWeaponRange.sc : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 1305
+53321:private sealed class ItemEquipWeaponRange.sd : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 1306
+53359:public class ItemEquipWeaponRange : ItemEquipWeapon // TypeDefIndex: 1307
+53670:private sealed class ItemEquipWeaponRangeShotgun.se : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 1308
+53712:private sealed class ItemEquipWeaponRangeShotgun.sf : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 1309
+53752:private sealed class ItemEquipWeaponRangeShotgun.sg : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 1310
+53790:public class ItemEquipWeaponRangeShotgun : ItemEquipWeaponRange // TypeDefIndex: 1311
+53977:internal struct NetworkMessageReady : NetworkMessage // TypeDefIndex: 1313
+53981:public class NetworkObject : NetworkBehaviour // TypeDefIndex: 1314
+54533:private sealed class LocalizationManager.<>c // TypeDefIndex: 1332
+54553:private sealed class LocalizationManager.sk // TypeDefIndex: 1333
+54569:private sealed class LocalizationManager.sl // TypeDefIndex: 1334
+54594:private sealed class LocalizationManager.sm // TypeDefIndex: 1335
+54622:private sealed class LocalizationManager.sn // TypeDefIndex: 1336
+54638:private sealed class LocalizationManager.so // TypeDefIndex: 1337
+54653:public class LocalizationManager : SingletonMonoSimple<LocalizationManager> // TypeDefIndex: 1338
+54741:public class TextUiLocalizer : MonoBehaviour // TypeDefIndex: 1339
+54780:private class TextUiLocalizerRow.Loc // TypeDefIndex: 1340
+54797:public class TextUiLocalizerRow : MonoBehaviour // TypeDefIndex: 1341
+55916:public class LocalizationData : ScriptableObject // TypeDefIndex: 1363
+56774:public static class WeaponGradientPattern // TypeDefIndex: 1390
+56843:public class BattlePassSeasonSnapshot // TypeDefIndex: 1392
+57193:public class ItemCharacterHandsSkin : Item // TypeDefIndex: 1413
+57208:public class ItemCharacterSkin : Item // TypeDefIndex: 1414
+57366:public class ItemWeaponSkin : Item // TypeDefIndex: 1425
+57704:public class Match : DtoData // TypeDefIndex: 1438
+57733:public class MatchStatistic : DtoData // TypeDefIndex: 1439
+57749:public class PlayerStatistic.ModeStatistic // TypeDefIndex: 1440
+57770:public class PlayerStatistic : DtoData // TypeDefIndex: 1441
+58670:public class CharacterData : ScriptableObject // TypeDefIndex: 1472
+59395:public class LevelFeatureStandartTeams : LevelFeature // TypeDefIndex: 1501
+59418:public class LevelFeatureTopPanelTeams : LevelFeature // TypeDefIndex: 1503
+59451:public class LevelFeatureWinRequirementTeamScore : LevelFeatureWinRequirement // TypeDefIndex: 1506
+59837:public class LevelModeDeathMatch : LevelMode // TypeDefIndex: 1513
+60133:public class WeaponCommonData : ItemEquipData // TypeDefIndex: 1522
+60157:public class WeaponData : ItemEquipData // TypeDefIndex: 1524
+60186:public class BattlePass.LvlToPrice // TypeDefIndex: 1525
+60200:public class BattlePass.BattlePassLevel // TypeDefIndex: 1526
+60215:public class BattlePass : ScriptableObject // TypeDefIndex: 1527
+60266:public class BattlePassRewards.BattlePassReward // TypeDefIndex: 1528
+60286:public class BattlePassRewards : ScriptableObject // TypeDefIndex: 1529
+60370:public class ItemCharacterHandsSkin : ItemData // TypeDefIndex: 1533
+60411:public class ItemCharacterSkin : ItemData // TypeDefIndex: 1534
+60631:public class ItemWeaponSkin : ItemSkin // TypeDefIndex: 1544
+60859:public class QuestTaskTargetValueHeadShot : QuestTaskTargetValue // TypeDefIndex: 1556
+60879:public class QuestTaskTargetValueKillWeapon : QuestTaskTargetValue // TypeDefIndex: 1558
+61304:public class Match : CoreData // TypeDefIndex: 1577
+61344:public interface INetworkAgent // TypeDefIndex: 1578
+61348:public interface INetworkHandler // TypeDefIndex: 1579
+61359:private sealed class NetworkHandlerController.<>c // TypeDefIndex: 1580
+61388:private sealed class NetworkHandlerController.<>c__7<T> // TypeDefIndex: 1581
+61422:public class NetworkHandlerController : MonoBehaviour // TypeDefIndex: 1582
+61472:public class SharedMatchContracts.MatchFinalRequest // TypeDefIndex: 1583
+61493:public static class SharedMatchContracts // TypeDefIndex: 1584
+61497:public class GameNetworkHandler : MonoBehaviour, INetworkHandler // TypeDefIndex: 1585
+61539:public class Player // TypeDefIndex: 1586
+61571:public class SharedLobbyContracts.MarketInfoStatisticByItems.MarketInfoItemStatistic // TypeDefIndex: 1587
+61587:private sealed class SharedLobbyContracts.MarketInfoStatisticByItems.ue // TypeDefIndex: 1588
+61614:public class SharedLobbyContracts.MarketInfoStatisticByItems // TypeDefIndex: 1589
+61629:public class SharedLobbyContracts.Pending // TypeDefIndex: 1590
+61648:public class SharedLobbyContracts.PendingPlayer // TypeDefIndex: 1591
+61664:public class SharedLobbyContracts.SearchingMatch // TypeDefIndex: 1592
+61678:private sealed class SharedLobbyContracts.Trade.uf // TypeDefIndex: 1593
+61694:private sealed class SharedLobbyContracts.Trade.ug // TypeDefIndex: 1594
+61715:public class SharedLobbyContracts.Trade // TypeDefIndex: 1595
+61752:private sealed class SharedLobbyContracts.Group.uh // TypeDefIndex: 1596
+61768:private sealed class SharedLobbyContracts.Group.ui // TypeDefIndex: 1597
+61789:public class SharedLobbyContracts.Group // TypeDefIndex: 1598
+61844:public class SharedLobbyContracts.PlayerMatchRequest // TypeDefIndex: 1599
+61861:public class SharedLobbyContracts.MatchRequest // TypeDefIndex: 1600
+61916:public static class SharedLobbyContracts // TypeDefIndex: 1601
+61921:private sealed class NetworkHandlerControllerAsync.uj : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 1602
+61961:private sealed class NetworkHandlerControllerAsync.uk : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 1603
+62000:private sealed class NetworkHandlerControllerAsync.ul : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 1604
+62038:public abstract class NetworkHandlerControllerAsync : MonoBehaviour, INetworkHandler // TypeDefIndex: 1605
+62470:private sealed class GamePlayerNetworkHandler.<>c // TypeDefIndex: 1617
+62506:private sealed class GamePlayerNetworkHandler.uq // TypeDefIndex: 1618
+62531:private sealed class GamePlayerNetworkHandler.ur // TypeDefIndex: 1619
+62562:private sealed class GamePlayerNetworkHandler.us // TypeDefIndex: 1620
+62590:private sealed class GamePlayerNetworkHandler.ut // TypeDefIndex: 1621
+62616:private sealed class GamePlayerNetworkHandler.uu // TypeDefIndex: 1622
+62633:private sealed class GamePlayerNetworkHandler.uv : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 1623
+62676:private sealed class GamePlayerNetworkHandler.uw : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 1624
+62725:private sealed class GamePlayerNetworkHandler.ux : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 1625
+62768:public class GamePlayerNetworkHandler : MonoBehaviour, INetworkHandler // TypeDefIndex: 1626
+63852:private sealed class PlayerBehaviorRecorder.Row // TypeDefIndex: 1637
+63900:public sealed class PlayerBehaviorRecorder : MonoBehaviour // TypeDefIndex: 1638
+64007:public class SceneLevelCharacterAi.AiState : MonoBehaviour // TypeDefIndex: 1640
+64022:public class SceneLevelCharacterAi.AiStateUsual : MonoBehaviour // TypeDefIndex: 1641
+64039:private sealed class SceneLevelCharacterAi.<>c // TypeDefIndex: 1642
+64091:private sealed class SceneLevelCharacterAi.vc // TypeDefIndex: 1643
+64110:private sealed class SceneLevelCharacterAi.vd // TypeDefIndex: 1644
+64138:private sealed class SceneLevelCharacterAi.ve : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 1645
+64183:public class SceneLevelCharacterAi : MonoBehaviour // TypeDefIndex: 1646
+64749:public class SceneLevelCharacterAiScenario : MonoBehaviour // TypeDefIndex: 1647
+65298:public sealed class ServerBotTeamFight : MonoBehaviour // TypeDefIndex: 1659
+65606:public class OnGetBattlePass : GameEvent // TypeDefIndex: 1675
+65631:public class OnGetCustomMatchRequests : GameEvent // TypeDefIndex: 1677
+65768:public class OnMatchRating : GameEvent // TypeDefIndex: 1688
+65780:public class OnGetPlayerStatistic : GameEvent // TypeDefIndex: 1689
+66276:public class ItemCharacterHandsSkin : Item // TypeDefIndex: 1716
+66291:public class ItemCharacterSkin : Item // TypeDefIndex: 1717
+66442:public class ItemWeaponSkin : Item // TypeDefIndex: 1727
+66679:public class LookAtCamera : MonoBehaviour // TypeDefIndex: 1734
+67611:public class WeaponDataGrenade : WeaponData // TypeDefIndex: 1761
+67643:public class WeaponDataGrenadeExplosion : WeaponDataGrenade // TypeDefIndex: 1762
+67669:public class WeaponDataGrenadeFlash : WeaponDataGrenade // TypeDefIndex: 1763
+67725:public class WeaponDataGrenadeMolotov : WeaponDataGrenade // TypeDefIndex: 1764
+67745:public class WeaponDataGrenadeSmoke : WeaponDataGrenade // TypeDefIndex: 1765
+67771:public class WeaponDataMelee : WeaponData // TypeDefIndex: 1766
+67785:public class WeaponDataRange : WeaponData // TypeDefIndex: 1767
+67818:public class CharacterAnimation : MonoBehaviour // TypeDefIndex: 1768
+67909:public class CharacterAnimationController : MonoBehaviour // TypeDefIndex: 1769
+68006:private sealed class CharacterAnimationControllerClient.wf : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 1770
+68043:public class CharacterAnimationControllerClient : CharacterAnimationController // TypeDefIndex: 1771
+68101:public class CharacterAnimationControllerLocal : CharacterAnimationControllerClient // TypeDefIndex: 1772
+68122:public class CharacterAnimationControllerServer : CharacterAnimationController // TypeDefIndex: 1773
+68131:public class CharacterAnimationControllerServerLocal : CharacterAnimationController // TypeDefIndex: 1774
+68590:public class EventManagerLocal<TO> // TypeDefIndex: 1782
+68747:public class EventSubscriberLocal.EventSubscribe<TO> // TypeDefIndex: 1786
+68769:private sealed class EventSubscriberLocal.wh<TO, TB> // TypeDefIndex: 1787
+68801:public class EventSubscriberLocal<TO> // TypeDefIndex: 1788
+68883:public class EventSubscriberMonoLocal.EventSubscribe<TO> // TypeDefIndex: 1789
+68905:private sealed class EventSubscriberMonoLocal.wi<TO, TB> // TypeDefIndex: 1790
+68937:public class EventSubscriberMonoLocal<TO> // TypeDefIndex: 1791
+69053:public class NetworkMessage // TypeDefIndex: 1795
+69068:public class NetworkMessageBase : NetworkMessage // TypeDefIndex: 1796
+69078:private struct NetworkMessageHandler.<AsyncOperation>d__5<T> : IAsyncStateMachine // TypeDefIndex: 1797
+69108:public abstract class NetworkMessageHandler<T> : IRequestHandler // TypeDefIndex: 1798
+69183:public class NetworkMessagePing : NetworkMessage // TypeDefIndex: 1799
+69192:public class NetworkMessageRequest : NetworkMessage // TypeDefIndex: 1800
+69201:public class NetworkMessageResponse : NetworkMessageBase // TypeDefIndex: 1801
+69213:public class NetworkMessageGameServerEnterMatchRequest : NetworkMessage // TypeDefIndex: 1802
+69229:public class NetworkMessageGameServerEnterMatchResponse : NetworkMessageResponse // TypeDefIndex: 1803
+69241:public class NetworkMessageGameServerGetGameServerStatisticRequest : NetworkMessage // TypeDefIndex: 1804
+69253:public class NetworkMessageGameServerGetGameServerStatisticResponse : NetworkMessageResponse // TypeDefIndex: 1805
+69265:public class NetworkMessageGameServerGetInfoRequest : NetworkMessage // TypeDefIndex: 1806
+69274:public class NetworkMessageGameServerGetInfoResponse : NetworkMessage // TypeDefIndex: 1807
+69286:public class NetworkMessageGameServerIsReadyRequest : NetworkMessage // TypeDefIndex: 1808
+69295:public class NetworkMessageGameServerIsReadyResponse : NetworkMessage // TypeDefIndex: 1809
+69307:public class NetworkMessageGameServerQuestProgressSaved : NetworkMessage // TypeDefIndex: 1810
+69320:public class NetworkMessageGameServerRequestGetPlayerMatchRequest : NetworkMessage // TypeDefIndex: 1811
+69332:public class NetworkMessageGameServerRequestGetPlayerMatchResponse : NetworkMessageResponse // TypeDefIndex: 1812
+69344:public class NetworkMessageGameServerSaveItem : NetworkMessage // TypeDefIndex: 1813
+69357:public class NetworkMessageGameServerSaveQuestProgress : NetworkMessage // TypeDefIndex: 1814
+69373:public class NetworkMessageGameServerStartMatchRequest : NetworkMessage // TypeDefIndex: 1815
+69385:public class NetworkMessageGameServerStartMatchResponse : NetworkMessageResponse // TypeDefIndex: 1816
+69397:public class NetworkMessageGameServerTryReservateRequest : NetworkMessage // TypeDefIndex: 1817
+69409:public class NetworkMessageGameServerTryReservateResponse : NetworkMessageResponse // TypeDefIndex: 1818
+69421:public class NetworkMessageLoginServerKickPlayerRequest : NetworkMessage // TypeDefIndex: 1819
+69438:public class NetworkMessageLoginServerSoftShutdownRequest : NetworkMessage // TypeDefIndex: 1820
+69450:public class NetworkMessageRequestGameServerEndMatch : NetworkMessage // TypeDefIndex: 1821
+69471:public class NetworkMessageRequestGameServerItemsUpdate : NetworkMessage // TypeDefIndex: 1822
+69484:public class NetworkMessageRequestGameServerPlayerLeaveMatch : NetworkMessage // TypeDefIndex: 1823
+69496:public class NetworkMessageRequestGameServerStopMatch : NetworkMessage // TypeDefIndex: 1824
+69510:public class NetworkMessageClientEnterRequest : NetworkMessage // TypeDefIndex: 1825
+69523:public class NetworkMessageClientEnterResponse : NetworkMessage // TypeDefIndex: 1826
+69532:public class NetworkMessageLoginServerContinueMatchRequest : NetworkMessage // TypeDefIndex: 1827
+69541:public class NetworkMessageLoginServerGetPlayerMatchResponse : NetworkMessage // TypeDefIndex: 1828
+69553:public class NetworkMessageLoginServerPlayerEnterMatchRequest : NetworkMessage // TypeDefIndex: 1829
+69565:public class NetworkMessageLoginServerPlayerEnterMatchResponse : NetworkMessage // TypeDefIndex: 1830
+69577:public class NetworkMessageLoginServerToGameServerInfoResponse : NetworkMessage // TypeDefIndex: 1831
+69589:public class NetworkMessageProfileSocialUpdate : NetworkMessage // TypeDefIndex: 1832
+69601:public class NetworkMessageRequestFriendEndMessage : NetworkMessageBase // TypeDefIndex: 1833
+69613:public class NetworkMessageRequestFriendMessageSeen : NetworkMessage // TypeDefIndex: 1834
+69625:public class NetworkMessageResponseGetItem : NetworkMessage // TypeDefIndex: 1835
+69637:public class NetworkMessageResponseGroupStarted : NetworkMessage // TypeDefIndex: 1836
+69651:public class NetworkMessageResponseGroupUpdate : NetworkMessage // TypeDefIndex: 1837
+69663:public class NetworkMessageResponseNotification : NetworkMessage // TypeDefIndex: 1838
+69676:public class NetworkMessageResponsePendingUpdate : NetworkMessage // TypeDefIndex: 1839
+69688:public class NetworkMessageResponsePurchaseCompleted : NetworkMessage // TypeDefIndex: 1840
+69697:public class NetworkMessageResponseSearchMatch : NetworkMessage // TypeDefIndex: 1841
+69709:public class NetworkMessageResponseSearchMatchUpdateResponse : NetworkMessage // TypeDefIndex: 1842
+69721:public class NetworkMessageResponseStartMatch : NetworkMessage // TypeDefIndex: 1843
+69736:public class NetworkMessageResponseTradeInvite : NetworkMessage // TypeDefIndex: 1844
+69748:public class NetworkMessageResponseTradeUpdate : NetworkMessage // TypeDefIndex: 1845
+69760:public class NetworkMessageBaseRequestActivePromoClaim : NetworkMessageBase // TypeDefIndex: 1846
+69769:public class NetworkMessageBaseRequestActivePromoGetState : NetworkMessageBase // TypeDefIndex: 1847
+69778:public class NetworkMessageBaseResponseActivePromoGetState : NetworkMessage // TypeDefIndex: 1848
+69790:public class NetworkMessageBaseRequestQuestProgress : NetworkMessageBase // TypeDefIndex: 1849
+69805:public class NetworkMessageBaseRequestBattlePassGetInfo : NetworkMessageBase // TypeDefIndex: 1850
+69818:public class NetworkMessageBaseResponseBattlePassGetInfo : NetworkMessage // TypeDefIndex: 1851
+69832:public class NetworkMessageBaseRequestBattlePassTake : NetworkMessageBase // TypeDefIndex: 1852
+69846:public class NetworkMessageBaseResponseBattlePassTake : NetworkMessage // TypeDefIndex: 1853
+69859:public class NetworkMessageBaseRequestBuyShopPack : NetworkMessageBase // TypeDefIndex: 1854
+69875:public class NetworkMessageBaseResponseBuyShopPack : NetworkMessage // TypeDefIndex: 1855
+69887:public class NetworkMessageBaseRequestChangeGameServer : NetworkMessageBase // TypeDefIndex: 1856
+69899:public class NetworkMessageBaseResponseChangeGameServer : NetworkMessage // TypeDefIndex: 1857
+69913:public class NetworkMessageBaseRequestCreateContract : NetworkMessageBase // TypeDefIndex: 1858
+69925:public class NetworkMessageBaseResponseCreateContract : NetworkMessage // TypeDefIndex: 1859
+69937:public class NetworkMessageBaseRequestDailyRewardGet : NetworkMessageBase // TypeDefIndex: 1860
+69946:public class NetworkMessageBaseResponseDailyRewardGet : NetworkMessage // TypeDefIndex: 1861
+69958:public class NetworkMessageBaseRequestDailyRewardGetState : NetworkMessageBase // TypeDefIndex: 1862
+69967:public class NetworkMessageBaseResponseDailyRewardGetState : NetworkMessage // TypeDefIndex: 1863
+69979:public class NetworkMessageBaseRequestFriendMessage : NetworkMessageBase // TypeDefIndex: 1864
+69992:public class NetworkMessageBaseResponseFriendMessage : NetworkMessage // TypeDefIndex: 1865
+70005:public class NetworkMessageBaseRequestFriendMessageSeen : NetworkMessageBase // TypeDefIndex: 1866
+70017:public class NetworkMessageBaseRequestFriendRemove : NetworkMessageBase // TypeDefIndex: 1867
+70029:public class NetworkMessageBaseResponseFriendRemove : NetworkMessage // TypeDefIndex: 1868
+70041:public class NetworkMessageBaseRequestFriendRequest : NetworkMessageBase // TypeDefIndex: 1869
+70053:public class NetworkMessageBaseResponseFriendRequest : NetworkMessage // TypeDefIndex: 1870
+70065:public class NetworkMessageBaseRequestFriendsOnlineStatus : NetworkMessageBase // TypeDefIndex: 1871
+70074:public class NetworkMessageBaseResponseFriendsOnlineStatus : NetworkMessage // TypeDefIndex: 1872
+70086:public class NetworkMessageFriendOnlineStatusChanged : NetworkMessage // TypeDefIndex: 1873
+70099:public class NetworkMessageBaseRequestGetAvatar : NetworkMessageBase // TypeDefIndex: 1874
+70111:public class NetworkMessageBaseResponseGetAvatar : NetworkMessage // TypeDefIndex: 1875
+70124:public class NetworkMessageBaseRequestGetGameServers : NetworkMessageBase // TypeDefIndex: 1876
+70133:public class NetworkMessageBaseResponseGetGameServers : NetworkMessage // TypeDefIndex: 1877
+70145:public class NetworkMessageBaseRequestGetGroups : NetworkMessageBase // TypeDefIndex: 1878
+70154:public class NetworkMessageBaseResponseGetGroups : NetworkMessage // TypeDefIndex: 1879
+70166:public class NetworkMessageBaseRequestGetMarketItemsInfo : NetworkMessageBase // TypeDefIndex: 1880
+70175:public class NetworkMessageBaseResponseGetMarketItemsInfo : NetworkMessage // TypeDefIndex: 1881
+70187:public class NetworkMessageBaseRequestGetPlayerStatistic : NetworkMessageBase // TypeDefIndex: 1882
+70196:public class NetworkMessageBaseResponseGetPlayerStatistic : NetworkMessage // TypeDefIndex: 1883
+70209:public class NetworkMessageBaseRequestGetServerOnline : NetworkMessageBase // TypeDefIndex: 1884
+70221:public class NetworkMessageBaseResponseGetServerOnline : NetworkMessageResponse // TypeDefIndex: 1885
+70233:public class NetworkMessageBaseRequestSetModules : NetworkMessageBase // TypeDefIndex: 1886
+70246:public class NetworkMessageBaseRequestSetSticker : NetworkMessageBase // TypeDefIndex: 1887
+70259:public class NetworkMessageBaseRequestLeaveMatch : NetworkMessageBase // TypeDefIndex: 1888
+70268:public class NetworkMessageBaseResponseLeaveMatch : NetworkMessage // TypeDefIndex: 1889
+70277:public class NetworkMessageBaseRequestMarketCancelRequest : NetworkMessageBase // TypeDefIndex: 1890
+70289:public class NetworkMessageBaseResponseMarketCancelRequest : NetworkMessage // TypeDefIndex: 1891
+70298:public class NetworkMessageBaseRequestMarketGetItemHistory : NetworkMessageBase // TypeDefIndex: 1892
+70311:public class NetworkMessageBaseResponseMarketGetItemHistory : NetworkMessage // TypeDefIndex: 1893
+70323:public class NetworkMessageBaseRequestMarketGetItemInfo : NetworkMessageBase // TypeDefIndex: 1894
+70335:public class NetworkMessageBaseResponseMarketGetItemInfo : NetworkMessage // TypeDefIndex: 1895
+70350:public class NetworkMessageBaseRequestMarketGetItemSellRequests : NetworkMessageBase // TypeDefIndex: 1896
+70363:public class NetworkMessageBaseResponseMarketGetItemSellRequests : NetworkMessage // TypeDefIndex: 1897
+70375:public class NetworkMessageBaseRequestMarketGetProfileRequests : NetworkMessageBase // TypeDefIndex: 1898
+70387:public class NetworkMessageBaseResponseMarketGetProfileRequests : NetworkMessage // TypeDefIndex: 1899
+70400:public class NetworkMessageBaseRequestMarketSetItemBuy : NetworkMessageBase // TypeDefIndex: 1900
+70413:public class NetworkMessageBaseResponseMarketSetItemBuy : NetworkMessage // TypeDefIndex: 1901
+70425:public class NetworkMessageBaseRequestMarketSetItemSell : NetworkMessageBase // TypeDefIndex: 1902
+70438:public class NetworkMessageBaseResponseMarketSetItemSell : NetworkMessageBase // TypeDefIndex: 1903
+70450:public class NetworkMessageBaseRequestMatchEnd : NetworkMessageBase // TypeDefIndex: 1904
+70459:public class NetworkMessageBaseResponseMatchEnd : NetworkMessage // TypeDefIndex: 1905
+70468:public class NetworkMessageBaseRequestMatchEnter : NetworkMessageBase // TypeDefIndex: 1906
+70481:public class NetworkMessageBaseResponseMatchEnter : NetworkMessage // TypeDefIndex: 1907
+70490:public class NetworkMessageBaseRequestMatchPending : NetworkMessageBase // TypeDefIndex: 1908
+70502:public class NetworkMessageBaseResponseMatchPending : NetworkMessage // TypeDefIndex: 1909
+70514:public class NetworkMessageBaseRequestMatchSearchEnd : NetworkMessageBase // TypeDefIndex: 1910
+70523:public class NetworkMessageBaseResponseMatchSearchEnd : NetworkMessage // TypeDefIndex: 1911
+70532:public class NetworkMessageBaseRequestOpenChest : NetworkMessageBase // TypeDefIndex: 1912
+70544:public class NetworkMessageBaseResponseOpenChest : NetworkMessage // TypeDefIndex: 1913
+70557:public class NetworkMessageBaseRequestProfileShort : NetworkMessageBase // TypeDefIndex: 1914
+70569:public class NetworkMessageBaseResponseProfileShort : NetworkMessage // TypeDefIndex: 1915
+70581:public class NetworkMessageBaseRequestQuestsGet : NetworkMessageBase // TypeDefIndex: 1916
+70593:public class NetworkMessageBaseResponseQuestsGet : NetworkMessageResponse // TypeDefIndex: 1917
+70610:public class NetworkMessageBaseRequestQuestsSet : NetworkMessageBase // TypeDefIndex: 1918
+70623:public class NetworkMessageBaseResponseQuestsSet : NetworkMessage // TypeDefIndex: 1919
+70635:public class NetworkMessageBaseRequestRegistration : NetworkMessageBase // TypeDefIndex: 1920
+70649:public class NetworkMessageBaseResponseRegistration : NetworkMessage // TypeDefIndex: 1921
+70662:public class NetworkMessageBaseResponseGetProfile : NetworkMessage // TypeDefIndex: 1922
+70674:public class NetworkMessageBaseRequestSearchMatch : NetworkMessageBase // TypeDefIndex: 1923
+70688:public class NetworkMessageBaseResponseSearchMatch : NetworkMessage // TypeDefIndex: 1924
+70700:public class NetworkMessageBaseRequestServerInfo : NetworkMessageBase // TypeDefIndex: 1925
+70713:public class NetworkMessageBaseResponseServerInfo : NetworkMessage // TypeDefIndex: 1926
+70730:public class NetworkMessageBaseRequestSetGroupSettings : NetworkMessageBase // TypeDefIndex: 1927
+70743:public class NetworkMessageBaseResponseSetGroupSettings : NetworkMessage // TypeDefIndex: 1928
+71258:public class LevelCharacterCreateEvent : LevelEvent // TypeDefIndex: 1941
+71270:public class LevelCharacterDeathEvent : LevelEvent // TypeDefIndex: 1942
+71283:public class LevelCharacterDestroyEvent : LevelEvent // TypeDefIndex: 1943
+71295:public class LevelCharacterSpawnEvent : LevelEvent // TypeDefIndex: 1944
+71404:public class LevelMatchEndEvent : LevelEvent // TypeDefIndex: 1953
+71416:public class LevelMatchStartEvent : LevelEvent // TypeDefIndex: 1954
+71425:public class LevelMatchUpdateEvent : LevelEvent // TypeDefIndex: 1955
+71455:public class LevelPlayerDestroyEvent : LevelEvent // TypeDefIndex: 1958
+71467:public class LevelPlayerDisconnectedEvent : LevelEvent // TypeDefIndex: 1959
+71479:public class LevelPlayerSetTeamEvent : LevelEvent // TypeDefIndex: 1960
+71492:public class LevelPlayerSpawnEvent : LevelEvent // TypeDefIndex: 1961
+71615:public class LobbyEndFindMatchEvent : GameEvent // TypeDefIndex: 1973
+71627:public class LobbyStartFindMatchEvent : GameEvent // TypeDefIndex: 1974
+71732:public static class GeneratedNetworkCode // TypeDefIndex: 1988
+83192:internal sealed class Locale // TypeDefIndex: 2002
+94596:public class ArrayTypeMismatchException : SystemException // TypeDefIndex: 2133
+166974:internal sealed class LocalDataStoreHolder // TypeDefIndex: 2327
+166995:internal sealed class LocalDataStoreElement // TypeDefIndex: 2328
+167021:internal sealed class LocalDataStore // TypeDefIndex: 2329
+167050:public sealed class LocalDataStoreSlot // TypeDefIndex: 2330
+167084:internal sealed class LocalDataStoreMgr // TypeDefIndex: 2331
+170882:internal class ByteMatcher // TypeDefIndex: 2409
+172580:public sealed class AsyncLocal<T> : IAsyncLocal // TypeDefIndex: 2445
+172636:internal interface IAsyncLocal // TypeDefIndex: 2446
+172646:public struct AsyncLocalValueChangedArgs<T> // TypeDefIndex: 2447
+173834:private struct ThreadLocal.LinkedSlotVolatile<T> // TypeDefIndex: 2490
+173841:private sealed class ThreadLocal.LinkedSlot<T> // TypeDefIndex: 2491
+173864:private class ThreadLocal.IdManager<T> // TypeDefIndex: 2492
+173907:private class ThreadLocal.FinalizationHelper<T> // TypeDefIndex: 2493
+173941:public class ThreadLocal<T> : IDisposable // TypeDefIndex: 2494
+174129:internal sealed class SystemThreading_ThreadLocalDebugView<T> // TypeDefIndex: 2495
+175126:internal sealed class ThreadPoolWorkQueueThreadLocals // TypeDefIndex: 2523
+187649:public interface IIdentity // TypeDefIndex: 2807
+187696:public class WindowsIdentity : ClaimsIdentity, IIdentity, IDeserializationCallback, ISerializable, IDisposable // TypeDefIndex: 2811
+187789:public class Claim // TypeDefIndex: 2813
+187847:private sealed class ClaimsIdentity.<get_Claims>d__51 : IEnumerable<Claim>, IEnumerable, IEnumerator<Claim>, IDisposable, IEnumerator // TypeDefIndex: 2814
+187901:public class ClaimsIdentity : IIdentity // TypeDefIndex: 2815
+188187:internal abstract class Identity // TypeDefIndex: 2826
+188253:internal class ClientIdentity : Identity // TypeDefIndex: 2827
+188795:internal abstract class ServerIdentity : Identity // TypeDefIndex: 2838
+188849:internal class ClientActivatedIdentity : ServerIdentity // TypeDefIndex: 2839
+188876:internal class SingletonIdentity : ServerIdentity // TypeDefIndex: 2840
+188894:internal class SingleCallIdentity : ServerIdentity // TypeDefIndex: 2841
+191273:public class Header // TypeDefIndex: 2931
+191284:public sealed class HeaderHandler : MulticastDelegate // TypeDefIndex: 2932
+193861:internal sealed class SerializationHeaderRecord // TypeDefIndex: 3021
+203600:public sealed class AmbiguousMatchException : SystemException // TypeDefIndex: 3205
+206563:public class LocalVariableInfo // TypeDefIndex: 3283
+208049:public sealed class LocalBuilder : LocalVariableInfo // TypeDefIndex: 3309
+220498:internal struct PaddedHeadAndTail // TypeDefIndex: 3566
+378848:internal struct RuleMatcher // TypeDefIndex: 4525
+382460:internal class StyleMatchingContext // TypeDefIndex: 4648
+387481:internal struct MatchResultInfo // TypeDefIndex: 4763
+387495:internal struct SelectorMatchRecord // TypeDefIndex: 4764
+387648:internal struct MatchResult // TypeDefIndex: 4774
+387664:private struct BaseStyleMatcher.MatchContext // TypeDefIndex: 4775
+387672:internal abstract class BaseStyleMatcher // TypeDefIndex: 4776
+387805:internal class StylePropertyValueMatcher : BaseStyleMatcher // TypeDefIndex: 4777
+389188:internal class MultiColumnHeaderColumnMovePreview : VisualElement // TypeDefIndex: 4805
+389203:internal class MultiColumnHeaderColumnMoveLocationPreview : VisualElement // TypeDefIndex: 4806
+389359:internal class MultiColumnHeaderColumnResizePreview : VisualElement // TypeDefIndex: 4808
+389449:private struct MultiColumnCollectionHeader.ViewState.ColumnState // TypeDefIndex: 4810
+389461:private class MultiColumnCollectionHeader.ViewState // TypeDefIndex: 4811
+389484:internal class MultiColumnCollectionHeader.ColumnData // TypeDefIndex: 4812
+389521:private struct MultiColumnCollectionHeader.SortedColumnState // TypeDefIndex: 4813
+389535:private sealed class MultiColumnCollectionHeader.<>c__DisplayClass65_0 // TypeDefIndex: 4814
+389555:private sealed class MultiColumnCollectionHeader.<>c__DisplayClass71_0 // TypeDefIndex: 4815
+389570:internal class MultiColumnCollectionHeader : VisualElement, IDisposable // TypeDefIndex: 4816
+389786:internal class MultiColumnHeaderColumnSortIndicator : VisualElement // TypeDefIndex: 4817
+389810:internal class MultiColumnHeaderColumnIcon : Image // TypeDefIndex: 4818
+389846:internal class MultiColumnHeaderColumn : VisualElement // TypeDefIndex: 4819
+389976:internal class MultiColumnHeaderColumnResizeHandle : VisualElement // TypeDefIndex: 4820
+390058:internal static class LocalAppContextSwitches // TypeDefIndex: 4828
+391130:internal class CharEntityEncoderFallback : EncoderFallback // TypeDefIndex: 4850
+391165:internal class CharEntityEncoderFallbackBuffer : EncoderFallbackBuffer // TypeDefIndex: 4851
+391609:internal interface IDtdEntityInfo // TypeDefIndex: 4864
+398483:public abstract class XmlCharacterData : XmlLinkedNode // TypeDefIndex: 4966
+399349:public class XmlEntity : XmlNode // TypeDefIndex: 4975
+399431:public class XmlEntityReference : XmlLinkedNode // TypeDefIndex: 4976
+406970:internal class CompiledIdentityConstraint // TypeDefIndex: 5163
+409418:internal class Datatype_ENTITY : Datatype_NCName // TypeDefIndex: 5240
+411967:internal sealed class SchemaEntity : IDtdEntityInfo // TypeDefIndex: 5297
+415930:public class XmlSchemaIdentityConstraint : XmlSchemaAnnotated // TypeDefIndex: 5373
+416056:public class XmlSchemaImport : XmlSchemaExternal // TypeDefIndex: 5378
+427235:internal static class LocalAppContextSwitches // TypeDefIndex: 5696
+427776:public class Match : Group // TypeDefIndex: 5710
+427848:internal class MatchSparse : Match // TypeDefIndex: 5711
+427867:private sealed class MatchCollection.Enumerator : IEnumerator<Match>, IDisposable, IEnumerator // TypeDefIndex: 5712
+427903:public class MatchCollection : IList<Match>, ICollection<Match>, IEnumerable<Match>, IEnumerable, IReadOnlyList<Match>, IReadOnlyCollection<Match>, IList, ICollection // TypeDefIndex: 5713
+428260:public sealed class MatchEvaluator : MulticastDelegate // TypeDefIndex: 5718
+428804:public class RegexMatchTimeoutException : TimeoutException, ISerializable // TypeDefIndex: 5728
+444115:internal class NetworkStreamWrapper : Stream // TypeDefIndex: 6058
+444295:internal class SystemNetworkCredential : NetworkCredential // TypeDefIndex: 6062
+444668:public class NetworkCredential : ICredentials // TypeDefIndex: 6079
+444944:public class WebHeaderCollection : NameValueCollection, ISerializable // TypeDefIndex: 6088
+445355:internal sealed class HeaderParser : MulticastDelegate // TypeDefIndex: 6096
+445367:internal class HeaderInfo // TypeDefIndex: 6097
+445384:internal class HeaderInfoTable // TypeDefIndex: 6098
+446210:internal struct HeaderVariantInfo // TypeDefIndex: 6123
+446985:internal class DigestHeaderParser // TypeDefIndex: 6151
+450356:public class NetworkInformationException : Win32Exception // TypeDefIndex: 6222
+450613:public class NetworkStream : Stream // TypeDefIndex: 6238
+452798:public sealed class LocalCertificateSelectionCallback : MulticastDelegate // TypeDefIndex: 6283
+452834:internal sealed class LocalCertSelectionCallback : MulticastDelegate // TypeDefIndex: 6286
+453544:public class PixelPerfectCamera : MonoBehaviour, IPixelPerfectCamera, ISerializationCallbackReceiver // TypeDefIndex: 6334
+454268:internal class LocalMinima // TypeDefIndex: 6361
+456099:internal interface IPixelPerfectCamera // TypeDefIndex: 6402
+456164:internal class PixelPerfectCameraInternal : ISerializationCallbackReceiver // TypeDefIndex: 6403
+460846:public struct DecalEntityIndexer.DecalEntityItem // TypeDefIndex: 6526
+460855:internal class DecalEntityIndexer // TypeDefIndex: 6527
+460889:internal struct DecalEntity // TypeDefIndex: 6528
+460897:internal class DecalEntityChunk : DecalChunk // TypeDefIndex: 6529
+460924:private struct DecalEntityManager.CombinedChunks // TypeDefIndex: 6530
+460938:private sealed class DecalEntityManager.<>c // TypeDefIndex: 6531
+460957:internal class DecalEntityManager : IDisposable // TypeDefIndex: 6532
+465226:internal class SharedDecalEntityManager : IDisposable // TypeDefIndex: 6667
+467059:public static class CameraExtensions // TypeDefIndex: 6724
+467098:internal static class CameraTypeUtility // TypeDefIndex: 6725
+467116:private sealed class UniversalAdditionalCameraData.<>c // TypeDefIndex: 6726
+467139:public class UniversalAdditionalCameraData : MonoBehaviour, ISerializationCallbackReceiver, IAdditionalData // TypeDefIndex: 6727
+468601:public struct CameraData // TypeDefIndex: 6757
+474974:public sealed class NativeMatchesParallelForLengthAttribute : Attribute // TypeDefIndex: 6954
+501344:public sealed class Camera.CameraCallback : MulticastDelegate // TypeDefIndex: 7026
+501365:public sealed class Camera : Behaviour // TypeDefIndex: 7027
+507366:public struct BoneWeight : IEquatable<BoneWeight> // TypeDefIndex: 7143
+507459:public struct BoneWeight1 : IEquatable<BoneWeight1> // TypeDefIndex: 7144
+511318:internal interface IPlayerEditorConnectionNative // TypeDefIndex: 7189
+511349:internal class PlayerConnectionInternal : IPlayerEditorConnectionNative // TypeDefIndex: 7190
+511414:public class PlayerPrefsException : Exception // TypeDefIndex: 7191
+511424:public class PlayerPrefs // TypeDefIndex: 7192
+511532:public class HeaderAttribute : PropertyAttribute // TypeDefIndex: 7197
+516310:public struct SpriteBone // TypeDefIndex: 7322
+518846:internal struct PlayerLoopSystemInternal // TypeDefIndex: 7378
+518857:public sealed class PlayerLoopSystem.UpdateFunction : MulticastDelegate // TypeDefIndex: 7379
+518870:public struct PlayerLoopSystem // TypeDefIndex: 7380
+518887:public class PlayerLoop // TypeDefIndex: 7381
+520062:private sealed class PlayerConnection.<>c__DisplayClass12_0 // TypeDefIndex: 7529
+520078:private sealed class PlayerConnection.<>c__DisplayClass13_0 // TypeDefIndex: 7530
+520094:private sealed class PlayerConnection.<>c__DisplayClass20_0 // TypeDefIndex: 7531
+520110:public class PlayerConnection : ScriptableObject // TypeDefIndex: 7532
+520190:public class PlayerEditorConnectionEvents.MessageEvent : UnityEvent<MessageEventArgs> // TypeDefIndex: 7533
+520200:public class PlayerEditorConnectionEvents.ConnectionChangeEvent : UnityEvent<int> // TypeDefIndex: 7534
+520210:public class PlayerEditorConnectionEvents.MessageTypeSubscribers // TypeDefIndex: 7535
+520235:private sealed class PlayerEditorConnectionEvents.<>c__DisplayClass6_0 // TypeDefIndex: 7536
+520251:private sealed class PlayerEditorConnectionEvents.<>c__DisplayClass7_0 // TypeDefIndex: 7537
+520267:private sealed class PlayerEditorConnectionEvents.<>c__DisplayClass8_0 // TypeDefIndex: 7538
+520283:internal class PlayerEditorConnectionEvents // TypeDefIndex: 7539
+522512:internal struct CoreCameraValues : IEquatable<CoreCameraValues> // TypeDefIndex: 7617
+522534:public struct CameraProperties.<layerCullDistances>e__FixedBuffer // TypeDefIndex: 7618
+522543:public struct CameraProperties.<m_CameraCullPlanes>e__FixedBuffer // TypeDefIndex: 7619
+522552:public struct CameraProperties.<m_ShadowCullPlanes>e__FixedBuffer // TypeDefIndex: 7620
+522560:public struct CameraProperties : IEquatable<CameraProperties> // TypeDefIndex: 7621
+524730:public struct LocalKeyword : IEquatable<LocalKeyword> // TypeDefIndex: 7666
+524766:public struct LocalKeywordSpace : IEquatable<LocalKeywordSpace> // TypeDefIndex: 7667
+526768:public struct CameraPlayable : IPlayable, IEquatable<CameraPlayable> // TypeDefIndex: 7718
+527523:internal static class LocalAppContextSwitches // TypeDefIndex: 7742
+527540:private sealed class LocalAppContext.<>c // TypeDefIndex: 7743
+527559:internal class LocalAppContext // TypeDefIndex: 7744
+545057:public class CameraSwitcher : MonoBehaviour // TypeDefIndex: 8043
+545109:public class FreeCamera : MonoBehaviour // TypeDefIndex: 8044
+557163:public static class CameraCaptureBridge // TypeDefIndex: 8338
+562573:public class MB2_UpdateSkinnedMeshBoundsFromBones : MonoBehaviour // TypeDefIndex: 8505
+562644:public class MB3_BoneWeightCopier : MonoBehaviour // TypeDefIndex: 8509
+564320:public class MB3_CopyBoneWeights // TypeDefIndex: 8558
+568215:public interface MB_IMeshCombinerSingle_BoneProcessor : IDisposable // TypeDefIndex: 8686
+580253:private sealed class IdentityFunction.<>c<TElement> // TypeDefIndex: 8853
+580296:internal class IdentityFunction<TElement> // TypeDefIndex: 8854
+592553:internal abstract class LocalAccessInstruction : Instruction // TypeDefIndex: 9221
+592568:internal sealed class LoadLocalInstruction : LocalAccessInstruction, IBoxableInstruction // TypeDefIndex: 9222
+592593:internal sealed class LoadLocalBoxedInstruction : LocalAccessInstruction // TypeDefIndex: 9223
+592615:internal sealed class LoadLocalFromClosureInstruction : LocalAccessInstruction // TypeDefIndex: 9224
+592637:internal sealed class LoadLocalFromClosureBoxedInstruction : LocalAccessInstruction // TypeDefIndex: 9225
+592659:internal sealed class AssignLocalInstruction : LocalAccessInstruction, IBoxableInstruction // TypeDefIndex: 9226
+592688:internal sealed class StoreLocalInstruction : LocalAccessInstruction, IBoxableInstruction // TypeDefIndex: 9227
+592713:internal sealed class AssignLocalBoxedInstruction : LocalAccessInstruction // TypeDefIndex: 9228
+592739:internal sealed class StoreLocalBoxedInstruction : LocalAccessInstruction // TypeDefIndex: 9229
+592761:internal sealed class AssignLocalToClosureInstruction : LocalAccessInstruction // TypeDefIndex: 9230
+592819:internal sealed class InitializeLocalInstruction.Reference : InitializeLocalInstruction, IBoxableInstruction // TypeDefIndex: 9232
+592840:internal sealed class InitializeLocalInstruction.ImmutableValue : InitializeLocalInstruction, IBoxableInstruction // TypeDefIndex: 9233
+592864:internal sealed class InitializeLocalInstruction.ImmutableBox : InitializeLocalInstruction // TypeDefIndex: 9234
+592885:internal sealed class InitializeLocalInstruction.ImmutableRefBox : InitializeLocalInstruction // TypeDefIndex: 9235
+592903:internal sealed class InitializeLocalInstruction.ParameterBox : InitializeLocalInstruction // TypeDefIndex: 9236
+592921:internal sealed class InitializeLocalInstruction.Parameter : InitializeLocalInstruction, IBoxableInstruction // TypeDefIndex: 9237
+592942:internal sealed class InitializeLocalInstruction.MutableValue : InitializeLocalInstruction, IBoxableInstruction // TypeDefIndex: 9238
+592966:internal sealed class InitializeLocalInstruction.MutableBox : InitializeLocalInstruction // TypeDefIndex: 9239
+592987:internal abstract class InitializeLocalInstruction : LocalAccessInstruction // TypeDefIndex: 9240
+593025:internal sealed class LocalVariable // TypeDefIndex: 9242
+593055:internal struct LocalDefinition // TypeDefIndex: 9243
+593088:private sealed class LocalVariables.VariableScope // TypeDefIndex: 9244
+593104:internal sealed class LocalVariables // TypeDefIndex: 9245
+602034:internal sealed class ColliderBehaviour : EntityBehaviour // TypeDefIndex: 9488
+602423:internal sealed class Entity : MonoBehaviour // TypeDefIndex: 9499
+602450:internal abstract class EntityBehaviour : MonoBehaviour // TypeDefIndex: 9500
+621994:public class EntityKeyMemberConverter : JsonConverter // TypeDefIndex: 9932
+625237:public class TMP_Character : TMP_TextElement // TypeDefIndex: 10016
+625395:public struct TMP_CharacterInfo // TypeDefIndex: 10020
+629791:public class TMP_SpriteCharacter : TMP_TextElement // TypeDefIndex: 10110
+644410:internal struct ObscuredFileHeader // TypeDefIndex: 10401
+652771:public class Character : TextElement // TypeDefIndex: 10515
+653852:public class SpriteCharacter : TextElement // TypeDefIndex: 10536
+654609:internal struct CharacterSubstitution // TypeDefIndex: 10558
+656906:public class LocalConnectionToClient : NetworkConnectionToClient // TypeDefIndex: 10605
+656936:public class LocalConnectionToServer : NetworkConnectionToServer // TypeDefIndex: 10606
+657575:public struct AddPlayerMessage : NetworkMessage // TypeDefIndex: 10613
+657664:public struct EntityStateMessage : NetworkMessage // TypeDefIndex: 10624
+657672:public struct NetworkPingMessage : NetworkMessage // TypeDefIndex: 10625
+657684:public struct NetworkPongMessage : NetworkMessage // TypeDefIndex: 10626
+657693:public class UnityEventNetworkConnection : UnityEvent<NetworkConnectionToClient> // TypeDefIndex: 10627
+657703:public abstract class NetworkAuthenticator : MonoBehaviour // TypeDefIndex: 10628
+657761:public struct NetworkBehaviour.NetworkBehaviourSyncVar : IEquatable<NetworkBehaviour.NetworkBehaviourSyncVar> // TypeDefIndex: 10630
+657784:private sealed class NetworkBehaviour.<>c__DisplayClass45_0 // TypeDefIndex: 10631
+657806:public abstract class NetworkBehaviour : MonoBehaviour // TypeDefIndex: 10632
+658238:private sealed class NetworkClient.<>c // TypeDefIndex: 10634
+658274:private sealed class NetworkClient.<>c__DisplayClass47_0<T> // TypeDefIndex: 10635
+658384:private sealed class NetworkClient.<>c__DisplayClass49_0<T> // TypeDefIndex: 10636
+658410:private sealed class NetworkClient.<>c__DisplayClass55_0 // TypeDefIndex: 10637
+658426:private sealed class NetworkClient.<>c__DisplayClass56_0 // TypeDefIndex: 10638
+658442:private sealed class NetworkClient.<>c__DisplayClass60_0 // TypeDefIndex: 10639
+658457:public static class NetworkClient // TypeDefIndex: 10640
+658794:public abstract class NetworkConnection // TypeDefIndex: 10641
+658942:public class NetworkConnectionToClient : NetworkConnection // TypeDefIndex: 10642
+658986:public class NetworkConnectionToServer : NetworkConnection // TypeDefIndex: 10643
+659008:public struct NetworkDiagnostics.MessageInfo // TypeDefIndex: 10644
+659023:public static class NetworkDiagnostics // TypeDefIndex: 10645
+659201:public struct NetworkIdentitySerialization // TypeDefIndex: 10647
+659210:public sealed class NetworkIdentity.ClientAuthorityCallback : MulticastDelegate // TypeDefIndex: 10648
+659232:public sealed class NetworkIdentity : MonoBehaviour // TypeDefIndex: 10649
+659513:private sealed class NetworkLoop.<>c__DisplayClass4_0 // TypeDefIndex: 10651
+659528:public static class NetworkLoop // TypeDefIndex: 10652
+659580:private sealed class NetworkManager.<>c // TypeDefIndex: 10655
+659614:public class NetworkManager : MonoBehaviour // TypeDefIndex: 10656
+659935:public class NetworkManagerHUD : MonoBehaviour // TypeDefIndex: 10657
+659964:public interface NetworkMessage // TypeDefIndex: 10658
+659968:public class NetworkReader // TypeDefIndex: 10659
+660263:public static class NetworkReaderExtensions // TypeDefIndex: 10661
+660566:private sealed class NetworkReaderPool.<>c // TypeDefIndex: 10662
+660584:public static class NetworkReaderPool // TypeDefIndex: 10663
+660618:public sealed class PooledNetworkReader : NetworkReaderPooled // TypeDefIndex: 10664
+660630:public class NetworkReaderPooled : NetworkReader, IDisposable // TypeDefIndex: 10665
+660655:private sealed class NetworkServer.<>c__DisplayClass55_0<T> // TypeDefIndex: 10667
+660680:public static class NetworkServer // TypeDefIndex: 10668
+661062:public class NetworkStartPosition : MonoBehaviour // TypeDefIndex: 10669
+661077:public static class NetworkTime // TypeDefIndex: 10670
+661142:public class NetworkWriter // TypeDefIndex: 10671
+661427:internal struct NetworkWriterExtensions.UIntDouble // TypeDefIndex: 10673
+661436:public static class NetworkWriterExtensions // TypeDefIndex: 10674
+661739:private sealed class NetworkWriterPool.<>c // TypeDefIndex: 10675
+661757:public static class NetworkWriterPool // TypeDefIndex: 10676
+661784:public sealed class PooledNetworkWriter : NetworkWriterPooled // TypeDefIndex: 10677
+661793:public class NetworkWriterPooled : NetworkWriter, IDisposable // TypeDefIndex: 10678
+663750:public class SyncVarNetworkBehaviour<T> : SyncVar<ulong> // TypeDefIndex: 10702
+663989:public class SyncVarNetworkIdentity : SyncVar<uint> // TypeDefIndex: 10703
+664592:public sealed class NetworkMessageDelegate : MulticastDelegate // TypeDefIndex: 10711
+664797:public static class GeneratedNetworkCode // TypeDefIndex: 10724
+681138:private sealed class LocalizedProductDescription.<>c // TypeDefIndex: 11167
+681158:public class LocalizedProductDescription // TypeDefIndex: 11168
+681723:	private static AndroidJavaClass s_UnityPlayerClass; // 0x0
+681728:	private static AndroidJavaClass GetUnityPlayerClass() { }
+683851:internal sealed class Locale // TypeDefIndex: 11310
+685961:public sealed class MonoLocalCertificateSelectionCallback : MulticastDelegate // TypeDefIndex: 11373
+687244:public class MatchInterestManagement : InterestManagement // TypeDefIndex: 11420
+687286:public class NetworkMatch : NetworkBehaviour // TypeDefIndex: 11421
+687456:public class NetworkTeam : NetworkBehaviour // TypeDefIndex: 11426
+687475:public class TeamInterestManagement : InterestManagement // TypeDefIndex: 11427
+687520:public class NetworkAnimator : NetworkBehaviour // TypeDefIndex: 11428
+687734:public class NetworkLobbyManager : NetworkRoomManager // TypeDefIndex: 11429
+687747:public class NetworkLobbyPlayer : NetworkRoomPlayer // TypeDefIndex: 11430
+687762:public class NetworkPingDisplay : MonoBehaviour // TypeDefIndex: 11431
+687780:public struct NetworkRoomManager.PendingPlayer // TypeDefIndex: 11432
+687790:private sealed class NetworkRoomManager.<>c // TypeDefIndex: 11433
+687811:public class NetworkRoomManager : NetworkManager // TypeDefIndex: 11434
+688006:public class NetworkRoomPlayer : NetworkBehaviour // TypeDefIndex: 11435
+688094:public class NetworkStatistics : MonoBehaviour // TypeDefIndex: 11436
+688160:public class NetworkTransform : NetworkTransformBase // TypeDefIndex: 11437
+688178:public abstract class NetworkTransformBase : NetworkBehaviour // TypeDefIndex: 11438
+688399:public class NetworkTransformChild : NetworkTransformBase // TypeDefIndex: 11439
+688466:public class NetworkLerpRigidbody : NetworkBehaviour // TypeDefIndex: 11441
+688555:public class NetworkRigidbody.ClientSyncState // TypeDefIndex: 11442
+688575:public class NetworkRigidbody : NetworkBehaviour // TypeDefIndex: 11443
+688791:public class NetworkRigidbody2D.ClientSyncState // TypeDefIndex: 11444
+688810:public class NetworkRigidbody2D : NetworkBehaviour // TypeDefIndex: 11445
+689029:public class NetworkTransform : NetworkTransformBase // TypeDefIndex: 11446
+689048:public struct NetworkTransformBase.DataPoint // TypeDefIndex: 11447
+689068:public abstract class NetworkTransformBase : NetworkBehaviour // TypeDefIndex: 11448
+689335:public class NetworkTransformChild : NetworkTransformBase // TypeDefIndex: 11449
+689369:public class NetworkDiscovery : NetworkDiscoveryBase<ServerRequest, ServerResponse> // TypeDefIndex: 11451
+689410:private struct NetworkDiscoveryBase.<ClientListenAsync>d__23<Request, Response> : IAsyncStateMachine // TypeDefIndex: 11452
+689446:private struct NetworkDiscoveryBase.<ReceiveGameBroadcastAsync>d__26<Request, Response> : IAsyncStateMachine // TypeDefIndex: 11453
+689483:private struct NetworkDiscoveryBase.<ReceiveRequestAsync>d__16<Request, Response> : IAsyncStateMachine // TypeDefIndex: 11454
+689520:private struct NetworkDiscoveryBase.<ServerListenAsync>d__15<Request, Response> : IAsyncStateMachine // TypeDefIndex: 11455
+689557:public abstract class NetworkDiscoveryBase<Request, Response> : MonoBehaviour // TypeDefIndex: 11456
+689826:public class NetworkDiscoveryHUD : MonoBehaviour // TypeDefIndex: 11457
+689900:public static class GeneratedNetworkCode // TypeDefIndex: 11463
+698688:internal static class MatchTargetFieldConstants // TypeDefIndex: 11733
+703532:internal class Bone : MonoBehaviour // TypeDefIndex: 11834
+704030:public class SkeletonAsset : ScriptableObject // TypeDefIndex: 11841
+705284:internal struct BoneDeformBatchedJob : IJobParallelFor // TypeDefIndex: 11882
+705875:internal struct LocalToWorldTransformAccessJob : IJobParallelForTransform // TypeDefIndex: 11900
+705889:internal struct WorldToLocalTransformAccessJob : IJobParallelForTransform // TypeDefIndex: 11901
+707132:	internal static AndroidJavaClass AndroidJavaClassDeleteLocalRef(IntPtr jclass) { }
+719107:public struct SkeletonBone // TypeDefIndex: 12240
+719140:public struct HumanBone // TypeDefIndex: 12242
+720748:public class ControllerColliderHit // TypeDefIndex: 12291
+721433:public class Collider : Component // TypeDefIndex: 12303
+721501:public class CharacterController : Collider // TypeDefIndex: 12304
+721562:public class MeshCollider : Collider // TypeDefIndex: 12305
+721580:public class CapsuleCollider : Collider // TypeDefIndex: 12306
+721627:public class BoxCollider : Collider // TypeDefIndex: 12307
+721651:public class SphereCollider : Collider // TypeDefIndex: 12308
+721735:public class CharacterJoint : Joint // TypeDefIndex: 12311
+722029:public struct ContactPairHeader // TypeDefIndex: 12316
+729433:public static class GeneratedNetworkCode // TypeDefIndex: 12578
+732676:public class MB_CustomizeCharacterGUI : MonoBehaviour // TypeDefIndex: 12661
+733781:public interface ILocalUser : IUserProfile // TypeDefIndex: 12695
+733877:public class LocalUser : UserProfile, ILocalUser, IUserProfile // TypeDefIndex: 12705
+735899:public struct Bone : IEquatable<Bone> // TypeDefIndex: 12753
+737065:public class ftLocalStorage : ScriptableObject // TypeDefIndex: 12802
+740777:public class DynamicSmokeSystemCameraDepth : MonoBehaviour // TypeDefIndex: 12948
+743194:public static class NetworkStreamExtensions // TypeDefIndex: 13034
+744386:public class Collider2D : Behaviour // TypeDefIndex: 13065
+745228:internal class CameraRaycastHelper // TypeDefIndex: 13088
+747422:internal class NativeHeaderAttribute : Attribute // TypeDefIndex: 13171
+747966:public struct VFXCameraXRSettings // TypeDefIndex: 13194
+748874:public sealed class VideoPlayer.EventHandler : MulticastDelegate // TypeDefIndex: 13237
+748886:public sealed class VideoPlayer.ErrorEventHandler : MulticastDelegate // TypeDefIndex: 13238
+748898:public sealed class VideoPlayer.FrameReadyEventHandler : MulticastDelegate // TypeDefIndex: 13239
+748910:public sealed class VideoPlayer.TimeEventHandler : MulticastDelegate // TypeDefIndex: 13240
+748925:public sealed class VideoPlayer : Behaviour // TypeDefIndex: 13241
