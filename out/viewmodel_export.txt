@@ -1,0 +1,299 @@
+=== SceneLevelHands ===
+18953:public class SceneLevelHands : MonoBehaviour // TypeDefIndex: 450
+18954-{
+18955-	// Fields
+18956-	public SceneLevelCharacterController Character; // 0x20
+18957-	public SceneLevelHandModel Current; // 0x28
+18958-	private Vector3 hpd; // 0x30
+18959-	private Vector3 hpe; // 0x3C
+18960-	private Vector3 hpf; // 0x48
+18961-	private Vector3 hpg; // 0x54
+18962-	private float hph; // 0x60
+18963-	private float hpi; // 0x64
+18964-	private float hpj; // 0x68
+18965-	private Vector3 hpk; // 0x6C
+18966-	private float hpl; // 0x78
+18967-	private float hpm; // 0x7C
+18968-	public Vector3 _startPosition; // 0x80
+18969-	public Vector3 _fireBackOffset; // 0x8C
+18970-	private Sequence hpn; // 0x98
+18971-	private Vector3 hpo; // 0xA0
+18972-	private Vector3 hpp; // 0xAC
+18973-	private Vector3 hpq; // 0xB8
+18974-	private Vector3 hpr; // 0xC4
+18975-	private ItemEquip hps; // 0xD0
+18976-	private ItemEquipWeaponRange hpt; // 0xD8
+18977-	private int hpu; // 0xE0
+18978-	private const float hpv = -3.2;
+18979-	private const float hpw = 16;
+18980-	private const string hpx = "JumpStart";
+18981-	private const string hpy = "JumpLand";
+18982-	private const int hpz = 0;
+18983-	private static readonly int hqa; // 0x0
+18984-	private static readonly int hqb; // 0x4
+18985-	private float hqc; // 0xE4
+18986-	private bool hqd; // 0xE8
+18987-	private bool hqe; // 0xE9
+18988-	private bool hqf; // 0xEA
+18989-	private Sequence hqg; // 0xF0
+18990-	private static readonly Vector3 hqh; // 0x8
+18991-	private static readonly Vector3 hqi; // 0x14
+18992-	private const float hqj = 0.25;
+18993-	private Vector3 hqk; // 0xF8
+18994-	private Vector3 hql; // 0x104
+18995-	private Tweener hqm; // 0x110
+18996-	private Tweener hqn; // 0x118
+18997-	private SceneLevelMasterNetwork hqo; // 0x120
+18998-	[CompilerGenerated]
+18999-	private bool <ReducedScopeMovement>k__BackingField; // 0x128
+19000-	private const float hqp = 0.1;
+19001-	private const float hqq = 0.08;
+19002-	private float hqr; // 0x12C
+19003-	private const int hqs = 8;
+19004-	private static readonly ProfilerMarker hqt; // 0x20
+19005-	private static readonly ProfilerMarker hqu; // 0x28
+19006-	private readonly List<SceneLevelHands.hh> hqv; // 0x130
+19007-	private Transform hqw; // 0x138
+19008-	private SceneLevelCharacter hqx; // 0x140
+19009-	private int hqy; // 0x148
+19010-	private string hqz; // 0x150
+19011-	private int hra; // 0x158
+19012-	private Coroutine hrb; // 0x160
+19013-	private bool hrc; // 0x168
+=== SceneLevelCamera ===
+18199:public class SceneLevelCamera : MonoBehaviour // TypeDefIndex: 439
+18200-{
+18201-	// Fields
+18202-	[Range(0, 200)]
+18203-	public float mobileSensitivity; // 0x20
+18204-	[Range(0, 200)]
+18205-	public float pcSensitivity; // 0x24
+18206-	[Range(0, 200)]
+18207-	public float smooth; // 0x28
+18208-	[HideInInspector]
+18209-	public float sensitivityMultiplier; // 0x2C
+18210-	[HideInInspector]
+18211-	public Vector2 rot; // 0x30
+18212-	[HideInInspector]
+18213-	public Vector2 additionalRot; // 0x38
+18214-	[SerializeField]
+18215-	private SceneLevelHands _hands; // 0x40
+18216-	[SerializeField]
+18217-	private Camera _camera; // 0x48
+18218-	[CompilerGenerated]
+18219-	private SceneLevelCamera.CameraState <CurrentCameraState>k__BackingField; // 0x50
+18220-	public SceneLevelCharacterController Controller; // 0x58
+18221-	[CompilerGenerated]
+18222-	private bool <IsBusy>k__BackingField; // 0x60
+18223-	[CompilerGenerated]
+18224-	private bool <IsDisable>k__BackingField; // 0x61
+18225-	private float hnk; // 0x64
+18226-	private float hnl; // 0x68
+18227-	private float hnm; // 0x6C
+18228-	private float hnn; // 0x70
+18229-	private Quaternion hno; // 0x74
+18230-	private Quaternion hnp; // 0x84
+18231-	private Vector3 hnq; // 0x94
+18232-	private Vector3 hnr; // 0xA0
+18233-	private Vector3 hns; // 0xAC
+18234-	private float hnt; // 0xB8
+18235-	private bool hnu; // 0xBC
+18236-	private float hnv; // 0xC0
+18237-	private const float hnw = 0.008333334;
+18238-	private Quaternion hnx; // 0xC4
+18239-	public string S; // 0xD8
+18240-	private Matrix4x4 hny; // 0xE0
+18241-	private float hnz; // 0x120
+18242-	private float hoa; // 0x124
+18243-	private Quaternion hob; // 0x128
+18244-	private LevelMapPreview hoc; // 0x138
+18245-
+18246-	// Properties
+18247-	public SceneLevelCamera.CameraState CurrentCameraState { get; set; }
+18248-	public SceneLevelCharacter ViewCharacter { get; }
+18249-	public SceneLevelHands Hands { get; }
+18250-	public Camera Camera { get; }
+18251-	public bool IsBusy { get; set; }
+18252-	public float FieldOfView { get; }
+18253-	public bool IsDisable { get; set; }
+18254-	public Vector3 LookOffset { get; }
+18255-	private float _sensitivity { get; }
+18256-
+18257-	// Methods
+18258-
+18259-	[CompilerGenerated]
+=== ItemView / WeaponModel ===
+4125:public class ItemView : MonoBehaviour // TypeDefIndex: 121
+4126-{
+4127-	// Fields
+4128-	[SerializeField]
+4129-	protected Transform _container; // 0x20
+4130-	private bool gir; // 0x28
+4131-	[CompilerGenerated]
+4132-	private Item <Owner>k__BackingField; // 0x30
+4133-	[CompilerGenerated]
+4134-	private ItemModel <Model>k__BackingField; // 0x38
+4135-	private string gis; // 0x40
+4136-
+4137-	// Properties
+4138-	public Item Owner { get; set; }
+4139-	public ItemModel Model { get; set; }
+4140-
+4141-	// Methods
+4142-
+4143-	[CompilerGenerated]
+4144-	// RVA: 0x17FE7A4 Offset: 0x17FE7A4 VA: 0x17FE7A4
+4145-	public Item get_Owner() { }
+4146-
+4147-	[CompilerGenerated]
+4148-	// RVA: 0x17FE7AC Offset: 0x17FE7AC VA: 0x17FE7AC
+4149-	private void set_Owner(Item value) { }
+4150-
+4151-	[CompilerGenerated]
+4152-	// RVA: 0x17FE7B4 Offset: 0x17FE7B4 VA: 0x17FE7B4
+4153-	public ItemModel get_Model() { }
+4154-
+4155-	[CompilerGenerated]
+4156-	// RVA: 0x17FE7BC Offset: 0x17FE7BC VA: 0x17FE7BC
+4157-	protected void set_Model(ItemModel value) { }
+4158-
+4159-	// RVA: 0x17FE3CC Offset: 0x17FE3CC VA: 0x17FE3CC
+4160-	public void Show(bool a) { }
+4161-
+4162-	// RVA: 0x17FE7C4 Offset: 0x17FE7C4 VA: 0x17FE7C4
+4163-	public void PrepareFpvGeometry(ItemWeaponSkin skin) { }
+4164-
+4165-	// RVA: 0x17FE938 Offset: 0x17FE938 VA: 0x17FE938 Slot: 4
+31497:public class WeaponModel : ItemModel // TypeDefIndex: 741
+31498-{
+31499-	// Fields
+31500-	[SerializeField]
+31501-	private ParticleSystem _system; // 0xA8
+31502-	[SerializeField]
+31503-	private Transform _handPivot; // 0xB0
+31504-	[SerializeField]
+31505-	private Transform _shootPivot; // 0xB8
+31506-	private bool isp; // 0xC0
+31507-	private bool isq; // 0xC1
+31508-	private int isr; // 0xC4
+31509-	private ParticleSystem iss; // 0xC8
+31510-	private ParticleSystem[] ist; // 0xD0
+31511-	private const float isu = 0.06;
+31512-
+31513-	// Properties
+31514-	public Transform ShootPivot { get; }
+31515-	public bool IsDisableOnUseWhenNoModel { get; }
+31516-	public bool IsModelActive { get; }
+31517-	public Transform HandPivot { get; set; }
+31518-
+31519-	// Methods
+31520-
+31521-	// RVA: 0x18B210C Offset: 0x18B210C VA: 0x18B210C
+31522-	public Transform get_ShootPivot() { }
+31523-
+31524-	// RVA: 0x18B2114 Offset: 0x18B2114 VA: 0x18B2114
+31525-	public bool get_IsDisableOnUseWhenNoModel() { }
+31526-
+31527-	// RVA: 0x18B211C Offset: 0x18B211C VA: 0x18B211C
+31528-	public bool get_IsModelActive() { }
+31529-
+31530-	// RVA: 0x18B21D4 Offset: 0x18B21D4 VA: 0x18B21D4
+31531-	public Transform get_HandPivot() { }
+31532-
+31533-	// RVA: 0x18B21F0 Offset: 0x18B21F0 VA: 0x18B21F0
+31534-	public void set_HandPivot(Transform value) { }
+31535-
+31536-	// RVA: 0x18B21F8 Offset: 0x18B21F8 VA: 0x18B21F8 Slot: 9
+31537-	public override void Use() { }
+28177:public class ItemModel : MonoBehaviour // TypeDefIndex: 677
+28178-{
+28179-	// Fields
+28180-	[SerializeField]
+28181-	protected Transform _center; // 0x20
+28182-	[SerializeField]
+28183-	protected GameObject _model; // 0x28
+28184-	[SerializeField]
+28185-	private bool _doNotShowModules; // 0x30
+28186-	[CompilerGenerated]
+28187-	private bool <IsHidded>k__BackingField; // 0x31
+28188-	public Transform _modules; // 0x38
+28189-	public static Vector3 SharedStatTrakGunNorm; // 0x0
+28190-	public static bool HasSharedStatTrakGunLocal; // 0xC
+28191-	private ItemEquipData ilj; // 0x40
+28192-	private readonly Dictionary<string, Transform> ilk; // 0x48
+28193-	private Transform ill; // 0x50
+28194-	[SerializeField]
+28195-	private Transform _fpvModuleSource; // 0x58
+28196-	[SerializeField]
+28197-	private string _fpvModuleBone; // 0x60
+28198-	[SerializeField]
+28199-	private Matrix4x4 _fpvModuleMapping; // 0x68
+28200-
+28201-	// Properties
+28202-	public bool IsHidded { get; set; }
+28203-	public Transform Center { get; set; }
+28204-	public Transform Model { get; set; }
+28205-	public Transform Modules { get; set; }
+28206-
+28207-	// Methods
+28208-
+28209-	[CompilerGenerated]
+28210-	// RVA: 0x1877758 Offset: 0x1877758 VA: 0x1877758
+28211-	public bool get_IsHidded() { }
+28212-
+28213-	[CompilerGenerated]
+28214-	// RVA: 0x1877760 Offset: 0x1877760 VA: 0x1877760
+28215-	public void set_IsHidded(bool value) { }
+28216-
+28217-	// RVA: 0x1877768 Offset: 0x1877768 VA: 0x1877768
+=== Camera fields ===
+501380-	public float farClipPlane { get; set; }
+501381-	[NativeProperty("VerticalFieldOfView")]
+501382:	public float fieldOfView { get; set; }
+501383-	public RenderingPath renderingPath { set; }
+501384-	public bool allowHDR { get; set; }
+501385-	public bool allowMSAA { get; set; }
+501386-	public bool allowDynamicResolution { get; }
+501387-	[NativeProperty("ForceIntoRT")]
+501388-	public bool forceIntoRenderTexture { set; }
+501389-	public float orthographicSize { get; set; }
+501390-	public bool orthographic { get; set; }
+501391-	public OpaqueSortMode opaqueSortMode { get; }
+501392-	public float depth { get; set; }
+--
+501438-
+501439-	// RVA: 0x3BAC79C Offset: 0x3BAC79C VA: 0x3BAC79C
+501440:	public float get_fieldOfView() { }
+501441-
+501442-	// RVA: 0x3BAC7EC Offset: 0x3BAC7EC VA: 0x3BAC7EC
+501443:	public void set_fieldOfView(float value) { }
+501444-
+501445-	// RVA: 0x3BAC850 Offset: 0x3BAC850 VA: 0x3BAC850
+501446-	public void set_renderingPath(RenderingPath value) { }
+501447-
+501448-	// RVA: 0x3BAC8B4 Offset: 0x3BAC8B4 VA: 0x3BAC8B4
+501449-	public bool get_allowHDR() { }
+501450-
+501451-	// RVA: 0x3BAC904 Offset: 0x3BAC904 VA: 0x3BAC904
+501452-	public void set_allowHDR(bool value) { }
+501453-
+--
+554759-
+554760-	// RVA: 0x39D42D8 Offset: 0x39D42D8 VA: 0x39D42D8
+554761:	private static Vector2 DoPaniniProjection(Vector2 screenPos, float actualWidth, float actualHeight, float fieldOfView, float paniniProjectionCropToFit, float paniniProjectionDistance) { }
+554762-
+554763-	// RVA: 0x39D6DD8 Offset: 0x39D6DD8 VA: 0x39D6DD8
+554764:	private static Vector2 CalcViewExtents(float actualWidth, float actualHeight, float fieldOfView) { }
+554765-
+554766-	// RVA: 0x39D6E20 Offset: 0x39D6E20 VA: 0x39D6E20
+554767:	private static Vector2 CalcCropExtents(float actualWidth, float actualHeight, float fieldOfView, float d) { }
+554768-
+554769-	// RVA: 0x39D6EEC Offset: 0x39D6EEC VA: 0x39D6EEC
+554770-	private static Vector2 Panini_Generic_Inv(Vector2 projPos, float d) { }
+554771-
+554772-	// RVA: 0x39D6F20 Offset: 0x39D6F20 VA: 0x39D6F20
+554773-	private static void .cctor() { }
+554774-
+554775-	[CompilerGenerated]
+554776-	// RVA: 0x39D70B8 Offset: 0x39D70B8 VA: 0x39D70B8
+554777-	internal static float <ShapeAttenuationAreaTubeLight>g__Fpo|28_0(float d, float l) { }

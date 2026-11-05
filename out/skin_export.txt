@@ -1,0 +1,538 @@
+=== ItemWeaponSkin ===
+57366:public class ItemWeaponSkin : Item // TypeDefIndex: 1425
+57367-{
+57368-	// Fields
+57369-	public int Equip; // 0x30
+57370-	public ItemSkin.ItemStatus Status; // 0x34
+57371-	public int Pattern; // 0x38
+57372-	public int PatternWear; // 0x3C
+57373-
+57374-	// Methods
+57375-
+57376-	// RVA: 0x1A037A4 Offset: 0x1A037A4 VA: 0x1A037A4
+57377-	public void .ctor() { }
+57378-
+57379-	// RVA: 0x1A03830 Offset: 0x1A03830 VA: 0x1A03830
+57380-	public void .ctor(string id, string dataDataId, int dataEquip, ItemSkin.ItemStatus dataStatus, int pattern = 0, int patternWear = 0) { }
+57381-}
+57382-
+57383-// Namespace: Assets.Common.Scripts.Dto
+57384-public sealed class LegacyWireContractBinder : DefaultSerializationBinder // TypeDefIndex: 1426
+57385-{
+57386-	// Fields
+57387-	public static readonly LegacyWireContractBinder Instance; // 0x0
+57388-	private const string OldLobby = "Assets.Game.Game.Scripts.NetworkHandlers.Server.LoginServerNetworkHandler+";
+57389-	private const string NewLobby = "Assets.Game.Game.Scripts.NetworkHandlers.Server.SharedLobbyContracts+";
+57390-	private const string OldMatch = "Assets.Game.Game.Scripts.NetworkHandlers.Client.GameServerToLoginServerNetworkHandler+";
+57391-	private const string NewMatch = "Assets.Game.Game.Scripts.NetworkHandlers.Client.SharedMatchContracts+";
+57392-
+57393-	// Methods
+57394-
+57395-	// RVA: 0x1A03918 Offset: 0x1A03918 VA: 0x1A03918 Slot: 5
+57396-	public override Type BindToType(string assemblyName, string typeName) { }
+57397-
+57398-	// RVA: 0x1A03A1C Offset: 0x1A03A1C VA: 0x1A03A1C Slot: 4
+57399-	public override void BindToName(Type serializedType, out string assemblyName, out string typeName) { }
+57400-
+57401-	// RVA: 0x1A03B18 Offset: 0x1A03B18 VA: 0x1A03B18
+57402-	public void .ctor() { }
+57403-
+57404-	// RVA: 0x1A03BA0 Offset: 0x1A03BA0 VA: 0x1A03BA0
+57405-	private static void .cctor() { }
+57406-}
+--
+60631:public class ItemWeaponSkin : ItemSkin // TypeDefIndex: 1544
+60632-{
+60633-	// Fields
+60634-	[Header("Gradient patterns")]
+60635-	[Tooltip("Если включено — при выдаче скина (магазин / кейс / контракт) роллится номер 1..N, и в рантайме подменяется _HoloRamp. Обычные Lit-скины не трогать.")]
+60636-	public bool HasGradientPatterns; // 0x78
+60637-	[Tooltip("Ramp-текстуры для шейдера RAPIRA/KnifeHolographic (_HoloRamp). Индекс 0 = Pattern 1.")]
+60638-	public Texture2D[] GradientPatterns; // 0x80
+60639-	[Header("Inspect preview (ножи)")]
+60640-	[Tooltip("По умолчанию ориентация Standoff считается автоматически по мешу (остриё → левый верх, рукоять → правый низ). Включи только для ручной подстройки.")]
+60641-	public bool OverrideInspectPreviewEuler; // 0x88
+60642-	[Tooltip("Ручной local euler ModelH в осмотре (только если Override включён).")]
+60643-	public Vector3 InspectPreviewEuler; // 0x8C
+60644-	[Tooltip("Перевернуть остриё↔рукоять после авто-детекта (керамбит и похожие формы).")]
+60645-	public bool FlipInspectBladeDir; // 0x98
+60646-	[Tooltip("Перевернуть режущую кромку вверх↔вниз (бабочка / хищник и т.п.).")]
+60647-	public bool FlipInspectEdgeRoll; // 0x99
+60648-
+60649-	// Properties
+60650-	public bool SupportsStickers { get; }
+60651-	public Sprite Picture3 { get; }
+60652-
+60653-	// Methods
+60654-
+60655-	// RVA: 0x1A0F6C8 Offset: 0x1A0F6C8 VA: 0x1A0F6C8
+60656-	public bool get_SupportsStickers() { }
+60657-
+60658-	// RVA: 0x1A0F7B0 Offset: 0x1A0F7B0 VA: 0x1A0F7B0
+60659-	public Sprite get_Picture3() { }
+60660-
+60661-	// RVA: 0x1A0F8A0 Offset: 0x1A0F8A0 VA: 0x1A0F8A0
+60662-	public void .ctor() { }
+60663-}
+60664-
+60665-// Namespace: 
+60666-[Serializable]
+60667-public class LevelFinishRewards.PercentDrop // TypeDefIndex: 1545
+60668-{
+60669-	// Fields
+60670-	public float Percent; // 0x10
+60671-	public ShopPack.ShopEntityContainer Item; // 0x18
+--
+66442:public class ItemWeaponSkin : Item // TypeDefIndex: 1727
+66443-{
+66444-	// Fields
+66445-	public int Equip; // 0x30
+66446-	public ItemSkin.ItemStatus Status; // 0x34
+66447-	public int Pattern; // 0x38
+66448-	public int PatternWear; // 0x3C
+66449-
+66450-	// Methods
+66451-
+66452-	// RVA: 0x1A71E5C Offset: 0x1A71E5C VA: 0x1A71E5C
+66453-	public void .ctor() { }
+66454-
+66455-	// RVA: 0x1A71EF4 Offset: 0x1A71EF4 VA: 0x1A71EF4
+66456-	public void .ctor(ItemData i) { }
+66457-}
+66458-
+66459-// Namespace: Assets.Game.Scripts.Core
+66460-public class MarketBuyRequest : CoreData // TypeDefIndex: 1728
+66461-{
+66462-	// Fields
+66463-	public string Id; // 0x10
+66464-	public string ItemId; // 0x18
+66465-	public string OwnerGameId; // 0x20
+66466-	public string DataId; // 0x28
+66467-	public long Price; // 0x30
+66468-	public long Date; // 0x38
+66469-
+66470-	// Methods
+66471-
+66472-	// RVA: 0x1A71FC8 Offset: 0x1A71FC8 VA: 0x1A71FC8
+66473-	public void .ctor() { }
+66474-}
+66475-
+66476-// Namespace: Assets.Game.Scripts.Core
+66477-public class MarketSellRequest : CoreData // TypeDefIndex: 1729
+66478-{
+66479-	// Fields
+66480-	public string Id; // 0x10
+66481-	public string OwnerGameId; // 0x18
+66482-	public string ItemId; // 0x20
+=== ItemSkin / ItemData / Item ===
+60539:public class ItemSkin : ItemData // TypeDefIndex: 1541
+60540-{
+60541-	// Fields
+60542-	[SerializeField]
+60543-	private ItemData.ItemTeamSuite _suiteTeam; // 0x68
+60544-	[SerializeField]
+60545-	protected ItemData _targetItem; // 0x70
+60546-
+60547-	// Properties
+60548-	public ItemData TargetItem { get; }
+60549-	public ItemData.ItemTeamSuite TeamSuite { get; }
+60550-
+60551-	// Methods
+60552-
+60553-	// RVA: 0x1A0EDC4 Offset: 0x1A0EDC4 VA: 0x1A0EDC4
+60554-	public ItemData get_TargetItem() { }
+60555-
+60556-	// RVA: 0x1A0EDCC Offset: 0x1A0EDCC VA: 0x1A0EDCC
+60557-	public ItemData.ItemTeamSuite get_TeamSuite() { }
+60558-
+60559-	// RVA: 0x1A0EDD4 Offset: 0x1A0EDD4 VA: 0x1A0EDD4
+60560-	public SceneLevelHandModel GetSceneLevelFpvModel() { }
+60561-
+60562-	// RVA: 0x1A0EEB4 Offset: 0x1A0EEB4 VA: 0x1A0EEB4 Slot: 6
+60563-	public override GameObject GetSourceModelByKey(string key, string folder = "") { }
+60564-
+60565-	// RVA: 0x1A0EEF4 Offset: 0x1A0EEF4 VA: 0x1A0EEF4 Slot: 7
+60566-	public override ItemModel GetModelByKey(string key, string folder = "") { }
+60567-
+60568-	// RVA: 0x1A0EF34 Offset: 0x1A0EF34 VA: 0x1A0EF34
+60569-	public void .ctor() { }
+59194:public class ItemData : ScriptableObject // TypeDefIndex: 1493
+59195-{
+59196-	// Fields
+59197-	public bool IsDisabled; // 0x18
+59198-	public ItemData.ItemType Type; // 0x1C
+59199-	public ItemData.CostType CostT; // 0x20
+59200-	public ItemData.ItemRarity Rarity; // 0x24
+59201-	public int Category; // 0x28
+59202-	public int Cost; // 0x2C
+59203-	public int Slot; // 0x30
+59204-	public bool DontShowInInventory; // 0x34
+59205-	public bool DontShowInMarket; // 0x35
+59206-	public bool DontAllowedToTrade; // 0x36
+59207-	[Tooltip("Эксклюзивный предмет — в UI рисуется отдельная плашка (как NEW).")]
+59208-	public bool IsExclusive; // 0x37
+59209-	[Space]
+59210-	public string ItemModelPathPrefix; // 0x38
+59211-	public bool Hidden; // 0x40
+59212-	public string Collection; // 0x48
+59213-	[NonReorderable]
+59214-	public List<ItemData.ItemAnimation> Animations; // 0x50
+59215-	[NonReorderable]
+59216-	public List<ItemData.ItemAudio> Audio; // 0x58
+59217-	public List<ItemData.Flag> Flags; // 0x60
+59218-
+59219-	// Properties
+59220-	public bool InCollection { get; }
+59221-	public virtual Sprite Picture { get; }
+59222-	public string Id { get; }
+59223-	public int SortRarityNumber { get; }
+59224-
+66239:public class Item : CoreData // TypeDefIndex: 1715
+66240-{
+66241-	// Fields
+66242-	public string DataId; // 0x10
+66243-	public string Id; // 0x18
+66244-	public bool IsNew; // 0x20
+66245-	public List<ItemModule> Modules; // 0x28
+66246-
+66247-	// Methods
+66248-
+66249-	// RVA: 0x1A70AC4 Offset: 0x1A70AC4 VA: 0x1A70AC4
+66250-	public void .ctor() { }
+66251-
+66252-	// RVA: 0x1A70B50 Offset: 0x1A70B50 VA: 0x1A70B50
+66253-	public void .ctor(ItemData i) { }
+66254-
+66255-	// RVA: 0x1A70C68 Offset: 0x1A70C68 VA: 0x1A70C68
+66256-	public ItemData GetData() { }
+66257-
+66258-	// RVA: -1 Offset: -1
+66259-	public T GetModule<T>() { }
+66260-	/* GenericInstMethod :
+66261-	|
+66262-	|-RVA: 0x1E37058 Offset: 0x1E37058 VA: 0x1E37058
+66263-	|-Item.GetModule<object>
+66264-	*/
+66265-
+66266-	// RVA: -1 Offset: -1
+66267-	public bool TryGetModule<T>(out T m) { }
+66268-	/* GenericInstMethod :
+66269-	|
+=== WeaponModel / ItemModel ===
+31497:public class WeaponModel : ItemModel // TypeDefIndex: 741
+31498-{
+31499-	// Fields
+31500-	[SerializeField]
+31501-	private ParticleSystem _system; // 0xA8
+31502-	[SerializeField]
+31503-	private Transform _handPivot; // 0xB0
+31504-	[SerializeField]
+31505-	private Transform _shootPivot; // 0xB8
+31506-	private bool isp; // 0xC0
+31507-	private bool isq; // 0xC1
+31508-	private int isr; // 0xC4
+31509-	private ParticleSystem iss; // 0xC8
+31510-	private ParticleSystem[] ist; // 0xD0
+31511-	private const float isu = 0.06;
+31512-
+31513-	// Properties
+31514-	public Transform ShootPivot { get; }
+31515-	public bool IsDisableOnUseWhenNoModel { get; }
+31516-	public bool IsModelActive { get; }
+31517-	public Transform HandPivot { get; set; }
+31518-
+31519-	// Methods
+31520-
+31521-	// RVA: 0x18B210C Offset: 0x18B210C VA: 0x18B210C
+31522-	public Transform get_ShootPivot() { }
+31523-
+31524-	// RVA: 0x18B2114 Offset: 0x18B2114 VA: 0x18B2114
+31525-	public bool get_IsDisableOnUseWhenNoModel() { }
+31526-
+31527-	// RVA: 0x18B211C Offset: 0x18B211C VA: 0x18B211C
+31528-	public bool get_IsModelActive() { }
+31529-
+31530-	// RVA: 0x18B21D4 Offset: 0x18B21D4 VA: 0x18B21D4
+31531-	public Transform get_HandPivot() { }
+31532-
+31533-	// RVA: 0x18B21F0 Offset: 0x18B21F0 VA: 0x18B21F0
+31534-	public void set_HandPivot(Transform value) { }
+31535-
+31536-	// RVA: 0x18B21F8 Offset: 0x18B21F8 VA: 0x18B21F8 Slot: 9
+31537-	public override void Use() { }
+28177:public class ItemModel : MonoBehaviour // TypeDefIndex: 677
+28178-{
+28179-	// Fields
+28180-	[SerializeField]
+28181-	protected Transform _center; // 0x20
+28182-	[SerializeField]
+28183-	protected GameObject _model; // 0x28
+28184-	[SerializeField]
+28185-	private bool _doNotShowModules; // 0x30
+28186-	[CompilerGenerated]
+28187-	private bool <IsHidded>k__BackingField; // 0x31
+28188-	public Transform _modules; // 0x38
+28189-	public static Vector3 SharedStatTrakGunNorm; // 0x0
+28190-	public static bool HasSharedStatTrakGunLocal; // 0xC
+28191-	private ItemEquipData ilj; // 0x40
+28192-	private readonly Dictionary<string, Transform> ilk; // 0x48
+28193-	private Transform ill; // 0x50
+28194-	[SerializeField]
+28195-	private Transform _fpvModuleSource; // 0x58
+28196-	[SerializeField]
+28197-	private string _fpvModuleBone; // 0x60
+28198-	[SerializeField]
+28199-	private Matrix4x4 _fpvModuleMapping; // 0x68
+28200-
+28201-	// Properties
+28202-	public bool IsHidded { get; set; }
+28203-	public Transform Center { get; set; }
+28204-	public Transform Model { get; set; }
+28205-	public Transform Modules { get; set; }
+28206-
+28207-	// Methods
+=== ItemView / ItemViewItemEquipWeapon ===
+4125:public class ItemView : MonoBehaviour // TypeDefIndex: 121
+4126-{
+4127-	// Fields
+4128-	[SerializeField]
+4129-	protected Transform _container; // 0x20
+4130-	private bool gir; // 0x28
+4131-	[CompilerGenerated]
+4132-	private Item <Owner>k__BackingField; // 0x30
+4133-	[CompilerGenerated]
+4134-	private ItemModel <Model>k__BackingField; // 0x38
+4135-	private string gis; // 0x40
+4136-
+4137-	// Properties
+4138-	public Item Owner { get; set; }
+4139-	public ItemModel Model { get; set; }
+4140-
+4141-	// Methods
+4142-
+4143-	[CompilerGenerated]
+4144-	// RVA: 0x17FE7A4 Offset: 0x17FE7A4 VA: 0x17FE7A4
+4145-	public Item get_Owner() { }
+4146-
+4147-	[CompilerGenerated]
+4148-	// RVA: 0x17FE7AC Offset: 0x17FE7AC VA: 0x17FE7AC
+4149-	private void set_Owner(Item value) { }
+4150-
+4151-	[CompilerGenerated]
+4152-	// RVA: 0x17FE7B4 Offset: 0x17FE7B4 VA: 0x17FE7B4
+4153-	public ItemModel get_Model() { }
+4154-
+4155-	[CompilerGenerated]
+4156-	// RVA: 0x17FE7BC Offset: 0x17FE7BC VA: 0x17FE7BC
+4157-	protected void set_Model(ItemModel value) { }
+4158-
+4159-	// RVA: 0x17FE3CC Offset: 0x17FE3CC VA: 0x17FE3CC
+4160-	public void Show(bool a) { }
+4161-
+4162-	// RVA: 0x17FE7C4 Offset: 0x17FE7C4 VA: 0x17FE7C4
+4163-	public void PrepareFpvGeometry(ItemWeaponSkin skin) { }
+4164-
+4165-	// RVA: 0x17FE938 Offset: 0x17FE938 VA: 0x17FE938 Slot: 4
+4182:public class ItemViewItemEquipWeapon : ItemView // TypeDefIndex: 122
+4183-{
+4184-	// Fields
+4185-	public WeaponModel WeaponModel; // 0x48
+4186-
+4187-	// Methods
+4188-
+4189-	// RVA: 0x17FF660 Offset: 0x17FF660 VA: 0x17FF660 Slot: 5
+4190-	protected override void CreateModel(bool hiPoly, ItemWeaponSkin skin) { }
+4191-
+4192-	// RVA: 0x17FF770 Offset: 0x17FF770 VA: 0x17FF770
+4193-	private void Start() { }
+4194-
+4195-	// RVA: 0x17FF800 Offset: 0x17FF800 VA: 0x17FF800 Slot: 4
+4196-	public override void Init(Item i, bool hp = False) { }
+4197-
+4198-	// RVA: 0x17FF9A8 Offset: 0x17FF9A8 VA: 0x17FF9A8
+4199-	public void .ctor() { }
+4200-}
+4201-
+4202-// Namespace: 
+4203-public class ItemViewItemEquipWeaponRange : ItemViewItemEquipWeapon // TypeDefIndex: 123
+4204-{
+4205-	// Fields
+4206-	public ItemEquipWeaponRange OwnerEquipWeaponRange; // 0x50
+4207-
+4208-	// Methods
+4209-
+4210-	// RVA: 0x17FF9B0 Offset: 0x17FF9B0 VA: 0x17FF9B0 Slot: 4
+4211-	public override void Init(Item i, bool hiPoly = False) { }
+4212-
+4203:public class ItemViewItemEquipWeaponRange : ItemViewItemEquipWeapon // TypeDefIndex: 123
+4204-{
+4205-	// Fields
+4206-	public ItemEquipWeaponRange OwnerEquipWeaponRange; // 0x50
+4207-
+4208-	// Methods
+4209-
+4210-	// RVA: 0x17FF9B0 Offset: 0x17FF9B0 VA: 0x17FF9B0 Slot: 4
+4211-	public override void Init(Item i, bool hiPoly = False) { }
+4212-
+4213-	// RVA: 0x17FFDAC Offset: 0x17FFDAC VA: 0x17FFDAC
+4214-	private void bco(UseInfo inf) { }
+4215-
+4216-	// RVA: 0x17FFE28 Offset: 0x17FFE28 VA: 0x17FFE28
+4217-	private void bcp(UseInfo inf) { }
+4218-
+4219-	// RVA: 0x17FFEAC Offset: 0x17FFEAC VA: 0x17FFEAC
+4220-	private void OnDestroy() { }
+4221-
+4222-	// RVA: 0x18000D4 Offset: 0x18000D4 VA: 0x18000D4
+4223-	public void .ctor() { }
+4224-}
+4225-
+4226-// Namespace: 
+4227-[CompilerGenerated]
+4228-private sealed class ItemViewItemEquipWeaponRangeFireHoleLeaver.da : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 124
+4229-{
+4230-	// Fields
+4231-	private int git; // 0x10
+4232-	private object giu; // 0x18
+4233-	public float time; // 0x20
+=== SkinMaterialStreaming ===
+=== LobbyWeaponPreviewMaterials ===
+41287:public static class LobbyWeaponPreviewMaterials // TypeDefIndex: 985
+41288-{
+41289-	// Fields
+41290-	private const string jjq = "_Tps";
+41291-
+41292-	// Methods
+41293-
+41294-	// RVA: 0x195532C Offset: 0x195532C VA: 0x195532C
+41295-	public static void ApplyHighPolyMaterials(WeaponModel lowWeapon, ItemData weaponSkin) { }
+41296-
+41297-	// RVA: 0x1955DC8 Offset: 0x1955DC8 VA: 0x1955DC8
+41298-	private static void eox(WeaponModel lowWeapon) { }
+41299-
+41300-	// RVA: 0x1955B74 Offset: 0x1955B74 VA: 0x1955B74
+41301-	private static List<Renderer> eoy(GameObject root) { }
+41302-
+41303-	// RVA: 0x1956340 Offset: 0x1956340 VA: 0x1956340
+41304-	private static Material eoz(List<Renderer> renderers) { }
+41305-
+41306-	// RVA: 0x1956B28 Offset: 0x1956B28 VA: 0x1956B28
+41307-	private static bool epa(Material material) { }
+41308-
+41309-	// RVA: 0x19560E4 Offset: 0x19560E4 VA: 0x19560E4
+41310-	private static void epb(Renderer target, Material[] sourceMaterials) { }
+41311-
+41312-	// RVA: 0x19564BC Offset: 0x19564BC VA: 0x19564BC
+41313-	private static Material[] epc(int length, Material source) { }
+41314-
+41315-	// RVA: 0x1956624 Offset: 0x1956624 VA: 0x1956624
+41316-	private static Material epd(Material material) { }
+41317-
+=== Inventory ===
+57154:public class Inventory : DtoData // TypeDefIndex: 1411
+57155-{
+57156-	// Fields
+57157-	public List<Item> Items; // 0x10
+57158-
+57159-	// Methods
+57160-
+57161-	// RVA: 0x1A021E8 Offset: 0x1A021E8 VA: 0x1A021E8
+57162-	public void .ctor() { }
+57163-
+57164-	// RVA: 0x1A02274 Offset: 0x1A02274 VA: 0x1A02274
+57165-	public bool Has(string itemId) { }
+57166-
+57167-	// RVA: 0x1A02378 Offset: 0x1A02378 VA: 0x1A02378
+57168-	public void Remove(string itemId) { }
+57169-
+57170-	// RVA: 0x1A024B0 Offset: 0x1A024B0 VA: 0x1A024B0
+57171-	public void Add(Item i) { }
+57172-}
+57173-
+57174-// Namespace: Assets.Common.Scripts.Dto
+--
+66119:public class Inventory : CoreData // TypeDefIndex: 1712
+66120-{
+66121-	// Fields
+66122-	public List<Item> Items; // 0x10
+66123-
+66124-	// Methods
+66125-
+66126-	// RVA: 0x1A6FBF0 Offset: 0x1A6FBF0 VA: 0x1A6FBF0
+66127-	public void .ctor() { }
+66128-
+66129-	// RVA: 0x1A6FC7C Offset: 0x1A6FC7C VA: 0x1A6FC7C
+66130-	public void Update(Inventory inventory) { }
+66131-
+66132-	// RVA: 0x1A6FE88 Offset: 0x1A6FE88 VA: 0x1A6FE88
+66133-	public Item Insert(int index, Item item) { }
+66134-
+66135-	// RVA: 0x1A6FF10 Offset: 0x1A6FF10 VA: 0x1A6FF10
+66136-	public Item Add(Item item) { }
+66137-
+66138-	// RVA: 0x1A6FFE8 Offset: 0x1A6FFE8 VA: 0x1A6FFE8
+66139-	public Item Add(ItemData item) { }
+=== Skins & Materials search ===
+2250:private sealed class DeferredSkinMaterials.bv // TypeDefIndex: 67
+2254:	public DeferredSkinMaterials <>4__this; // 0x18
+2267:private sealed class DeferredSkinMaterials.bw // TypeDefIndex: 68
+2280:private sealed class DeferredSkinMaterials.bx // TypeDefIndex: 69
+2286:	public DeferredSkinMaterials.bw CS$<>8__locals1; // 0x28
+2304:public sealed class DeferredSkinMaterials : MonoBehaviour // TypeDefIndex: 70
+2533:	public ItemWeaponSkin Skin; // 0x10
+2651:private sealed class SkinMaterialStreaming.cd // TypeDefIndex: 81
+2668:private sealed class SkinMaterialStreaming.ce // TypeDefIndex: 82
+2671:	public SkinMaterialStreaming.cd entry; // 0x10
+2687:private sealed class SkinMaterialStreaming.cf : IEnumerator<object>, IEnumerator, IDisposable // TypeDefIndex: 83
+2692:	public SkinMaterialStreaming.cd entry; // 0x20
+2693:	private SkinMaterialStreaming.ce ggl; // 0x28
+2694:	public SkinMaterialStreaming <>4__this; // 0x30
+2728:public sealed class SkinMaterialStreaming : MonoBehaviour // TypeDefIndex: 84
+2731:	private static SkinMaterialStreaming ggn; // 0x0
+2732:	private readonly Dictionary<string, SkinMaterialStreaming.cd> ggo; // 0x20
+2733:	private readonly Queue<SkinMaterialStreaming.cd> ggp; // 0x28
+2752:	[IteratorStateMachine(typeof(SkinMaterialStreaming.cf))]
+2754:	private IEnumerator zu(SkinMaterialStreaming.cd entry) { }
+4163:	public void PrepareFpvGeometry(ItemWeaponSkin skin) { }
+4169:	protected virtual void CreateModel(bool hiPoly, ItemWeaponSkin skin) { }
+4190:	protected override void CreateModel(bool hiPoly, ItemWeaponSkin skin) { }
+10389:	private bool btq(ItemWeaponSkin x) { }
+18899:	private ItemWeaponSkin how; // 0x60
+22497:	public void Init(SceneLevelPlayer who, SceneLevelPlayer whom, SceneLevelPlayer assister, string weaponId, string weaponSkinId, int damage, int part, int flags = 0, bool flashAssist = False) { }
+25958:	public string Skinid; // 0x20
+27520:	public ItemWeaponSkin preparedSkin; // 0x30
+27562:	public ItemWeaponSkin skin; // 0x28
+27718:	public void PrepareForLoading(ItemWeaponSkin skin, int team) { }
+27722:	public IEnumerator PrepareVisualStages(ItemWeaponSkin skin, int team) { }
+27726:	private IEnumerator dek(ItemLevelData data, ItemWeaponSkin preparedSkin, int team, string handsSkin) { }
+30838:	public void SetLastHitInfo(SceneLevelCharacter from, string weaponSkin) { }
+32167:	private DeferredSkinMaterials[] iub; // 0x50
+33279:	public static ItemWeaponSkin ResolveWeaponById(string weaponId) { }
+33282:	public static SceneLevelCharacterModel SpawnCharacterPreview(Transform parent, ItemCharacterSkin skin, ItemWeaponSkin weapon, bool enableRealtimeShadows = True) { }
+35532:	public ItemWeaponSkin skin; // 0x10
+37438:	public string charSkinId; // 0x10
+37525:	public string lastWeaponSkinT; // 0x18
+37526:	public string lastWeaponSkinCT; // 0x20
+37841:	private ItemCharacterSkin egx(string charSkinId, bool allowDefaultFallback, int preferredTeam = -1) { }
+37844:	private SceneLevelCharacterModel egy(Transform parent, ItemCharacterSkin model, string weaponSkinT, string weaponSkinCT, string helmetSkinT, string helmetSkinCT, bool playAppearAnim, int previewSlotIndex = -1) { }
+38563:	public string CharSkinId; // 0x0
+38564:	public string WeaponSkinT; // 0x8
+38565:	public string WeaponSkinCT; // 0x10
+41277:	public static void Configure(SceneLevelCharacterModel model, ItemWeaponSkin weapon) { }
+41295:	public static void ApplyHighPolyMaterials(WeaponModel lowWeapon, ItemData weaponSkin) { }
+56704:	private static ItemModel fof(ItemWeaponSkin wepSkin, Transform container) { }
+56707:	private static bool fog(ItemWeaponSkin wepSkin, out int index) { }
+56710:	private static bool foh(ItemWeaponSkin wepSkin) { }
+56713:	private static bool foi(ItemWeaponSkin wepSkin) { }
+56716:	private static bool foj(Transform model, Transform holder, ItemWeaponSkin wepSkin) { }
+57366:public class ItemWeaponSkin : Item // TypeDefIndex: 1425
+57869:	public string CharSkinId; // 0x30
+57870:	public string WeaponSkinT; // 0x38
+57871:	public string WeaponSkinCT; // 0x40
+58473:	public Sprite GetHudWeaponIcon(string weaponId, string weaponSkinId) { }
+58476:	public Sprite GetItemKillIcon(string weaponId, string weaponSkinId) { }
+60630:[CreateAssetMenu(fileName = "ItemWeaponSkin", menuName = "Data/Items/ItemWeaponSkin", order = 1)]
+60631:public class ItemWeaponSkin : ItemSkin // TypeDefIndex: 1544
+66442:public class ItemWeaponSkin : Item // TypeDefIndex: 1727
+71224:	public string WeaponSkin; // 0x40
+674128:	internal static void DoSetSkin(GUISkin newSkin) { }
