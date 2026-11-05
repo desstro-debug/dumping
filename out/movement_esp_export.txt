@@ -1,0 +1,436 @@
+=== SceneLevelCharacterModel ===
+16356:public class SceneLevelCharacterModel : MonoBehaviour // TypeDefIndex: 404
+16357-{
+16358-	// Fields
+16359-	[SerializeField]
+16360-	private Animator _animator; // 0x20
+16361-	[SerializeField]
+16362-	private GameObject _root; // 0x28
+16363-	[SerializeField]
+16364-	private Transform _cameraPoint; // 0x30
+16365-	[SerializeField]
+16366-	private Transform _aimTarget; // 0x38
+16367-	[SerializeField]
+16368-	private Transform _weaponTransform; // 0x40
+16369-	[SerializeField]
+16370-	private Transform _weaponPivot; // 0x48
+16371-	[SerializeField]
+16372-	private LookAtConstraint _lookAtConstaintBody; // 0x50
+16373-	[SerializeField]
+16374-	private Transform _head; // 0x58
+16375-	[SerializeField]
+16376-	[Tooltip("Оставлять таз/пояс (Hips). Вкл — ноги от пояса. Выкл — от бёдер.")]
+16377-	[Header("First-Person Legs (CS2)")]
+16378-	private bool _fpLegsKeepHips; // 0x60
+16379-	[Tooltip("Сдвиг ВИДИМЫХ ног в пространстве тела (X-вбок, Y-вверх/вниз, Z-вперёд/назад). Хитбоксы не двигаются. Обычно Y в минус, чтобы опустить ноги. Крутится вживую в Play.")]
+16380-	[SerializeField]
+16381-	private Vector3 _fpLegsOffset; // 0x64
+16382-	[Header("Crouch Settings")]
+16383-	private float her; // 0x70
+16384-	private float hes; // 0x74
+16385-	private float het; // 0x78
+16386-	private float heu; // 0x7C
+16387-	private int hev; // 0x80
+16388-	private float hew; // 0x84
+16389-	[CompilerGenerated]
+16390-	private bool <IsShowed>k__BackingField; // 0x88
+16391-	public static bool FirstPersonLegsEnabled; // 0x0
+16392-	private readonly List<SceneLevelCharacterModel.SkinnedBoneRemap> hex; // 0x90
+16393-	private readonly Dictionary<Transform, Transform> hey; // 0x98
+16394-	private readonly List<KeyValuePair<Transform, Transform>> hez; // 0xA0
+16395-	private Transform hfa; // 0xA8
+16396-	private Transform hfb; // 0xB0
+16397-	private Transform hfc; // 0xB8
+16398-	private bool hfd; // 0xC0
+16399-	private static readonly int hfe; // 0x4
+16400-	private Vector3 hff; // 0xC4
+16401-	private Vector3 hfg; // 0xD0
+16402-	private ItemModel hfh; // 0xE0
+16403-	private Vector3 hfi; // 0xE8
+16404-	private bool hfj; // 0xF4
+16405-	private int hfk; // 0xF8
+16406-	private SceneLevelCharacter hfl; // 0x100
+16407-	private HumanoidTurnInPlace hfm; // 0x108
+16408-	private static readonly int hfn; // 0x8
+16409-	private static readonly int hfo; // 0xC
+16410-	private static readonly int hfp; // 0x10
+16411-	private static readonly int hfq; // 0x14
+16412-	private static readonly int hfr; // 0x18
+16413-	private static readonly int hfs; // 0x1C
+16414-	private static readonly int hft; // 0x20
+16415-	private static readonly int hfu; // 0x24
+16416-	private readonly List<SceneLevelCharacterModel.MaterialFadeState> hfv; // 0x110
+=== MovementLocal ===
+16677:public class SceneLevelCharacterMovementLocal : SceneLevelCharacterMovementBase // TypeDefIndex: 406
+16678-{
+16679-	// Fields
+16680-	[SerializeField]
+16681-	private SceneLevelCharacterControllerClientLocal _controllerLocal; // 0x30
+16682-	[SerializeField]
+16683-	private float _distanceMoveSound; // 0x38
+16684-	[SerializeField]
+16685-	private float _speed; // 0x3C
+16686-	[SerializeField]
+16687-	private float _gravity; // 0x40
+16688-	[SerializeField]
+16689-	private LayerMask _groundMask; // 0x44
+16690-	[SerializeField]
+16691-	private float _groundDistance; // 0x48
+16692-	[SerializeField]
+16693-	private float _jumpHeight; // 0x4C
+16694-	public Vector3 Axis; // 0x50
+16695-	private Vector3 hfw; // 0x5C
+16696-	private Vector3 hfx; // 0x68
+16697-	private CharacterData hfy; // 0x78
+16698-	private string[] hfz; // 0x80
+16699-	private float hga; // 0x88
+16700-	private int hgb; // 0x8C
+16701-	private bool hgc; // 0x90
+16702-	private float hgd; // 0x94
+16703-	private float hge; // 0x98
+16704-	private float hgf; // 0x9C
+16705-	private bool hgg; // 0xA0
+16706-	private float hgh; // 0xA4
+16707-	private bool hgi; // 0xA8
+16708-	private List<string> hgj; // 0xB0
+16709-	private int hgk; // 0xB8
+16710-	private Vector3 hgl; // 0xBC
+16711-	private Vector2 hgm; // 0xC8
+16712-
+16713-	// Properties
+16714-	private bool IsPlantingBomb { get; }
+16715-
+16716-	// Methods
+16717-
+16718-	// RVA: 0x1BBC978 Offset: 0x1BBC978 VA: 0x1BBC978 Slot: 5
+16719-	protected override void Start() { }
+16720-
+16721-	// RVA: 0x1BBD110 Offset: 0x1BBD110 VA: 0x1BBD110
+16722-	private void cep(bool isDead) { }
+16723-
+16724-	// RVA: 0x1BBD11C Offset: 0x1BBD11C VA: 0x1BBD11C
+16725-	private bool get_IsPlantingBomb() { }
+16726-
+16727-	// RVA: 0x1BBD1B4 Offset: 0x1BBD1B4 VA: 0x1BBD1B4 Slot: 9
+16562:public class SceneLevelCharacterMovementBase : MonoBehaviour // TypeDefIndex: 405
+16563-{
+16564-	// Fields
+16565-	[SerializeField]
+16566-	private SceneLevelCharacterController _controller; // 0x20
+16567-	[CompilerGenerated]
+16568-	private bool <IsGrounded>k__BackingField; // 0x28
+16569-	[CompilerGenerated]
+16570-	private bool <IsDisable>k__BackingField; // 0x29
+16571-	[CompilerGenerated]
+16572-	private bool <IsCrouch>k__BackingField; // 0x2A
+16573-	[CompilerGenerated]
+16574-	private bool <IsShifted>k__BackingField; // 0x2B
+16575-	[CompilerGenerated]
+16576-	private bool <IsMoving>k__BackingField; // 0x2C
+16577-
+16578-	// Properties
+16579-	public bool IsGrounded { get; set; }
+16580-	public bool IsDisable { get; set; }
+16581-	public bool IsCrouch { get; set; }
+16582-	public bool IsShifted { get; set; }
+16583-	public bool IsMoving { get; set; }
+16584-
+16585-	// Methods
+16586-
+16587-	[CompilerGenerated]
+16588-	// RVA: 0x1BBC800 Offset: 0x1BBC800 VA: 0x1BBC800
+16589-	public bool get_IsGrounded() { }
+16590-
+16591-	[CompilerGenerated]
+16592-	// RVA: 0x1BBC808 Offset: 0x1BBC808 VA: 0x1BBC808
+=== Inputs ===
+16001:public class SceneLevelCharacterInputs : MonoBehaviour // TypeDefIndex: 394
+16002-{
+16003-	// Fields
+16004-	[CompilerGenerated]
+16005-	private SceneLevelCharacterControllerClientLocal <Controller>k__BackingField; // 0x20
+16006-	[CompilerGenerated]
+16007-	private Vector2 <MoveAxis>k__BackingField; // 0x28
+16008-	[CompilerGenerated]
+16009-	private Vector2 <RotateAxis>k__BackingField; // 0x30
+16010-	[CompilerGenerated]
+16011-	private float <RotateMagnitude>k__BackingField; // 0x38
+16012-	public bool IsDisable; // 0x3C
+16013-	public bool IsDisableCameraInput; // 0x3D
+16014-
+16015-	// Properties
+16016-	public SceneLevelCharacterControllerClientLocal Controller { get; set; }
+16017-	public Vector2 MoveAxis { get; set; }
+16018-	public Vector2 RotateAxis { get; set; }
+16019-	public float RotateMagnitude { get; set; }
+16020-
+16021-	// Methods
+16022-
+16023-	[CompilerGenerated]
+16024-	// RVA: 0x1BB5AC0 Offset: 0x1BB5AC0 VA: 0x1BB5AC0
+16025-	public SceneLevelCharacterControllerClientLocal get_Controller() { }
+16026-
+16027-	[CompilerGenerated]
+16028-	// RVA: 0x1BB5AC8 Offset: 0x1BB5AC8 VA: 0x1BB5AC8
+16029-	public void set_Controller(SceneLevelCharacterControllerClientLocal value) { }
+16030-
+16031-	[CompilerGenerated]
+=== Controller Equip ===
+14891:public class SceneLevelCharacterController : MonoBehaviour // TypeDefIndex: 377
+14892-{
+14893-	// Fields
+14894-	[CompilerGenerated]
+14895-	private SceneLevelCharacterInteraction <Interactions>k__BackingField; // 0x20
+14896-	public Action<ItemEquip> OnEquipEvent; // 0x28
+14897-	[CompilerGenerated]
+14898-	private SceneLevelCharacterMovementBase <Movement>k__BackingField; // 0x30
+14899-	[CompilerGenerated]
+14900-	private SceneLevelCharacter <Character>k__BackingField; // 0x38
+14901-	[CompilerGenerated]
+14902-	private CharacterAnimationController <Animator>k__BackingField; // 0x40
+14903-	[CompilerGenerated]
+14904-	private CharacterController <Controller>k__BackingField; // 0x48
+14905-	[CompilerGenerated]
+14906-	private ItemEquip <Equip>k__BackingField; // 0x50
+14907-	private EventSubscriberMonoLocal<LevelEvent> hci; // 0x58
+14908-	protected CharacterData _data; // 0x60
+14909-
+14910-	// Properties
+14911-	public SceneLevelCharacterInteraction Interactions { get; set; }
+51621:public class ItemEquip : Item // TypeDefIndex: 1279
+51622-{
+51623-	// Fields
+51624-	public Action<UseInfo> OnUseSpecialEndEvent; // 0x150
+51625-	public Action<UseInfo> OnUseSpecialEvent; // 0x158
+51626-	public Action<UseInfo> OnUseEvent; // 0x160
+51627-	public Action<UseInfo> OnTryUseEvent; // 0x168
+51628-	public Action<UseInfo> OnStopUseEvent; // 0x170
+51629-	[CompilerGenerated]
+51630-	private ItemEquipData <EquipData>k__BackingField; // 0x178
+51631-	protected float _coolTime; // 0x180
+51632-
+51633-	// Properties
+51634-	public ItemEquipData EquipData { get; set; }
+51635-	public virtual bool IsCanUse { get; }
+51636-
+51637-	// Methods
+51638-
+51639-	[CompilerGenerated]
+51640-	// RVA: 0x19B6CB0 Offset: 0x19B6CB0 VA: 0x19B6CB0
+51641-	public ItemEquipData get_EquipData() { }
+51642-
+51643-	[CompilerGenerated]
+51644-	// RVA: 0x19B6CB8 Offset: 0x19B6CB8 VA: 0x19B6CB8
+51645-	private void set_EquipData(ItemEquipData value) { }
+51646-
+51647-	// RVA: 0x19B6CC4 Offset: 0x19B6CC4 VA: 0x19B6CC4 Slot: 51
+51648-	public virtual bool get_IsCanUse() { }
+51649-
+51650-	// RVA: 0x19B6CF0 Offset: 0x19B6CF0 VA: 0x19B6CF0 Slot: 29
+51651-	protected override void GetData() { }
+--
+57235:public class ItemEquip : Item // TypeDefIndex: 1416
+57236-{
+57237-	// Fields
+57238-	public int EquipStatus; // 0x30
+57239-
+57240-	// Methods
+57241-
+57242-	// RVA: 0x1A02B90 Offset: 0x1A02B90 VA: 0x1A02B90
+57243-	public void .ctor() { }
+57244-
+57245-	// RVA: 0x1A02C1C Offset: 0x1A02C1C VA: 0x1A02C1C
+57246-	public void .ctor(string id, string dataDataId, int equipStatus) { }
+57247-}
+57248-
+57249-// Namespace: Assets.Common.Scripts.Dto
+57250-public class ItemHelmetSkin : Item // TypeDefIndex: 1417
+57251-{
+57252-	// Fields
+57253-	public int Equip; // 0x30
+57254-
+57255-	// Methods
+57256-
+57257-	// RVA: 0x1A02CEC Offset: 0x1A02CEC VA: 0x1A02CEC
+57258-	public void .ctor() { }
+57259-
+57260-	// RVA: 0x1A02D78 Offset: 0x1A02D78 VA: 0x1A02D78
+57261-	public void .ctor(string id, string dataDataId, int dataEquip) { }
+57262-}
+57263-
+57264-// Namespace: Assets.Common.Scripts.Dto
+57265-public class ItemKey : Item // TypeDefIndex: 1418
+--
+66318:public class ItemEquip : Item // TypeDefIndex: 1719
+66319-{
+66320-	// Fields
+66321-	public int EquipStatus; // 0x30
+66322-
+66323-	// Methods
+66324-
+66325-	// RVA: 0x1A710E8 Offset: 0x1A710E8 VA: 0x1A710E8
+66326-	public void .ctor() { }
+66327-
+66328-	// RVA: 0x1A71174 Offset: 0x1A71174 VA: 0x1A71174
+66329-	public void .ctor(ItemData i) { }
+66330-}
+66331-
+66332-// Namespace: Assets.Game.Scripts.Core
+66333-public class ItemHelmetSkin : Item // TypeDefIndex: 1720
+66334-{
+66335-	// Fields
+66336-	public int Equip; // 0x30
+66337-
+66338-	// Methods
+66339-
+66340-	// RVA: 0x1A71244 Offset: 0x1A71244 VA: 0x1A71244
+66341-	public void .ctor() { }
+66342-
+66343-	// RVA: 0x1A712DC Offset: 0x1A712DC VA: 0x1A712DC
+66344-	public void .ctor(ItemData i) { }
+66345-}
+66346-
+66347-// Namespace: Assets.Game.Scripts.Core
+66348-public class ItemKey : Item // TypeDefIndex: 1721
+=== SpeedHackDetector ===
+651457:public class SpeedHackDetector : ACTkDetectorBase<SpeedHackDetector> // TypeDefIndex: 10484
+651458-{
+651459-	// Fields
+651460-	public const string ComponentName = "Speed Hack Detector";
+651461-	internal const string LogPrefix = "[ACTk] Speed Hack Detector: ";
+651462-	[Tooltip("Time (in seconds) between detector checks.")]
+651463-	public float interval; // 0x54
+651464-	[Range(0.05, 5)]
+651465-	[Tooltip("Allowed speed multiplier threshold. Do not set to too low values (e.g. 0 or 0.00*) since there are timer fluctuations on different hardware.")]
+651466-	public float threshold; // 0x58
+651467-	[Tooltip("Maximum false positives count allowed before registering speed hack.")]
+651468-	public byte maxFalsePositives; // 0x5C
+651469-	[Tooltip("Amount of sequential successful checks before clearing internal false positives counter.
+651470-Set 0 to disable Cool Down feature.")]
+651471-	public int coolDown; // 0x60
+651472-	[SerializeField]
+651473-	[Tooltip("Uses AudioSettings.dspTime under the hood, which can catch some extra speed hacks in sandboxed environments but can potentially cause false positives on some hardware. Use at your peril!")]
+651474-	[CompilerGenerated]
+651475-	private bool <UseDsp>k__BackingField; // 0x64
+651476-	private byte currentFalsePositives; // 0x65
+651477-	private int currentCooldownShots; // 0x68
+651478-	private long previousReliableTicks; // 0x70
+651479-	private long previousEnvironmentTicks; // 0x78
+651480-	private long previousRealtimeTicks; // 0x80
+651481-	private long previousDspTicks; // 0x88
+651482-	private bool resetTicksOnNextInterval; // 0x90
+651483-
+651484-	// Properties
+651485-	public bool UseDsp { get; set; }
+651486-
+651487-	// Methods
+651488-
+651489-	[CompilerGenerated]
+651490-	// RVA: 0x17BA3F8 Offset: 0x17BA3F8 VA: 0x17BA3F8
+651491-	public bool get_UseDsp() { }
+651492-
+651493-	[CompilerGenerated]
+651494-	// RVA: 0x17BA400 Offset: 0x17BA400 VA: 0x17BA400
+651495-	public void set_UseDsp(bool value) { }
+651496-
+651497-	// RVA: 0x17BA408 Offset: 0x17BA408 VA: 0x17BA408
+651880:public class TimeCheatingDetector : ACTkDetectorBase<TimeCheatingDetector> // TypeDefIndex: 10497
+651881-{
+651882-	// Fields
+651883-	public const string ComponentName = "Time Cheating Detector";
+651884-	private const string LogPrefix = "[ACTk] Time Cheating Detector: ";
+651885-	private const int DefaultTimeoutSeconds = 10;
+651886-	private static readonly WaitForEndOfFrame CachedEndOfFrame; // 0x0
+651887-	[CompilerGenerated]
+651888-	private static readonly Lazy<NonValidatingCertificateHandler> <CachedCertificateHandler>k__BackingField; // 0x8
+651889-	private static bool gettingOnlineTime; // 0x10
+651890-	[CompilerGenerated]
+651891-	private TimeCheatingDetector.TimeCheatingDetectorEventHandler CheatChecked; // 0x58
+651892-	[SerializeField]
+651893-	[Tooltip("Absolute URL which will return correct datetime in response headers (you may use popular web servers like google.com, microsoft.com etc.).")]
+651894-	[Header("Request settings")]
+651895-	private string requestUrl; // 0x60
+651896-	[Tooltip("Method to use for url request. Use Head method if possible and fall back to get if server does not reply or block head requests.")]
+651897-	public TimeCheatingDetector.RequestMethod requestMethod; // 0x68
+651898-	[Tooltip("Online time request timeout in seconds.")]
+651899-	public int timeoutSeconds; // 0x6C
+651900-	[Range(0, 60)]
+=== Animator / Bones ===
+718833-
+718834-	// RVA: 0x3B9BCAC Offset: 0x3B9BCAC VA: 0x3B9BCAC
+718835:	public Transform GetBoneTransform(HumanBodyBones humanBoneId) { }
+718836-
+718837:	[NativeMethod("GetBoneTransform")]
+718838-	// RVA: 0x3B9C114 Offset: 0x3B9C114 VA: 0x3B9C114
+718839:	internal Transform GetBoneTransformInternal(int humanBoneId) { }
+718840-
+718841-	// RVA: 0x3B9C178 Offset: 0x3B9C178 VA: 0x3B9C178
+718842-	public void set_cullingMode(AnimatorCullingMode value) { }
+718843-
+718844-	// RVA: 0x3B9C1DC Offset: 0x3B9C1DC VA: 0x3B9C1DC
+718845-	public RuntimeAnimatorController get_runtimeAnimatorController() { }
+718846-
+718847-	// RVA: 0x3B9C22C Offset: 0x3B9C22C VA: 0x3B9C22C
+718848-	public void set_runtimeAnimatorController(RuntimeAnimatorController value) { }
+718849-
+719011:public enum HumanBodyBones // TypeDefIndex: 12238
+719012-{
+719013-	// Fields
+719014-	public int value__; // 0x0
+719015-	public const HumanBodyBones Hips = 0;
+719016-	public const HumanBodyBones LeftUpperLeg = 1;
+719017-	public const HumanBodyBones RightUpperLeg = 2;
+719018-	public const HumanBodyBones LeftLowerLeg = 3;
+719019-	public const HumanBodyBones RightLowerLeg = 4;
+719020-	public const HumanBodyBones LeftFoot = 5;
+719021-	public const HumanBodyBones RightFoot = 6;
+719022-	public const HumanBodyBones Spine = 7;
+719023-	public const HumanBodyBones Chest = 8;
+719024-	public const HumanBodyBones UpperChest = 54;
+719025-	public const HumanBodyBones Neck = 9;
+719026-	public const HumanBodyBones Head = 10;
+719027-	public const HumanBodyBones LeftShoulder = 11;
+719028-	public const HumanBodyBones RightShoulder = 12;
+719029-	public const HumanBodyBones LeftUpperArm = 13;
+719030-	public const HumanBodyBones RightUpperArm = 14;
+719031-	public const HumanBodyBones LeftLowerArm = 15;
+719032-	public const HumanBodyBones RightLowerArm = 16;
+719033-	public const HumanBodyBones LeftHand = 17;
+719034-	public const HumanBodyBones RightHand = 18;
+719035-	public const HumanBodyBones LeftToes = 19;
+719036-	public const HumanBodyBones RightToes = 20;
+719037-	public const HumanBodyBones LeftEye = 21;
+719038-	public const HumanBodyBones RightEye = 22;
+719039-	public const HumanBodyBones Jaw = 23;
+719040-	public const HumanBodyBones LeftThumbProximal = 24;
+719041-	public const HumanBodyBones LeftThumbIntermediate = 25;
+719042-	public const HumanBodyBones LeftThumbDistal = 26;
+719043-	public const HumanBodyBones LeftIndexProximal = 27;
+719044-	public const HumanBodyBones LeftIndexIntermediate = 28;
+719045-	public const HumanBodyBones LeftIndexDistal = 29;
+719046-	public const HumanBodyBones LeftMiddleProximal = 30;
+719047-	public const HumanBodyBones LeftMiddleIntermediate = 31;
+719048-	public const HumanBodyBones LeftMiddleDistal = 32;
+719049-	public const HumanBodyBones LeftRingProximal = 33;
+719050-	public const HumanBodyBones LeftRingIntermediate = 34;
+719051-	public const HumanBodyBones LeftRingDistal = 35;
+719052-	public const HumanBodyBones LeftLittleProximal = 36;
+719053-	public const HumanBodyBones LeftLittleIntermediate = 37;
+719054-	public const HumanBodyBones LeftLittleDistal = 38;
+719055-	public const HumanBodyBones RightThumbProximal = 39;
+719056-	public const HumanBodyBones RightThumbIntermediate = 40;
+719057-	public const HumanBodyBones RightThumbDistal = 41;
+719058-	public const HumanBodyBones RightIndexProximal = 42;
+719059-	public const HumanBodyBones RightIndexIntermediate = 43;
+719060-	public const HumanBodyBones RightIndexDistal = 44;
+719061-	public const HumanBodyBones RightMiddleProximal = 45;
+719062-	public const HumanBodyBones RightMiddleIntermediate = 46;
+719063-	public const HumanBodyBones RightMiddleDistal = 47;
+719064-	public const HumanBodyBones RightRingProximal = 48;
+719065-	public const HumanBodyBones RightRingIntermediate = 49;
+719066-	public const HumanBodyBones RightRingDistal = 50;
+719067-	public const HumanBodyBones RightLittleProximal = 51;
+719068-	public const HumanBodyBones RightLittleIntermediate = 52;
+719069-	public const HumanBodyBones RightLittleDistal = 53;
+719070-	public const HumanBodyBones LastBone = 55;
+719071-}
