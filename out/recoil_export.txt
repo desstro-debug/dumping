@@ -1,0 +1,339 @@
+=== WeaponData ===
+60157:public class WeaponData : ItemEquipData // TypeDefIndex: 1524
+60158-{
+60159-	// Fields
+60160-	public int Ammo; // 0xA8
+60161-	public int AmmoTotal; // 0xAC
+60162-	public int ShootCount; // 0xB0
+60163-	public Vector3 ShootMultiOffset; // 0xB4
+60164-	public float DamageArmorHeadPercent; // 0xC0
+60165-	public float DamageArmorBodyPercent; // 0xC4
+60166-	public float DamageHeadMultiplier; // 0xC8
+60167-	public int DamageMin; // 0xCC
+60168-	public int DamageMax; // 0xD0
+60169-	public bool UseSpecial; // 0xD4
+60170-	public WeaponData.WeaponCategory WeaponSpecialCategory; // 0xD8
+60171-	[Tooltip("Смещение центра объёма наклейки по Z в единицах Decal Projector. Общее для всех скинов оружия.")]
+60172-	[Header("Sticker projection")]
+60173-	public float StickerProjectionPivotZ; // 0xDC
+60174-	[Min(0.01)]
+60175-	[Tooltip("Глубина объёма наклейки в единицах Decal Projector. Не зависит от размера рисунка.")]
+60176-	public float StickerProjectionDepth; // 0xE0
+60177-
+60178-	// Methods
+60179-
+60180-	// RVA: 0x1A0E244 Offset: 0x1A0E244 VA: 0x1A0E244
+60181-	public void .ctor() { }
+60182-}
+60183-
+60184-// Namespace: 
+60185-[Serializable]
+60186-public class BattlePass.LvlToPrice // TypeDefIndex: 1525
+60187-{
+60188-	// Fields
+60189-	public int Lvls; // 0x10
+60190-	public int Price; // 0x14
+60191-
+60192-	// Methods
+60193-
+60194-	// RVA: 0x1A0E7AC Offset: 0x1A0E7AC VA: 0x1A0E7AC
+60195-	public void .ctor() { }
+60196-}
+60197-
+60198-// Namespace: 
+60199-[Serializable]
+60200-public class BattlePass.BattlePassLevel // TypeDefIndex: 1526
+60201-{
+60202-	// Fields
+60203-	public Sprite Picture; // 0x10
+60204-	public int ExpNeed; // 0x18
+60205-	public string Title; // 0x20
+60206-
+60207-	// Methods
+60208-
+60209-	// RVA: 0x1A0E7B4 Offset: 0x1A0E7B4 VA: 0x1A0E7B4
+60210-	public void .ctor() { }
+60211-}
+60212-
+60213-// Namespace: Assets.Common.Scripts.Data.Global
+60214-[CreateAssetMenu(fileName = "BattlePass", menuName = "Data/BattlePass", order = 1)]
+60215-public class BattlePass : ScriptableObject // TypeDefIndex: 1527
+60216-{
+60217-	// Fields
+60218-	[SerializeField]
+60219-	private bool _isEnabled; // 0x18
+60220-	[SerializeField]
+60221-	private List<BattlePassRewards> _list; // 0x20
+60222-	[SerializeField]
+60223-	private List<BattlePass.BattlePassLevel> _battlePassLevels; // 0x28
+60224-	public List<BattlePass.LvlToPrice> LevelsPrice; // 0x30
+60225-
+60226-	// Properties
+60227-	public bool IsEnabled { get; }
+60228-	public int Count { get; }
+60229-	public int TotalLevels { get; }
+60230-
+60231-	// Methods
+60232-
+60233-	// RVA: 0x1A0E2EC Offset: 0x1A0E2EC VA: 0x1A0E2EC
+60234-	public bool get_IsEnabled() { }
+60235-
+60236-	// RVA: 0x1A0E2F4 Offset: 0x1A0E2F4 VA: 0x1A0E2F4
+60237-	public int get_Count() { }
+60133:public class WeaponCommonData : ItemEquipData // TypeDefIndex: 1522
+60134-{
+60135-	// Methods
+60136-
+60137-	// RVA: 0x1A0E23C Offset: 0x1A0E23C VA: 0x1A0E23C
+60138-	public void .ctor() { }
+60139-}
+60140-
+60141-// Namespace: 
+60142-public enum WeaponData.WeaponCategory // TypeDefIndex: 1523
+60143-{
+60144-	// Fields
+60145-	public int value__; // 0x0
+60146-	public const WeaponData.WeaponCategory Melee = 0;
+60147-	public const WeaponData.WeaponCategory Pistol = 1;
+60148-	public const WeaponData.WeaponCategory Pp = 2;
+60149-	public const WeaponData.WeaponCategory Rifle = 3;
+60150-	public const WeaponData.WeaponCategory Heavy = 4;
+60151-	public const WeaponData.WeaponCategory Snipe = 5;
+60152-	public const WeaponData.WeaponCategory Grenade = 6;
+60153-}
+60154-
+60155-// Namespace: Assets.Common.Scripts.Data.Level
+60156-[CreateAssetMenu(fileName = "Weapon", menuName = "Data/Items/Weapon", order = 1)]
+60157-public class WeaponData : ItemEquipData // TypeDefIndex: 1524
+60158-{
+60159-	// Fields
+60160-	public int Ammo; // 0xA8
+60161-	public int AmmoTotal; // 0xAC
+60162-	public int ShootCount; // 0xB0
+60163-	public Vector3 ShootMultiOffset; // 0xB4
+60164-	public float DamageArmorHeadPercent; // 0xC0
+60165-	public float DamageArmorBodyPercent; // 0xC4
+60166-	public float DamageHeadMultiplier; // 0xC8
+60167-	public int DamageMin; // 0xCC
+60168-	public int DamageMax; // 0xD0
+60169-	public bool UseSpecial; // 0xD4
+60170-	public WeaponData.WeaponCategory WeaponSpecialCategory; // 0xD8
+60171-	[Tooltip("Смещение центра объёма наклейки по Z в единицах Decal Projector. Общее для всех скинов оружия.")]
+60172-	[Header("Sticker projection")]
+60173-	public float StickerProjectionPivotZ; // 0xDC
+60174-	[Min(0.01)]
+60175-	[Tooltip("Глубина объёма наклейки в единицах Decal Projector. Не зависит от размера рисунка.")]
+60176-	public float StickerProjectionDepth; // 0xE0
+60177-
+60178-	// Methods
+60179-
+60180-	// RVA: 0x1A0E244 Offset: 0x1A0E244 VA: 0x1A0E244
+60181-	public void .ctor() { }
+60182-}
+60183-
+60184-// Namespace: 
+60185-[Serializable]
+60186-public class BattlePass.LvlToPrice // TypeDefIndex: 1525
+60187-{
+60188-	// Fields
+60189-	public int Lvls; // 0x10
+60190-	public int Price; // 0x14
+60191-
+60192-	// Methods
+60193-
+=== ItemEquipWeaponRange ===
+53359:public class ItemEquipWeaponRange : ItemEquipWeapon // TypeDefIndex: 1307
+53360-{
+53361-	// Fields
+53362-	[HideInInspector]
+53363-	public bool IsAiming; // 0x1A1
+53364-	[SyncVar]
+53365-	public bool NetworkIsAiming; // 0x1A2
+53366-	public Action OnReloadEvent; // 0x1A8
+53367-	[CompilerGenerated]
+53368-	private WeaponDataRange <RangeData>k__BackingField; // 0x1B0
+53369-	public bool UnlimitedAmmo; // 0x1B8
+53370-	[SyncVar(hook = "SyncTotalAmmo")]
+53371-	public int AmmoTotal; // 0x1BC
+53372-	[SyncVar(hook = "SyncAmmo")]
+53373-	public int Ammo; // 0x1C0
+53374-	[SyncVar(hook = "SyncReload")]
+53375-	public bool IsReload; // 0x1C4
+53376-	protected Coroutine _reload; // 0x1C8
+53377-	private Coroutine jyt; // 0x1D0
+53378-	private const float jyu = 0.2;
+53379-	public Vector3 Offset; // 0x1D8
+53380-	private const float jyv = 0.7;
+53381-	private Vector3 jyw; // 0x1E4
+53382-	private const float jyx = 0.0042;
+53383-	private const float jyy = 0.0098;
+53384-	private const float jyz = 0.52;
+53385-	private const float jza = 0.28;
+53386-	private const float jzb = 0.11;
+53387-	[CompilerGenerated]
+53388-	private Vector2 <Spread>k__BackingField; // 0x1F0
+53389-	[CompilerGenerated]
+53390-	private Vector3 <Recoil>k__BackingField; // 0x1F8
+53391-	private Vector3 jzc; // 0x204
+53392-	private List<ItemEquipWeapon.Hit> jzd; // 0x210
+53393-	private int jze; // 0x218
+53394-	private float jzf; // 0x21C
+53395-	private GameObject jzg; // 0x220
+53396-	private const float jzh = 0.4;
+53397-	public const float LowAmmoFraction = 0.2;
+53398-	protected float _lastProcessedShotTime; // 0x228
+53399-	public double AcLastBurstTime; // 0x230
+53400-	public double AcBurstStart; // 0x238
+53401-	public int AcPelletsInBurst; // 0x240
+53402-	public int AcMagRoundsLeft; // 0x244
+53403-	public int AcServerShots; // 0x248
+53404-	public double AcAmmoBurstTime; // 0x250
+53405-	private int jzi; // 0x258
+53406-	private int jzj; // 0x25C
+53407-
+53408-	// Properties
+53409-	public WeaponDataRange RangeData { get; set; }
+53410-	public Vector3 CameraOffset { get; }
+53411-	private Vector2 Spread { get; set; }
+53412-	private Vector3 Recoil { get; set; }
+53413-	public override bool IsCanUse { get; }
+53414-	public int MagazineCapacity { get; }
+53415-	public bool NetworkNetworkIsAiming { get; set; }
+53416-	public int NetworkAmmoTotal { get; set; }
+53417-	public int NetworkAmmo { get; set; }
+53418-	public bool NetworkIsReload { get; set; }
+53419-
+52269:public class ItemEquipWeapon : ItemEquip // TypeDefIndex: 1290
+52270-{
+52271-	// Fields
+52272-	public Action<ItemEquipWeapon.Hit> OnHitEvent; // 0x188
+52273-	public Action<ItemEquipWeapon.Hit> OnLocalHitVfxEvent; // 0x190
+52274-	[CompilerGenerated]
+52275-	private WeaponData <WeaponData>k__BackingField; // 0x198
+52276-	[CompilerGenerated]
+52277-	private bool <LastShotGrounded>k__BackingField; // 0x1A0
+52278-
+52279-	// Properties
+52280-	public WeaponData WeaponData { get; set; }
+52281-	public bool LastShotGrounded { get; set; }
+52282-
+52283-	// Methods
+52284-
+52285-	// RVA: 0x19BEE4C Offset: 0x19BEE4C VA: 0x19BEE4C
+52286-	public static string GetRandomHeadshotAudio() { }
+52287-
+52288-	[CompilerGenerated]
+52289-	// RVA: 0x19BEF24 Offset: 0x19BEF24 VA: 0x19BEF24
+52290-	public WeaponData get_WeaponData() { }
+52291-
+52292-	[CompilerGenerated]
+52293-	// RVA: 0x19BEF2C Offset: 0x19BEF2C VA: 0x19BEF2C
+52294-	protected void set_WeaponData(WeaponData value) { }
+52295-
+52296-	[CompilerGenerated]
+52297-	// RVA: 0x19BEF38 Offset: 0x19BEF38 VA: 0x19BEF38
+52298-	public bool get_LastShotGrounded() { }
+52299-
+52300-	[CompilerGenerated]
+52301-	// RVA: 0x19BEF40 Offset: 0x19BEF40 VA: 0x19BEF40
+52302-	protected void set_LastShotGrounded(bool value) { }
+52303-
+52304-	// RVA: 0x19BEF48 Offset: 0x19BEF48 VA: 0x19BEF48
+52305-	protected void RememberShotStance(UseInfo info) { }
+52306-
+52307-	// RVA: 0x19BEF58 Offset: 0x19BEF58 VA: 0x19BEF58 Slot: 25
+52308-	protected override float GetDeathDropForce() { }
+52309-
+=== ItemEquipData ===
+=== SceneLevelCamera recoil/additionalRot ===
+18199:public class SceneLevelCamera : MonoBehaviour // TypeDefIndex: 439
+18200-{
+18201-	// Fields
+18202-	[Range(0, 200)]
+18203-	public float mobileSensitivity; // 0x20
+18204-	[Range(0, 200)]
+18205-	public float pcSensitivity; // 0x24
+18206-	[Range(0, 200)]
+18207-	public float smooth; // 0x28
+18208-	[HideInInspector]
+18209-	public float sensitivityMultiplier; // 0x2C
+18210-	[HideInInspector]
+18211-	public Vector2 rot; // 0x30
+18212-	[HideInInspector]
+18213-	public Vector2 additionalRot; // 0x38
+18214-	[SerializeField]
+18215-	private SceneLevelHands _hands; // 0x40
+18216-	[SerializeField]
+18217-	private Camera _camera; // 0x48
+18218-	[CompilerGenerated]
+18219-	private SceneLevelCamera.CameraState <CurrentCameraState>k__BackingField; // 0x50
+18220-	public SceneLevelCharacterController Controller; // 0x58
+18221-	[CompilerGenerated]
+18222-	private bool <IsBusy>k__BackingField; // 0x60
+18223-	[CompilerGenerated]
+18224-	private bool <IsDisable>k__BackingField; // 0x61
+18225-	private float hnk; // 0x64
+18226-	private float hnl; // 0x68
+18227-	private float hnm; // 0x6C
+18228-	private float hnn; // 0x70
+18229-	private Quaternion hno; // 0x74
+18230-	private Quaternion hnp; // 0x84
+18231-	private Vector3 hnq; // 0x94
+18232-	private Vector3 hnr; // 0xA0
+18233-	private Vector3 hns; // 0xAC
+18234-	private float hnt; // 0xB8
+18235-	private bool hnu; // 0xBC
+18236-	private float hnv; // 0xC0
+18237-	private const float hnw = 0.008333334;
+18238-	private Quaternion hnx; // 0xC4
+18239-	public string S; // 0xD8
+18240-	private Matrix4x4 hny; // 0xE0
+18241-	private float hnz; // 0x120
+18242-	private float hoa; // 0x124
+18243-	private Quaternion hob; // 0x128
+18244-	private LevelMapPreview hoc; // 0x138
+18245-
+18246-	// Properties
+18247-	public SceneLevelCamera.CameraState CurrentCameraState { get; set; }
+18248-	public SceneLevelCharacter ViewCharacter { get; }
+18249-	public SceneLevelHands Hands { get; }
+18250-	public Camera Camera { get; }
+18251-	public bool IsBusy { get; set; }
+18252-	public float FieldOfView { get; }
+18253-	public bool IsDisable { get; set; }
+18254-	public Vector3 LookOffset { get; }
+18255-	private float _sensitivity { get; }
+18256-
+18257-	// Methods
+18258-
+18259-	[CompilerGenerated]
+=== Search recoil/spread/inaccuracy fields ===
+12628:	public float baseSpread; // 0x10
+12629:	public float baseSpreadMovement; // 0x14
+17809:public static class MolotovFireSpread // TypeDefIndex: 428
+30469:	private float _movementSpread; // 0x28
+30471:	private float _airSpread; // 0x2C
+30473:	private float _crouchMoveSpread; // 0x30
+30475:	private float _shiftMoveSpread; // 0x34
+30477:	private float _shotSpreadAdd; // 0x38
+44772:	public static bool DevSimulateNoRecoil { get; }
+44789:	public static bool get_DevSimulateNoRecoil() { }
+53388:	private Vector2 <Spread>k__BackingField; // 0x1F0
+53390:	private Vector3 <Recoil>k__BackingField; // 0x1F8
+53411:	private Vector2 Spread { get; set; }
+53412:	private Vector3 Recoil { get; set; }
+53435:	private Vector2 get_Spread() { }
+53439:	private void set_Spread(Vector2 value) { }
+53443:	private Vector3 get_Recoil() { }
+53447:	private void set_Recoil(Vector3 value) { }
+53478:	protected Vector2 GetSpreadMultiplier(UseInfo info) { }
+67490:	[Header("Recoil Pattern")]
+67491:	public List<Vector2> RecoilPattern; // 0xA0
+67796:	public Vector2 SpreadMove; // 0x100
+67801:	public float RecoilPatternScale; // 0x110
+67803:	public float UnscopedRecoilMul; // 0x114
+554924:	public float lengthSpread; // 0x78
+736455:	public float shadowSpread; // 0x34
+736714:	public float shadowSpread; // 0x38
+742594:	public float spread { set; }
+742672:	public void set_spread(float value) { }
