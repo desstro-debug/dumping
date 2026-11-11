@@ -417,6 +417,8 @@ typedef void (*fn_matSetRenderQueue)(void*, int, void*);
 typedef void (*fn_LookAtTarget)(void* self, Vec3 target, void* mi);
 typedef bool (*fn_CheckSeen)(void* self, Vec3 target, void* mi);
 typedef void* (*fn_getGameObject)(void*, void*);
+typedef UnityColor (*fn_renderGetAmbientLight)(void*);
+typedef void (*fn_renderSetAmbientLight)(void*, UnityColor, void*);
 typedef float (*fn_lightGetIntensity)(void*, void*);
 typedef void (*fn_lightSetIntensity)(void*, float, void*);
 typedef UnityColor (*fn_lightGetColor)(void*, void*);
@@ -552,12 +554,16 @@ static std::atomic<bool> gOofEnabled{false};
 static std::atomic<bool> gAimbotEnabled{false};
 static std::atomic<bool> gAimOnFireEnabled{false};
 static std::atomic<bool> gSilentAimEnabled{false};
+static std::atomic<bool> gHotAimbotEnabled{false};
+static std::atomic<bool> gHotAimOnFireEnabled{false};
+static std::atomic<bool> gHotEspEnabled{false};
 static std::atomic<bool> gInvertPitch{false};
 static std::atomic<bool> gInvertYaw{false};
 static std::atomic<int> gAimBone{10};
 static std::atomic<int> gAimbotFovPx{300};
 static std::atomic<bool> gPredictionEnabled{false};
 static std::atomic<float> gAimbotSmooth{0.0f};
+static std::atomic<float> gAimOnFireSmooth{0.0f};
 static std::atomic<bool> gAimbotVisibleOnly{false};
 static std::atomic<bool> gAimbotNoTeam{true};
 
@@ -597,6 +603,8 @@ static std::atomic<float> gFullbrightMul{3.0f};
 static std::atomic<bool> gNoFogEnabled{false};
 static std::atomic<bool> gAmbientTintEnabled{false};
 static std::atomic<uint32_t> gAmbientColorHex{0xFFFFFFFF};
+static std::atomic<bool> gWeaponEspEnabled{false};
+static UIColor* gWeaponColor = [UIColor yellowColor];
 static std::atomic<bool> gGradingDirty{true};
 static std::atomic<float> gSaturationVal{0.0f};
 static std::atomic<float> gContrastVal{0.0f};
@@ -614,6 +622,11 @@ static bool s_fogOrig = false;
 static bool s_fbWas = false;
 static bool s_ambWas = false;
 static bool s_nfWas = false;
+
+static void* p_renderSetAmbientLightMI = nullptr;
+static void* p_renderGetAmbientLightMI = nullptr;
+static UnityColor s_origAmbient{0.5f, 0.5f, 0.5f, 1.0f};
+static bool s_origAmbientInit = false;
 
 static std::atomic<bool> gChamsPlayerEnabled{false};
 static std::atomic<bool> gChamsWeaponEnabled{false};
@@ -635,6 +648,7 @@ static UIColor* gTracerColor = [UIColor whiteColor];
 
 static Vec3 g_localEye;
 static Vec3 g_targetHead;
+static Vec3 g_smoothTarget{};
 static Vec3 g_silentAimTarget;
 static std::atomic<bool> g_haveTarget{false};
 static std::atomic<bool> g_silentAimActive{false};
@@ -801,9 +815,13 @@ static NSString* getIL2CPPString(void* strObj) {
     [d setBool:gAimOnFireEnabled forKey:@"a_of"];
     [d setInteger:gAimBone forKey:@"a_b"];
     [d setBool:gSilentAimEnabled forKey:@"a_s"];
+    [d setBool:gHotAimbotEnabled forKey:@"h_ab"];
+    [d setBool:gHotAimOnFireEnabled forKey:@"h_af"];
+    [d setBool:gHotEspEnabled forKey:@"h_es"];
     [d setInteger:gAimbotFovPx forKey:@"a_f"];
     [d setBool:gPredictionEnabled forKey:@"a_p"];
     [d setFloat:gAimbotSmooth forKey:@"a_sm"];
+    [d setFloat:gAimOnFireSmooth forKey:@"a_of_sm"];
     [d setBool:gAimbotVisibleOnly forKey:@"a_vo"];
     [d setBool:gAimbotNoTeam forKey:@"a_nt"];
     [d setBool:gSpeedHackEnabled forKey:@"m_sh"];
@@ -831,6 +849,7 @@ static NSString* getIL2CPPString(void* strObj) {
     [d setBool:gNoFogEnabled forKey:@"wv_nf"];
     [d setBool:gAmbientTintEnabled forKey:@"wv_amb_e"];
     [d setInteger:(NSInteger)gAmbientColorHex.load() forKey:@"wv_amb_c"];
+    [d setBool:gWeaponEspEnabled forKey:@"wv_we"];
     [d setFloat:gSaturationVal forKey:@"wv_sat"];
     [d setFloat:gContrastVal forKey:@"wv_con"];
     [d setFloat:gGammaVal forKey:@"wv_gam"];
@@ -866,6 +885,9 @@ static NSString* getIL2CPPString(void* strObj) {
     }
     
     gSilentAimEnabled = false; // Hardcoded disabled
+    gHotAimbotEnabled = [d boolForKey:@"h_ab"];
+    gHotAimOnFireEnabled = [d boolForKey:@"h_af"];
+    gHotEspEnabled = [d boolForKey:@"h_es"];
     gAimbotFovPx = (int)[d integerForKey:@"a_f"];
     if (gAimbotFovPx < 50) {
         gAimbotFovPx = 300;
@@ -873,6 +895,7 @@ static NSString* getIL2CPPString(void* strObj) {
     
     gPredictionEnabled = [d boolForKey:@"a_p"];
     gAimbotSmooth = [d floatForKey:@"a_sm"];
+    gAimOnFireSmooth = Math::Clamp([d floatForKey:@"a_of_sm"], 0.0f, 1.0f);
     gAimbotVisibleOnly = [d boolForKey:@"a_vo"];
     gAimbotNoTeam = [d boolForKey:@"a_nt"];
     
@@ -938,6 +961,7 @@ static NSString* getIL2CPPString(void* strObj) {
     if (gAmbientColorHex == 0) {
         gAmbientColorHex = 0xFFFFFFFF;
     }
+    gWeaponEspEnabled = [d boolForKey:@"wv_we"];
     gSaturationVal = [d floatForKey:@"wv_sat"];
     gContrastVal = [d floatForKey:@"wv_con"];
     gGammaVal = [d floatForKey:@"wv_gam"];
@@ -1009,7 +1033,7 @@ typedef void (*fn_UiOnClickFireDown)(void* self, void* mi);
 static fn_UiOnClickFireDown orig_UiOnClickFireDown = nullptr;
 
 static void ApplyAimOnFire(void) {
-    if (!gAimOnFireEnabled || !g_haveTarget || !p_lookAtTarget) {
+    if (!gAimOnFireEnabled && !gHotAimOnFireEnabled || !g_haveTarget || !p_lookAtTarget) {
         return;
     }
 
@@ -1026,7 +1050,9 @@ static void ApplyAimOnFire(void) {
         return;
     }
 
-    p_lookAtTarget(sceneCamera, g_targetHead, p_lookAtTargetMI);
+    if (gAimOnFireSmooth.load() <= 0.0f) {
+        p_lookAtTarget(sceneCamera, g_targetHead, p_lookAtTargetMI);
+    }
 }
 
 static void ApplyCameraOverrides(void* self) {
@@ -1152,12 +1178,21 @@ static void hook_CamLateUpdate(void* self, void* mi) {
         return;
     }
     
-    if (!gAimbotEnabled || gSilentAimEnabled || !g_haveTarget) {
+    const bool aimbotActive = gAimbotEnabled || gHotAimbotEnabled;
+    const bool aimOnFireActive = gAimOnFireEnabled || gHotAimOnFireEnabled;
+    if ((!aimbotActive && !aimOnFireActive) || gSilentAimEnabled || !g_haveTarget) {
         return;
     }
     
     if (p_lookAtTarget) {
-        p_lookAtTarget(self, g_targetHead, p_lookAtTargetMI);
+        Vec3 aimPoint = g_targetHead;
+        const float s = aimbotActive ? gAimbotSmooth.load() : gAimOnFireSmooth.load();
+        if (s > 0.0f) {
+            Vec3 diff = aimPoint - g_smoothTarget;
+            g_smoothTarget = g_smoothTarget + diff * s;
+            aimPoint = g_smoothTarget;
+        }
+        p_lookAtTarget(self, aimPoint, p_lookAtTargetMI);
     }
 }
 
@@ -2784,6 +2819,8 @@ static UIImage* CreateKeyIcon(CGSize size, UIColor *color) {
 @property (nonatomic, strong) NSMutableArray<NSString*>* names;
 @property (nonatomic, strong) NSMutableArray<NSValue*>* tracers;
 @property (nonatomic, strong) NSMutableArray<NSValue*>* oofDirs;
+@property (nonatomic, strong) NSMutableArray<NSValue*>* weaponBoxes;
+@property (nonatomic, strong) NSMutableArray<NSString*>* weaponLabels;
 @end
 
 @implementation ESPView
@@ -2805,6 +2842,8 @@ static UIImage* CreateKeyIcon(CGSize size, UIColor *color) {
         _names = [NSMutableArray arrayWithCapacity:32];
         _tracers = [NSMutableArray arrayWithCapacity:32];
         _oofDirs = [NSMutableArray arrayWithCapacity:32];
+        _weaponBoxes = [NSMutableArray arrayWithCapacity:32];
+        _weaponLabels = [NSMutableArray arrayWithCapacity:32];
     }
     return self;
 }
@@ -2848,7 +2887,7 @@ static UIImage* CreateKeyIcon(CGSize size, UIColor *color) {
         CGContextStrokePath(ctx);
     }
     
-    if (gEspEnabled) {
+    if (gEspEnabled || gHotEspEnabled) {
         CGContextSetLineWidth(ctx, 1.0);
         
         for (NSUInteger i = 0; i < self.boxes.count; i++) {
@@ -2894,6 +2933,22 @@ static UIImage* CreateKeyIcon(CGSize size, UIColor *color) {
         }
     }
     
+    if (gWeaponEspEnabled && self.weaponBoxes.count > 0) {
+        CGContextSetLineWidth(ctx, 1.0);
+        CGContextSetStrokeColorWithColor(ctx, (gWeaponColor ?: [UIColor yellowColor]).CGColor);
+        
+        for (NSUInteger i = 0; i < self.weaponBoxes.count; i++) {
+            CGRect r = [self.weaponBoxes[i] CGRectValue];
+            CGContextStrokeRect(ctx, r);
+            
+            if (i < self.weaponLabels.count) {
+                NSString *lbl = SafeStr(self.weaponLabels[i]);
+                CGSize size = [lbl sizeWithAttributes:fa];
+                [lbl drawAtPoint:CGPointMake(r.origin.x + r.size.width/2 - size.width/2, r.origin.y - size.height - 2) withAttributes:fa];
+            }
+        }
+    }
+    
     if (gSkeletonEnabled && self.skeletonLines.count > 0) {
         CGContextSetStrokeColorWithColor(ctx, (gSkelColor ?: [UIColor greenColor]).CGColor);
         CGContextSetLineWidth(ctx, 1.5);
@@ -2932,7 +2987,7 @@ static UIImage* CreateKeyIcon(CGSize size, UIColor *color) {
         }
     }
     
-    if (gAimbotEnabled) {
+    if (gAimbotEnabled || gAimOnFireEnabled) {
         float fov = (float)gAimbotFovPx;
         if (fov > 0) {
             CGContextSetStrokeColorWithColor(ctx, [UIColor whiteColor].CGColor);
@@ -2955,6 +3010,8 @@ static UIImage* CreateKeyIcon(CGSize size, UIColor *color) {
 @interface HotZoneView : UIView
 @end
 
+@class HotkeyView;
+
 static ESPView* gEspView = nil;
 static MenuView* gMenuView = nil;
 static HotZoneView* gHotZone = nil;
@@ -2963,6 +3020,8 @@ static ColorPickerView* gColorPicker = nil;
 static UIWindow* gMainWin = nil;
 static UIView* gOverlayContainer = nil;
 static UITextField* gSecureField = nil;
+static HotkeyView* gHotkeyView = nil;
+static void RefreshHotkeyView(void);
 
 @interface PassthroughView : UIView
 @end
@@ -3002,10 +3061,12 @@ static void UpdateStreamMode(void) {
             if (!gOverlayContainer || !gMainWin) {
                 return;
             }
+            RefreshHotkeyView();
             
             if (gStreamMode) {
                 RestoreAllChams();
                 gWatermark.hidden = YES;
+                gHotkeyView.hidden = YES;
                 
                 if (!gSecureField) {
                     gSecureField = [[SecureTextField alloc] initWithFrame:gMainWin.bounds];
@@ -3041,6 +3102,7 @@ static void UpdateStreamMode(void) {
                 }
             } else {
                 gWatermark.hidden = NO;
+                gHotkeyView.hidden = gMenuOpen;
                 [gOverlayContainer removeFromSuperview];
                 [gMainWin addSubview:gOverlayContainer];
                 
@@ -3077,6 +3139,7 @@ static void UpdateStreamMode(void) {
             gHotZone.hidden = YES;
             gEspView.hidden = YES;
             gWatermark.hidden = YES;
+            gHotkeyView.hidden = YES;
             gMenuView.hidden = NO;
             gMenuView.alpha = 0;
             gMenuView.transform = CGAffineTransformMakeScale(0.95, 0.95);
@@ -3098,6 +3161,8 @@ static void UpdateStreamMode(void) {
                 gMenuView.alpha = 1.0;
                 gHotZone.hidden = NO;
                 gEspView.hidden = NO;
+                RefreshHotkeyView();
+                gHotkeyView.hidden = gStreamMode;
                 if (!gStreamMode) {
                     gWatermark.hidden = NO;
                 }
@@ -3441,6 +3506,19 @@ static void UpdateStreamMode(void) {
             };
             [gAuto addSubview:[[NLRow alloc] initWithTitle:@"Smooth" y:y control:s2 swatch:nil]];
             y += 30;
+
+            NLSlider *s3 = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,110,18) suffix:@""];
+            s3.min = 0.0f;
+            s3.max = 1.0f;
+            s3.value = gAimOnFireSmooth;
+            s3.onChange = ^(float v) {
+                gAimOnFireSmooth = v;
+            };
+            s3.onRelease = ^(float v) {
+                [ConfigManager save];
+            };
+            [gAuto addSubview:[[NLRow alloc] initWithTitle:@"Aim On Fire Smooth" y:y control:s3 swatch:nil]];
+            y += 30;
             
         } else if (_currentTab == 1) {
             NLGroupBox *gEsp = [[NLGroupBox alloc] initWithTitle:@"Players" frame:CGRectMake(0, 0, colW, 340)];
@@ -3668,6 +3746,15 @@ static void UpdateStreamMode(void) {
                 [ConfigManager save];
             };
             [gWV addSubview:[[NLRow alloc] initWithTitle:@"No Fog" y:y control:cbNF swatch:nil]];
+            y += 30;
+            
+            NLCheckbox *cbWE = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbWE.isOn = gWeaponEspEnabled;
+            cbWE.onToggle = ^(BOOL v) {
+                gWeaponEspEnabled = v;
+                [ConfigManager save];
+            };
+            [gWV addSubview:[[NLRow alloc] initWithTitle:@"Weapon ESP" y:y control:cbWE swatch:nil]];
             y += 30;
             
             NLCheckbox *cbAmb = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
@@ -4012,6 +4099,33 @@ static void UpdateStreamMode(void) {
             };
             [gSet addSubview:[[NLRow alloc] initWithTitle:@"" y:y control:bLoadCfg swatch:nil]];
             y += 30;
+            
+            NLCheckbox *cbHA = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbHA.isOn = gHotAimbotEnabled;
+            cbHA.onToggle = ^(BOOL v) {
+                gHotAimbotEnabled = v;
+                [ConfigManager save];
+            };
+            [gSet addSubview:[[NLRow alloc] initWithTitle:@"Hotkey: Aimbot" y:y control:cbHA swatch:nil]];
+            y += 30;
+            
+            NLCheckbox *cbHAF = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbHAF.isOn = gHotAimOnFireEnabled;
+            cbHAF.onToggle = ^(BOOL v) {
+                gHotAimOnFireEnabled = v;
+                [ConfigManager save];
+            };
+            [gSet addSubview:[[NLRow alloc] initWithTitle:@"Hotkey: Aim On Fire" y:y control:cbHAF swatch:nil]];
+            y += 30;
+            
+            NLCheckbox *cbHES = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbHES.isOn = gHotEspEnabled;
+            cbHES.onToggle = ^(BOOL v) {
+                gHotEspEnabled = v;
+                [ConfigManager save];
+            };
+            [gSet addSubview:[[NLRow alloc] initWithTitle:@"Hotkey: ESP" y:y control:cbHES swatch:nil]];
+            y += 30;
         }
     } @catch (NSException* e) {
     }
@@ -4136,6 +4250,8 @@ static void UpdateStreamMode(void) {
         self.alpha = 1.0;
         gHotZone.hidden = NO;
         gEspView.hidden = NO;
+        RefreshHotkeyView();
+        gHotkeyView.hidden = gStreamMode;
         if (!gStreamMode) {
             gWatermark.hidden = NO;
         }
@@ -4286,6 +4402,10 @@ static void ApplyWorldView(void) {
         s_fbWas = fb;
         s_ambWas = amb;
         
+        if (!fb && !amb && !s_fbWas && !s_ambWas && p_renderSetAmbientLight && s_origAmbientInit) {
+            p_renderSetAmbientLight(gSkyboxCls, s_origAmbient, p_renderGetAmbientLightMI);
+        }
+        
         bool nf = gNoFogEnabled.load();
         if (nf != s_nfWas && p_setFogMI && p_getFogMI) {
             if (!s_fogOrigInit) {
@@ -4294,6 +4414,25 @@ static void ApplyWorldView(void) {
             }
             p_setFog(nf ? false : s_fogOrig, p_setFogMI);
             s_nfWas = nf;
+        }
+        
+        if (amb && p_renderSetAmbientLight) {
+            if (!s_origAmbientInit && p_renderGetAmbientLight) {
+                s_origAmbient = p_renderGetAmbientLight(gSkyboxCls);
+                s_origAmbientInit = true;
+            }
+            uint32_t hex = gAmbientColorHex.load();
+            UnityColor tc(((hex >> 24) & 0xFF) / 255.0f, ((hex >> 16) & 0xFF) / 255.0f, ((hex >> 8) & 0xFF) / 255.0f, 1.0f);
+            p_renderSetAmbientLight(gSkyboxCls, tc, p_renderGetAmbientLightMI);
+        } else if (fb && p_renderSetAmbientLight) {
+            if (!s_origAmbientInit && p_renderGetAmbientLight) {
+                s_origAmbient = p_renderGetAmbientLight(gSkyboxCls);
+                s_origAmbientInit = true;
+            }
+            UnityColor tc(1.0f, 1.0f, 1.0f, 1.0f);
+            p_renderSetAmbientLight(gSkyboxCls, tc, p_renderGetAmbientLightMI);
+        } else if (!amb && !fb && s_origAmbientInit && p_renderSetAmbientLight) {
+            p_renderSetAmbientLight(gSkyboxCls, s_origAmbient, p_renderGetAmbientLightMI);
         }
         
         if (gGradingDirty.load()) {
@@ -4536,6 +4675,8 @@ static void espTick(void) {
         [gEspView.names removeAllObjects];
         [gEspView.tracers removeAllObjects];
         [gEspView.oofDirs removeAllObjects];
+        [gEspView.weaponBoxes removeAllObjects];
+        [gEspView.weaponLabels removeAllObjects];
         
         void* best = nullptr;
         float bestScore = 99999.0f;
@@ -4675,7 +4816,7 @@ static void espTick(void) {
             }
             
             bool espVisible = false;
-            if (gEspEnabled) {
+            if (gEspEnabled || gHotEspEnabled) {
                 Vec3 sf, sh;
                 if (w2sFast(cam, fp, sf) && w2sFast(cam, hpv, sh) && sf.z > 0.05f && sh.z > 0.05f) {
                     float xh = (sh.x * sX) / gScreenScale;
@@ -4762,6 +4903,38 @@ static void espTick(void) {
                 }
             }
             
+            if (gWeaponEspEnabled && alive(c)) {
+                void* ctrl = *(void**)((uintptr_t)c + off::kCharController);
+                if (alive(ctrl)) {
+                    void* rv = *(void**)((uintptr_t)ctrl + off::kOtherRemoteVis);
+                    if (alive(rv)) {
+                        void* itemView = *(void**)((uintptr_t)rv + off::kRvItemView);
+                        if (alive(itemView)) {
+                            void* itemModel = *(void**)((uintptr_t)itemView + 0x38);
+                            if (alive(itemModel)) {
+                                void* weaponGO = *(void**)((uintptr_t)itemModel + 0x28);
+                                if (alive(weaponGO) && p_getTransform) {
+                                    void* wt = p_getTransform(weaponGO, p_getTransformMI);
+                                    if (alive(wt)) {
+                                        Vec3 wp;
+                                        if (getPosFast(wt, wp)) {
+                                            Vec3 sp;
+                                            if (w2sFast(cam, wp, sp) && sp.z > 0.05f) {
+                                                float sx = (sp.x * sX) / gScreenScale;
+                                                float sy = gScreenPts.height - ((sp.y * sY) / gScreenScale);
+                                                float sz = 10.0f;
+                                                [gEspView.weaponBoxes addObject:[NSValue valueWithCGRect:CGRectMake(sx - sz/2, sy - sz/2, sz, sz)]];
+                                                [gEspView.weaponLabels addObject:@"Weapon"];
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
             if (gAimbotEnabled || gAimOnFireEnabled || gSilentAimEnabled) {
                 if (gAimbotVisibleOnly && !isVisible) {
                     continue;
@@ -4814,6 +4987,141 @@ static void espTick(void) {
 static ESPDriver* gDriver = nil;
 static CADisplayLink* gLink = nil;
 
+@interface HotkeyView : UIView
+@property (nonatomic, strong) UIButton *hkbAimbot;
+@property (nonatomic, strong) UIButton *hkbAimFire;
+@property (nonatomic, strong) UIButton *hkbEsp;
+@property (nonatomic, strong) UILabel *dragHandle;
+- (void)updateTitles;
+@end
+
+@implementation HotkeyView {
+    CGPoint _panStartOrigin;
+}
+
+- (instancetype)initWithFrame:(CGRect)f {
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    if ([defaults objectForKey:@"hk_x"] && [defaults objectForKey:@"hk_y"]) {
+        f.origin = CGPointMake([defaults doubleForKey:@"hk_x"], [defaults doubleForKey:@"hk_y"]);
+    }
+
+    self = [super initWithFrame:f];
+    if (self) {
+        self.backgroundColor = [UIColor clearColor];
+        self.userInteractionEnabled = YES;
+        
+        CGFloat btnW = 54, btnH = 20, gap = 5;
+        CGFloat startX = 8, startY = 14;
+        self.dragHandle = [[UILabel alloc] initWithFrame:CGRectMake(0, 0, self.bounds.size.width, 12)];
+        self.dragHandle.text = @"MOVE";
+        self.dragHandle.textAlignment = NSTextAlignmentCenter;
+        self.dragHandle.textColor = [UIColor colorWithWhite:1.0 alpha:0.75];
+        self.dragHandle.font = [UIFont boldSystemFontOfSize:7];
+        self.dragHandle.userInteractionEnabled = YES;
+        [self addSubview:self.dragHandle];
+
+        UIPanGestureRecognizer *pan = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(panAction:)];
+        [self.dragHandle addGestureRecognizer:pan];
+        
+        self.hkbAimbot = [UIButton buttonWithType:UIButtonTypeSystem];
+        self.hkbAimbot.frame = CGRectMake(startX, startY, btnW, btnH);
+        self.hkbAimbot.titleLabel.font = [UIFont boldSystemFontOfSize:8];
+        self.hkbAimbot.layer.cornerRadius = 3;
+        [self.hkbAimbot setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
+        [self.hkbAimbot addTarget:self action:@selector(tapAimbot) forControlEvents:UIControlEventTouchUpInside];
+        [self addSubview:self.hkbAimbot];
+        
+        self.hkbAimFire = [UIButton buttonWithType:UIButtonTypeSystem];
+        self.hkbAimFire.frame = CGRectMake(startX, startY + btnH + gap, btnW, btnH);
+        self.hkbAimFire.titleLabel.font = [UIFont boldSystemFontOfSize:8];
+        self.hkbAimFire.layer.cornerRadius = 3;
+        [self.hkbAimFire setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
+        [self.hkbAimFire addTarget:self action:@selector(tapAimFire) forControlEvents:UIControlEventTouchUpInside];
+        [self addSubview:self.hkbAimFire];
+        
+        self.hkbEsp = [UIButton buttonWithType:UIButtonTypeSystem];
+        self.hkbEsp.frame = CGRectMake(startX, startY + (btnH + gap) * 2, btnW, btnH);
+        self.hkbEsp.titleLabel.font = [UIFont boldSystemFontOfSize:8];
+        self.hkbEsp.layer.cornerRadius = 3;
+        [self.hkbEsp setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
+        [self.hkbEsp addTarget:self action:@selector(tapEsp) forControlEvents:UIControlEventTouchUpInside];
+        [self addSubview:self.hkbEsp];
+        
+        [self updateTitles];
+    }
+    return self;
+}
+
+- (CGPoint)clampedOrigin:(CGPoint)origin {
+    if (!self.superview) {
+        return origin;
+    }
+
+    CGRect bounds = self.superview.bounds;
+    CGFloat maxX = MAX(CGRectGetMinX(bounds), CGRectGetMaxX(bounds) - self.bounds.size.width);
+    CGFloat maxY = MAX(CGRectGetMinY(bounds), CGRectGetMaxY(bounds) - self.bounds.size.height);
+    origin.x = MIN(MAX(origin.x, CGRectGetMinX(bounds)), maxX);
+    origin.y = MIN(MAX(origin.y, CGRectGetMinY(bounds)), maxY);
+    return origin;
+}
+
+- (void)didMoveToSuperview {
+    [super didMoveToSuperview];
+    if (self.superview) {
+        CGPoint origin = [self clampedOrigin:self.frame.origin];
+        self.frame = CGRectMake(origin.x, origin.y, self.bounds.size.width, self.bounds.size.height);
+    }
+}
+
+- (void)panAction:(UIPanGestureRecognizer*)pan {
+    if (pan.state == UIGestureRecognizerStateBegan) {
+        _panStartOrigin = self.frame.origin;
+    } else if (pan.state == UIGestureRecognizerStateChanged) {
+        CGPoint translation = [pan translationInView:self.superview];
+        CGPoint origin = CGPointMake(_panStartOrigin.x + translation.x, _panStartOrigin.y + translation.y);
+        origin = [self clampedOrigin:origin];
+        self.frame = CGRectMake(origin.x, origin.y, self.bounds.size.width, self.bounds.size.height);
+    } else if (pan.state == UIGestureRecognizerStateEnded || pan.state == UIGestureRecognizerStateCancelled) {
+        NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+        [defaults setDouble:self.frame.origin.x forKey:@"hk_x"];
+        [defaults setDouble:self.frame.origin.y forKey:@"hk_y"];
+    }
+}
+
+- (void)updateTitles {
+    [self.hkbAimbot setTitle:gHotAimbotEnabled ? @"AIM:ON" : @"AIM:OFF" forState:UIControlStateNormal];
+    [self.hkbAimFire setTitle:gHotAimOnFireEnabled ? @"FIRE:ON" : @"FIRE:OFF" forState:UIControlStateNormal];
+    [self.hkbEsp setTitle:gHotEspEnabled ? @"ESP:ON" : @"ESP:OFF" forState:UIControlStateNormal];
+    
+    self.hkbAimbot.backgroundColor = gHotAimbotEnabled ? [UIColor greenColor] : [UIColor redColor];
+    self.hkbAimFire.backgroundColor = gHotAimOnFireEnabled ? [UIColor greenColor] : [UIColor redColor];
+    self.hkbEsp.backgroundColor = gHotEspEnabled ? [UIColor greenColor] : [UIColor redColor];
+}
+
+- (void)tapAimbot {
+    gHotAimbotEnabled = !gHotAimbotEnabled;
+    [ConfigManager save];
+    [self updateTitles];
+}
+
+- (void)tapAimFire {
+    gHotAimOnFireEnabled = !gHotAimOnFireEnabled;
+    [ConfigManager save];
+    [self updateTitles];
+}
+
+- (void)tapEsp {
+    gHotEspEnabled = !gHotEspEnabled;
+    [ConfigManager save];
+    [self updateTitles];
+}
+
+@end
+
+static void RefreshHotkeyView(void) {
+    [gHotkeyView updateTitles];
+}
+
 static void startMainUI(void) {
     dispatch_async(dispatch_get_main_queue(), ^{
         @try {
@@ -4830,6 +5138,10 @@ static void startMainUI(void) {
             gMenuView = [[MenuView alloc] initWithFrame:CGRectMake((gMainWin.bounds.size.width - 620)/2, (gMainWin.bounds.size.height - 440)/2, 620, 440)];
             gMenuView.hidden = YES;
             [gOverlayContainer addSubview:gMenuView];
+            
+            gHotkeyView = [[HotkeyView alloc] initWithFrame:CGRectMake(8, MAX(0, gOverlayContainer.bounds.size.height - 92), 70, 84)];
+            gHotkeyView.hidden = YES;
+            [gOverlayContainer addSubview:gHotkeyView];
             
             gAttached = true;
             LOG(@"Attached v%s", kEspVersion);
@@ -5075,11 +5387,19 @@ static void bootstrap(void) {
         if (gSkyboxCls) {
             p_setFogMI = p_class_get_method_from_name(gSkyboxCls, "set_fog", 1);
             p_getFogMI = p_class_get_method_from_name(gSkyboxCls, "get_fog", 0);
+            p_renderSetAmbientLightMI = p_class_get_method_from_name(gSkyboxCls, "set_ambientLight", 1);
+            p_renderGetAmbientLightMI = p_class_get_method_from_name(gSkyboxCls, "get_ambientLight", 0);
             if (p_setFogMI) {
                 p_setFog = (fn_setFog)methodPtr(p_setFogMI);
             }
             if (p_getFogMI) {
                 p_getFog = (fn_getFog)methodPtr(p_getFogMI);
+            }
+            if (p_renderSetAmbientLightMI) {
+                p_renderSetAmbientLight = (fn_renderSetAmbientLight)methodPtr(p_renderSetAmbientLightMI);
+            }
+            if (p_renderGetAmbientLightMI) {
+                p_renderGetAmbientLight = (fn_renderGetAmbientLight)methodPtr(p_renderGetAmbientLightMI);
             }
         }
         
