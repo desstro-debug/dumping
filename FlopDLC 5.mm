@@ -356,6 +356,8 @@ namespace off {
     constexpr uint64_t kWepAmmo = 0x1C0;
     constexpr uint64_t kWepIsReload = 0x1C4;
     constexpr uint64_t kWepLastShotTime = 0x228;
+    constexpr uint64_t kWepSpread = 0x1F0; // Vector2 <Spread>k__BackingField
+    constexpr uint64_t kWepRecoil = 0x1F8; // Vector3 <Recoil>k__BackingField
     constexpr uint64_t kDataAmmo = 0xA8;
     
     constexpr uint64_t kMoveIsGrounded = 0x28;
@@ -395,6 +397,7 @@ typedef int (*fn_camGetPixelHeight)(void*, void*);
 typedef float (*fn_camGetFov)(void*, void*);
 typedef void (*fn_camSetAspect)(void*, float, void*);
 typedef void (*fn_camSetFov)(void*, float, void*);
+typedef void (*fn_sceneSetFov)(void*, float, void*);
 typedef Vec3 (*fn_tfGetPos)(void*, void*);
 typedef void (*fn_tfSetPos)(void*, Vec3, void*);
 typedef Vec3 (*fn_tfGetLocalScale)(void*, void*);
@@ -408,9 +411,18 @@ typedef void* (*fn_rendGetSharedMats)(void*, void*);
 typedef void (*fn_rendSetSharedMats)(void*, void*, void*);
 typedef void (*fn_matSetFloat)(void*, void*, float, void*);
 typedef void (*fn_matSetTexture)(void*, void*, void*, void*);
+typedef void (*fn_matSetInt)(void*, void*, int, void*);
+typedef void (*fn_matEnableKeyword)(void*, void*, void*);
+typedef void (*fn_matSetRenderQueue)(void*, int, void*);
 typedef void (*fn_LookAtTarget)(void* self, Vec3 target, void* mi);
 typedef bool (*fn_CheckSeen)(void* self, Vec3 target, void* mi);
 typedef void* (*fn_getGameObject)(void*, void*);
+typedef float (*fn_lightGetIntensity)(void*, void*);
+typedef void (*fn_lightSetIntensity)(void*, float, void*);
+typedef UnityColor (*fn_lightGetColor)(void*, void*);
+typedef void (*fn_lightSetColor)(void*, UnityColor, void*);
+typedef void (*fn_setFog)(bool, void*);
+typedef bool (*fn_getFog)(void*);
 
 static fn_domain_get p_domain_get = nullptr;
 static fn_domain_get_assemblies p_domain_get_assemblies = nullptr;
@@ -443,9 +455,18 @@ static void* gVolumeCls = nullptr;
 static void* gMatCls = nullptr;
 static void* gSkyboxCls = nullptr;
 static void* gRendererCls = nullptr;
+static void* gLightCls = nullptr;
+static void* gColorAdjCls = nullptr;
+static void* gBloomCls = nullptr;
+static void* gClampedFCls = nullptr;
+static void* gMinFCls = nullptr;
+static void* gFloatPCls = nullptr;
+static void* gCamDataCls = nullptr;
 
 static uint32_t gPlayerTypeHandle = 0;
 static uint32_t gVolumeTypeHandle = 0;
+static uint32_t gLightTypeHandle = 0;
+static uint32_t gCamDataTypeHandle = 0;
 
 static void* p_findPlayerMI = nullptr;
 static void* p_findVolumeMI = nullptr;
@@ -456,6 +477,7 @@ static void* p_camGetPixelHeightMI = nullptr;
 static void* p_camGetFovMI = nullptr;
 static void* p_camSetAspectMI = nullptr;
 static void* p_camSetFovMI = nullptr;
+static void* p_sceneSetFovMI = nullptr;
 static void* p_tfGetPosMI = nullptr;
 static void* p_tfSetPosMI = nullptr;
 static void* p_tfGetLocalScaleMI = nullptr;
@@ -467,6 +489,18 @@ static void* p_matSetColorMI = nullptr;
 static void* p_matCopyCtorMI = nullptr;
 static void* p_matSetFloatMI = nullptr;
 static void* p_matSetTextureMI = nullptr;
+static void* p_matSetIntMI = nullptr;
+static void* p_matEnableKeywordMI = nullptr;
+static void* p_matSetRQMI = nullptr;
+static void* p_lightGetIntensityMI = nullptr;
+static void* p_lightSetIntensityMI = nullptr;
+static void* p_lightGetColorMI = nullptr;
+static void* p_lightSetColorMI = nullptr;
+static void* p_setFogMI = nullptr;
+static void* p_getFogMI = nullptr;
+static void* p_cfaValMI = nullptr;
+static void* p_mfaValMI = nullptr;
+static void* p_fpaValMI = nullptr;
 static void* p_rendGetSharedMatsMI = nullptr;
 static void* p_rendSetSharedMatsMI = nullptr;
 static void* p_getCompsInChildrenMI = nullptr;
@@ -480,6 +514,7 @@ static fn_camGetPixelHeight p_camGetPixelHeight = nullptr;
 static fn_camGetFov p_camGetFov = nullptr;
 static fn_camSetAspect p_camSetAspect = nullptr;
 static fn_camSetFov p_camSetFov = nullptr;
+static fn_sceneSetFov p_sceneSetFov = nullptr;
 static fn_tfGetPos p_tfGetPos = nullptr;
 static fn_tfSetPos p_tfSetPos = nullptr;
 static fn_tfGetLocalScale p_tfGetLocalScale = nullptr;
@@ -493,6 +528,15 @@ static fn_rendGetSharedMats p_rendGetSharedMats = nullptr;
 static fn_rendSetSharedMats p_rendSetSharedMats = nullptr;
 static fn_matSetFloat p_matSetFloat = nullptr;
 static fn_matSetTexture p_matSetTexture = nullptr;
+static fn_matSetInt p_matSetInt = nullptr;
+static fn_matEnableKeyword p_matEnableKeyword = nullptr;
+static fn_matSetRenderQueue p_matSetRQ = nullptr;
+static fn_lightGetIntensity p_lightGetIntensity = nullptr;
+static fn_lightSetIntensity p_lightSetIntensity = nullptr;
+static fn_lightGetColor p_lightGetColor = nullptr;
+static fn_lightSetColor p_lightSetColor = nullptr;
+static fn_setFog p_setFog = nullptr;
+static fn_getFog p_getFog = nullptr;
 static fn_getGameObject p_getGameObject = nullptr;
 static fn_LookAtTarget p_lookAtTarget = nullptr;
 static fn_CheckSeen p_CheckSeen = nullptr;
@@ -506,6 +550,7 @@ static std::atomic<bool> gTracersEnabled{false};
 static std::atomic<bool> gOofEnabled{false};
 
 static std::atomic<bool> gAimbotEnabled{false};
+static std::atomic<bool> gAimOnFireEnabled{false};
 static std::atomic<bool> gSilentAimEnabled{false};
 static std::atomic<bool> gInvertPitch{false};
 static std::atomic<bool> gInvertYaw{false};
@@ -524,6 +569,8 @@ static std::atomic<float> gJumpHackVal{1.0f};
 static std::atomic<bool> gRapidFireEnabled{false};
 static std::atomic<bool> gInstantReloadEnabled{false};
 static std::atomic<bool> gUnlimAmmoEnabled{false};
+static std::atomic<bool> gNoSpreadEnabled{false};
+static std::atomic<bool> gNoRecoilEnabled{false};
 
 static std::atomic<bool> gCamFovEnabled{false};
 static std::atomic<bool> gAspectEnabled{false};
@@ -543,6 +590,30 @@ static std::atomic<bool> gAttached{false};
 static std::atomic<bool> gSkyboxEnabled{false};
 static std::atomic<uint32_t> gSkyboxColorHex{0xFFFFFFFF};
 static std::atomic<bool> gSkyboxDirty{true};
+
+// WORLD VIEW
+static std::atomic<bool> gFullbrightEnabled{false};
+static std::atomic<float> gFullbrightMul{3.0f};
+static std::atomic<bool> gNoFogEnabled{false};
+static std::atomic<bool> gAmbientTintEnabled{false};
+static std::atomic<uint32_t> gAmbientColorHex{0xFFFFFFFF};
+static std::atomic<bool> gGradingDirty{true};
+static std::atomic<float> gSaturationVal{0.0f};
+static std::atomic<float> gContrastVal{0.0f};
+static std::atomic<float> gGammaVal{0.0f};
+static std::atomic<float> gBloomVal{0.0f};
+static std::atomic<float> gSharpenVal{0.0f};
+
+struct SavedLight {
+    float i;
+    UnityColor c;
+};
+static std::unordered_map<void*, SavedLight> gLightOrig;
+static bool s_fogOrigInit = false;
+static bool s_fogOrig = false;
+static bool s_fbWas = false;
+static bool s_ambWas = false;
+static bool s_nfWas = false;
 
 static std::atomic<bool> gChamsPlayerEnabled{false};
 static std::atomic<bool> gChamsWeaponEnabled{false};
@@ -587,8 +658,8 @@ static uint64_t gLastFrameTime = 0;
 
 static void* gSampleMat = nullptr;
 static uint32_t gSampleMatHandle = 0;
-static void* gChamsMatsPlayer[3] = {nullptr, nullptr, nullptr};
-static void* gChamsMatsWeapon[3] = {nullptr, nullptr, nullptr};
+static void* gChamsMatsPlayer[4] = {nullptr, nullptr, nullptr, nullptr};
+static void* gChamsMatsWeapon[4] = {nullptr, nullptr, nullptr, nullptr};
 
 struct SavedMat {
     void* array;
@@ -605,6 +676,7 @@ static Vec3 gHandsBaseScale(1,1,1);
 
 static uint64_t gLastP = 0;
 static uint64_t gLastNight = 0;
+static uint64_t gLastWorld = 0;
 static std::vector<void*> gCached;
 static void* gLocal = nullptr;
 static int gTeam = 0;
@@ -726,6 +798,7 @@ static NSString* getIL2CPPString(void* strObj) {
     [d setBool:gTracersEnabled forKey:@"e_t"];
     [d setBool:gOofEnabled forKey:@"e_oof"];
     [d setBool:gAimbotEnabled forKey:@"a_e"];
+    [d setBool:gAimOnFireEnabled forKey:@"a_of"];
     [d setInteger:gAimBone forKey:@"a_b"];
     [d setBool:gSilentAimEnabled forKey:@"a_s"];
     [d setInteger:gAimbotFovPx forKey:@"a_f"];
@@ -748,9 +821,21 @@ static NSString* getIL2CPPString(void* strObj) {
     [d setBool:gRapidFireEnabled forKey:@"w_rf"];
     [d setBool:gInstantReloadEnabled forKey:@"w_ir"];
     [d setBool:gUnlimAmmoEnabled forKey:@"w_ua"];
+    [d setBool:gNoSpreadEnabled forKey:@"w_ns"];
+    [d setBool:gNoRecoilEnabled forKey:@"w_nr"];
     [d setBool:gNightModeEnabled forKey:@"v_nm"];
     [d setBool:gSkyboxEnabled forKey:@"v_sky_e"];
     [d setInteger:(NSInteger)gSkyboxColorHex.load() forKey:@"v_sky_c"];
+    [d setBool:gFullbrightEnabled forKey:@"wv_fb"];
+    [d setFloat:gFullbrightMul forKey:@"wv_fbm"];
+    [d setBool:gNoFogEnabled forKey:@"wv_nf"];
+    [d setBool:gAmbientTintEnabled forKey:@"wv_amb_e"];
+    [d setInteger:(NSInteger)gAmbientColorHex.load() forKey:@"wv_amb_c"];
+    [d setFloat:gSaturationVal forKey:@"wv_sat"];
+    [d setFloat:gContrastVal forKey:@"wv_con"];
+    [d setFloat:gGammaVal forKey:@"wv_gam"];
+    [d setFloat:gBloomVal forKey:@"wv_bloom"];
+    [d setFloat:gSharpenVal forKey:@"wv_sharp"];
     [d setBool:gChamsPlayerEnabled forKey:@"v_chams_pl_e"];
     [d setBool:gChamsWeaponEnabled forKey:@"v_chams_wep_e"];
     [d setInteger:(NSInteger)gChamsPlayerColor.load() forKey:@"v_chams_pl_c"];
@@ -774,6 +859,7 @@ static NSString* getIL2CPPString(void* strObj) {
     gOofEnabled = [d boolForKey:@"e_oof"];
     
     gAimbotEnabled = [d boolForKey:@"a_e"];
+    gAimOnFireEnabled = [d boolForKey:@"a_of"];
     gAimBone = (int)[d integerForKey:@"a_b"];
     if (gAimBone != 10 && gAimBone != 8 && gAimBone != 0) {
         gAimBone = 10;
@@ -830,6 +916,8 @@ static NSString* getIL2CPPString(void* strObj) {
     gRapidFireEnabled = [d boolForKey:@"w_rf"];
     gInstantReloadEnabled = [d boolForKey:@"w_ir"];
     gUnlimAmmoEnabled = [d boolForKey:@"w_ua"];
+    gNoSpreadEnabled = [d boolForKey:@"w_ns"];
+    gNoRecoilEnabled = [d boolForKey:@"w_nr"];
     
     gNightModeEnabled = [d boolForKey:@"v_nm"];
     gSkyboxEnabled = [d boolForKey:@"v_sky_e"];
@@ -838,6 +926,24 @@ static NSString* getIL2CPPString(void* strObj) {
         gSkyboxColorHex = 0xFFFFFFFF;
     }
     gSkyboxDirty = true;
+    
+    gFullbrightEnabled = [d boolForKey:@"wv_fb"];
+    gFullbrightMul = [d floatForKey:@"wv_fbm"];
+    if (gFullbrightMul < 1.0f) {
+        gFullbrightMul = 3.0f;
+    }
+    gNoFogEnabled = [d boolForKey:@"wv_nf"];
+    gAmbientTintEnabled = [d boolForKey:@"wv_amb_e"];
+    gAmbientColorHex = (uint32_t)[d integerForKey:@"wv_amb_c"];
+    if (gAmbientColorHex == 0) {
+        gAmbientColorHex = 0xFFFFFFFF;
+    }
+    gSaturationVal = [d floatForKey:@"wv_sat"];
+    gContrastVal = [d floatForKey:@"wv_con"];
+    gGammaVal = [d floatForKey:@"wv_gam"];
+    gBloomVal = [d floatForKey:@"wv_bloom"];
+    gSharpenVal = [d floatForKey:@"wv_sharp"];
+    gGradingDirty = true;
     
     gChamsPlayerEnabled = [d boolForKey:@"v_chams_pl_e"];
     gChamsWeaponEnabled = [d boolForKey:@"v_chams_wep_e"];
@@ -853,10 +959,10 @@ static NSString* getIL2CPPString(void* strObj) {
     
     gChamsPlayerMatType = (int)[d integerForKey:@"v_chams_pl_m"];
     gChamsWeaponMatType = (int)[d integerForKey:@"v_chams_wep_m"];
-    if (gChamsPlayerMatType < 0 || gChamsPlayerMatType > 2) {
+    if (gChamsPlayerMatType < 0 || gChamsPlayerMatType > 3) {
         gChamsPlayerMatType = 0;
     }
-    if (gChamsWeaponMatType < 0 || gChamsWeaponMatType > 2) {
+    if (gChamsWeaponMatType < 0 || gChamsWeaponMatType > 3) {
         gChamsWeaponMatType = 0;
     }
     
@@ -898,6 +1004,71 @@ static bool hook_install(void* mi, void* hook, void** orig) {
 
 typedef void (*fn_CamLateUpdate)(void* self, void* mi);
 static fn_CamLateUpdate orig_CamLateUpdate = nullptr;
+
+typedef void (*fn_UiOnClickFireDown)(void* self, void* mi);
+static fn_UiOnClickFireDown orig_UiOnClickFireDown = nullptr;
+
+static void ApplyAimOnFire(void) {
+    if (!gAimOnFireEnabled || !g_haveTarget || !p_lookAtTarget) {
+        return;
+    }
+
+    void* sceneCamera = g_localSceneChar;
+    if (!alive(sceneCamera)) {
+        return;
+    }
+
+    if (*(bool*)((uintptr_t)sceneCamera + off::kCamIsDisable)) {
+        return;
+    }
+
+    if (*(bool*)((uintptr_t)sceneCamera + off::kCamIsBusy)) {
+        return;
+    }
+
+    p_lookAtTarget(sceneCamera, g_targetHead, p_lookAtTargetMI);
+}
+
+static void ApplyCameraOverrides(void* self) {
+    if (!alive(self) || self != g_localSceneChar) {
+        return;
+    }
+
+    void* camera = *(void**)((uintptr_t)self + off::kCamComponent);
+    if (!alive(camera)) {
+        return;
+    }
+
+    g_localCamera = camera;
+
+    if (gStreamMode) {
+        if (p_camSetAspect && gScreenPts.height > 0.0f) {
+            float defaultAspect = gScreenPts.width / gScreenPts.height;
+            if (std::isfinite(defaultAspect) && defaultAspect > 0.0f) {
+                p_camSetAspect(camera, defaultAspect, p_camSetAspectMI);
+            }
+        }
+    } else if (gAspectEnabled && p_camSetAspect) {
+        float aspect = gAspectVal.load();
+        if (std::isfinite(aspect) && aspect >= 0.5f && aspect <= 2.5f) {
+            p_camSetAspect(camera, aspect, p_camSetAspectMI);
+        }
+    }
+
+    if (gCamFovEnabled) {
+        float fieldOfView = gCamFovVal.load();
+        if (!std::isfinite(fieldOfView)) {
+            return;
+        }
+
+        fieldOfView = Math::Clamp(fieldOfView, 30.0f, 140.0f);
+        if (p_sceneSetFov) {
+            p_sceneSetFov(self, fieldOfView, p_sceneSetFovMI);
+        } else if (p_camSetFov) {
+            p_camSetFov(camera, fieldOfView, p_camSetFovMI);
+        }
+    }
+}
 
 static void ApplyViewmodelFov(void* self) {
     if (!alive(self)) {
@@ -959,18 +1130,21 @@ static void hook_CamLateUpdate(void* self, void* mi) {
         return;
     }
     
-    if (g_localCamera && p_camSetAspect && p_camSetFov) {
-        if (gStreamMode) {
-            float defAspect = gScreenPts.width / gScreenPts.height;
-            p_camSetAspect(g_localCamera, defAspect, p_camSetAspectMI);
-        } else if (gAspectEnabled) {
-            p_camSetAspect(g_localCamera, gAspectVal, p_camSetAspectMI);
+    // LateUpdate runs after weapon Update — keep spread/recoil at 0 for the next shot
+    if (g_localWeapon && SANE_PTR(g_localWeapon)) {
+        if (gNoSpreadEnabled) {
+            *(float*)((uintptr_t)g_localWeapon + off::kWepSpread) = 0.0f;
+            *(float*)((uintptr_t)g_localWeapon + off::kWepSpread + 0x4) = 0.0f;
         }
-        
-        if (gCamFovEnabled) {
-            p_camSetFov(g_localCamera, gCamFovVal, p_camSetFovMI);
+        if (gNoRecoilEnabled) {
+            float* rec = (float*)((uintptr_t)g_localWeapon + off::kWepRecoil);
+            rec[0] = 0.0f;
+            rec[1] = 0.0f;
+            rec[2] = 0.0f;
         }
     }
+    
+    ApplyCameraOverrides(self);
     
     ApplyViewmodelFov(self);
     
@@ -984,6 +1158,14 @@ static void hook_CamLateUpdate(void* self, void* mi) {
     
     if (p_lookAtTarget) {
         p_lookAtTarget(self, g_targetHead, p_lookAtTargetMI);
+    }
+}
+
+static void hook_UiOnClickFireDown(void* self, void* mi) {
+    ApplyAimOnFire();
+
+    if (orig_UiOnClickFireDown) {
+        orig_UiOnClickFireDown(self, mi);
     }
 }
 
@@ -1021,6 +1203,18 @@ static void hook_WepUpdate(void* self, void* mi) {
     
     if (gUnlimAmmoEnabled) {
         *(int*)((uintptr_t)self + off::kWepAmmoTotal) = 9999;
+    }
+    
+    if (gNoSpreadEnabled) {
+        *(float*)((uintptr_t)self + off::kWepSpread) = 0.0f;
+        *(float*)((uintptr_t)self + off::kWepSpread + 0x4) = 0.0f;
+    }
+    
+    if (gNoRecoilEnabled) {
+        float* rec = (float*)((uintptr_t)self + off::kWepRecoil);
+        rec[0] = 0.0f;
+        rec[1] = 0.0f;
+        rec[2] = 0.0f;
     }
 }
 
@@ -1060,6 +1254,7 @@ static void InstallAllHooks(void) {
         void* wepCls = findClass("", "ItemEquipWeaponRange");
         void* moveCls = findClass("", "SceneLevelCharacterMovementLocal");
         void* sceneCamCls = findClass("", "SceneLevelCamera");
+        void* mobileInputsCls = findClass("", "SceneLevelUiMobileInputs");
         
         if (sceneCamCls) {
             void* mi = p_class_get_method_from_name(sceneCamCls, "LateUpdate", 0);
@@ -1068,6 +1263,13 @@ static void InstallAllHooks(void) {
             }
         }
         
+        if (mobileInputsCls) {
+            void* mi = p_class_get_method_from_name(mobileInputsCls, "OnClickFireDown", 0);
+            if (mi) {
+                hook_install(mi, (void*)hook_UiOnClickFireDown, (void**)&orig_UiOnClickFireDown);
+            }
+        }
+
         if (wepCls) {
             void* mi = p_class_get_method_from_name(wepCls, "Update", 0);
             if (mi) {
@@ -1150,7 +1352,7 @@ static void* CreateChamsMaterial(void* source, int type, uint32_t hexColor) {
     void* strBaseColor = p_string_new("_BaseColor");
     
     if (p_matSetColor) {
-        UnityColor col(r, g, b, 1.0f);
+        UnityColor col(r, g, b, (type == 1 || type == 3) ? a : 1.0f);
         if (strColor) {
             p_matSetColor(newMat, strColor, col, p_matSetColorMI);
         }
@@ -1159,9 +1361,16 @@ static void* CreateChamsMaterial(void* source, int type, uint32_t hexColor) {
         }
         
         void* strEmission = p_string_new("_EmissionColor");
-        UnityColor zero(0, 0, 0, 0);
-        if (strEmission) {
-            p_matSetColor(newMat, strEmission, zero, p_matSetColorMI);
+        if (type == 2) {
+            UnityColor emis(r * 1.5f, g * 1.5f, b * 1.5f, 1.0f);
+            if (strEmission) {
+                p_matSetColor(newMat, strEmission, emis, p_matSetColorMI);
+            }
+        } else {
+            UnityColor zero(0, 0, 0, 0);
+            if (strEmission) {
+                p_matSetColor(newMat, strEmission, zero, p_matSetColorMI);
+            }
         }
     }
     
@@ -1173,6 +1382,45 @@ static void* CreateChamsMaterial(void* source, int type, uint32_t hexColor) {
         void* strBaseMap = p_string_new("_BaseMap");
         if (strBaseMap) {
             p_matSetTexture(newMat, strBaseMap, nullptr, p_matSetTextureMI);
+        }
+    }
+    
+    // per-type render state
+    if (p_matSetFloat) {
+        void* strZWrite = p_string_new("_ZWrite");
+        if (strZWrite && (type == 1 || type == 3)) {
+            p_matSetFloat(newMat, strZWrite, 0.0f, p_matSetFloatMI);
+        }
+    }
+    
+    if (p_matEnableKeyword) {
+        void* strEmis = p_string_new("_EMISSION");
+        if (strEmis && type == 2) {
+            p_matEnableKeyword(newMat, strEmis, p_matEnableKeywordMI);
+        }
+    }
+    
+    if (p_matSetInt) {
+        // X-Ray: try to force ZTest Always (8) — works on shaders exposing _ZTest,
+        // no-op SetFloat/SetInt on missing props, safe to attempt
+        void* strZTest = p_string_new("_ZTest");
+        void* strStencilComp = p_string_new("_StencilComp");
+        if (type == 3) {
+            if (strZTest) {
+                p_matSetInt(newMat, strZTest, 8, p_matSetIntMI);
+            }
+            if (strStencilComp) {
+                p_matSetInt(newMat, strStencilComp, 8, p_matSetIntMI);
+            }
+        }
+    }
+    
+    if (p_matSetRQ) {
+        // Glass/X-Ray -> transparent+overlay range so they draw after opaque geometry
+        if (type == 1) {
+            p_matSetRQ(newMat, 3000, p_matSetRQMI);
+        } else if (type == 2 || type == 3) {
+            p_matSetRQ(newMat, 4000, p_matSetRQMI);
         }
     }
     
@@ -1261,8 +1509,8 @@ static void EnsureChamsMaterials(void) {
         return;
     }
     
-    bool needP = !gChamsMatsPlayer[0] || !gChamsMatsPlayer[1] || !gChamsMatsPlayer[2];
-    bool needW = !gChamsMatsWeapon[0] || !gChamsMatsWeapon[1] || !gChamsMatsWeapon[2];
+    bool needP = !gChamsMatsPlayer[0] || !gChamsMatsPlayer[1] || !gChamsMatsPlayer[2] || !gChamsMatsPlayer[3];
+    bool needW = !gChamsMatsWeapon[0] || !gChamsMatsWeapon[1] || !gChamsMatsWeapon[2] || !gChamsMatsWeapon[3];
     
     if (!needP && !needW) {
         return;
@@ -1276,7 +1524,7 @@ static void EnsureChamsMaterials(void) {
     uint32_t pc = gChamsPlayerColor.load();
     uint32_t wc = gChamsWeaponColor.load();
     
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 4; i++) {
         if (!gChamsMatsPlayer[i]) {
             gChamsMatsPlayer[i] = CreateChamsMaterial(sample, i, pc);
         }
@@ -1563,14 +1811,14 @@ static void ChamsTick() {
         }
         
         if (gChamsPlayerColorDirty) {
-            for (int i = 0; i < 3; i++) {
+            for (int i = 0; i < 4; i++) {
                 gChamsMatsPlayer[i] = nullptr;
             }
             gChamsPlayerColorDirty = false;
         }
         
         if (gChamsWeaponColorDirty) {
-            for (int i = 0; i < 3; i++) {
+            for (int i = 0; i < 4; i++) {
                 gChamsMatsWeapon[i] = nullptr;
             }
             gChamsWeaponColorDirty = false;
@@ -2701,6 +2949,7 @@ static UIImage* CreateKeyIcon(CGSize size, UIColor *color) {
 - (void)toggleWeaponChamsMenu:(UIButton*)sender;
 - (void)selectPlayerChamsMat:(UIButton*)sender;
 - (void)selectWeaponChamsMat:(UIButton*)sender;
+- (void)skyPresetTap:(UIButton*)sender;
 @end
 
 @interface HotZoneView : UIView
@@ -2913,10 +3162,11 @@ static void UpdateStreamMode(void) {
         
         _tabs = [NSMutableArray array];
         [self addTab:@"AIMBOT" x:120];
-        [self addTab:@"VISUALS" x:195];
-        [self addTab:@"PLAYER" x:270];
-        [self addTab:@"MISC" x:340];
-        [self addTab:@"SETTINGS" x:400];
+        [self addTab:@"VISUALS" x:185];
+        [self addTab:@"WORLD" x:250];
+        [self addTab:@"PLAYER" x:315];
+        [self addTab:@"MISC" x:380];
+        [self addTab:@"SETTINGS" x:445];
         
         UIButton *mb = [UIButton buttonWithType:UIButtonTypeCustom];
         mb.frame = CGRectMake(frame.size.width - 60, 10, 15, 15);
@@ -3002,6 +3252,14 @@ static void UpdateStreamMode(void) {
                 [[NSUserDefaults standardUserDefaults] setInteger:(NSInteger)hex forKey:weakKey];
                 [[NSUserDefaults standardUserDefaults] synchronize];
                 return;
+            } else if ([weakKey isEqualToString:@"wv_amb_c"]) {
+                CGFloat r, g, b, a;
+                [newColor getRed:&r green:&g blue:&b alpha:&a];
+                uint32_t hex = ((int)(r*255) << 24) | ((int)(g*255) << 16) | ((int)(b*255) << 8) | (int)(a*255);
+                gAmbientColorHex = hex;
+                [[NSUserDefaults standardUserDefaults] setInteger:(NSInteger)hex forKey:weakKey];
+                [[NSUserDefaults standardUserDefaults] synchronize];
+                return;
             }
             
             [ConfigManager saveColor:newColor forKey:weakKey];
@@ -3042,7 +3300,7 @@ static void UpdateStreamMode(void) {
 
 - (void)addTab:(NSString*)title x:(CGFloat)x {
     UIButton *b = [UIButton buttonWithType:UIButtonTypeCustom];
-    b.frame = CGRectMake(x, 0, 75, 35);
+    b.frame = CGRectMake(x, 0, 62, 35);
     [b setTitle:SafeStr(title) forState:UIControlStateNormal];
     b.titleLabel.font = [UIFont systemFontOfSize:10 weight:UIFontWeightBold];
     [b setTitleColor:[UIColor lightGrayColor] forState:UIControlStateNormal];
@@ -3101,6 +3359,15 @@ static void UpdateStreamMode(void) {
                 [ConfigManager save];
             };
             [gAuto addSubview:[[NLRow alloc] initWithTitle:@"Aimbot" y:y control:cbAim swatch:nil]];
+            y += 30;
+
+            NLCheckbox *cbAimOnFire = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbAimOnFire.isOn = gAimOnFireEnabled;
+            cbAimOnFire.onToggle = ^(BOOL v) {
+                gAimOnFireEnabled = v;
+                [ConfigManager save];
+            };
+            [gAuto addSubview:[[NLRow alloc] initWithTitle:@"Aim On Fire" y:y control:cbAimOnFire swatch:nil]];
             y += 30;
             
             NLButton *bBone = [[NLButton alloc] initWithTitle:@"Head"];
@@ -3253,26 +3520,9 @@ static void UpdateStreamMode(void) {
             [gEsp addSubview:[[NLRow alloc] initWithTitle:@"Snaplines" y:y control:cbTr swatch:swTracer]];
             y += 30;
 
-            NLGroupBox *gWorld = [[NLGroupBox alloc] initWithTitle:@"World" frame:CGRectMake(0, 0, colW, 240)];
+            NLGroupBox *gWorld = [[NLGroupBox alloc] initWithTitle:@"World" frame:CGRectMake(0, 0, colW, 210)];
             [c2 addSubview:gWorld];
             y = 30;
-            
-            NLColorSwatch *swSky = [[NLColorSwatch alloc] initWithFrame:CGRectMake(0,0,16,16)];
-            swSky.color = [UIColor colorWithRed:((gSkyboxColorHex >> 24) & 0xFF)/255.0 green:((gSkyboxColorHex >> 16) & 0xFF)/255.0 blue:((gSkyboxColorHex >> 8) & 0xFF)/255.0 alpha:(gSkyboxColorHex & 0xFF)/255.0];
-            __weak NLColorSwatch *weakSwSky = swSky;
-            swSky.onTap = ^{
-                [weakSelf showColorPickerForSwatch:weakSwSky currentColor:weakSwSky.color saveKey:@"v_sky_c"];
-            };
-            
-            NLCheckbox *cbSky = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
-            cbSky.isOn = gSkyboxEnabled;
-            cbSky.onToggle = ^(BOOL v) {
-                gSkyboxEnabled = v;
-                gSkyboxDirty = true;
-                [ConfigManager save];
-            };
-            [gWorld addSubview:[[NLRow alloc] initWithTitle:@"Sky Color" y:y control:cbSky swatch:swSky]];
-            y += 30;
             
             NLCheckbox *cbKS = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
             cbKS.isOn = gKillSoundEnabled;
@@ -3282,7 +3532,7 @@ static void UpdateStreamMode(void) {
             };
             [gWorld addSubview:[[NLRow alloc] initWithTitle:@"Kill Sound" y:y control:cbKS swatch:nil]];
             y += 30;
-
+            
             NLGroupBox *gChams = [[NLGroupBox alloc] initWithTitle:@"Chams" frame:CGRectMake(0, 140, colW, 280)];
             [c2 addSubview:gChams];
             CGFloat cy = 30;
@@ -3318,10 +3568,10 @@ static void UpdateStreamMode(void) {
             matSelPl.tag = 200;
             matSelPl.hidden = YES;
             
-            NSArray *matNames = @[@"Normal", @"Glass", @"Glow"];
-            CGFloat bw = (colW - 30 - 6) / 3.0;
+            NSArray *matNames = @[@"Normal", @"Glass", @"Glow", @"X-Ray"];
+            CGFloat bw = (colW - 30 - 9) / 4.0;
             
-            for (int i = 0; i < 3; i++) {
+            for (int i = 0; i < 4; i++) {
                 UIButton *b = [UIButton buttonWithType:UIButtonTypeSystem];
                 b.frame = CGRectMake(i * (bw + 3), 0, bw, 20);
                 b.backgroundColor = ((int)gChamsPlayerMatType == i) ? [UIColor colorWithWhite:0.4 alpha:1.0] : [UIColor colorWithWhite:0.15 alpha:1.0];
@@ -3368,7 +3618,7 @@ static void UpdateStreamMode(void) {
             matSelWep.tag = 201;
             matSelWep.hidden = YES;
             
-            for (int i = 0; i < 3; i++) {
+            for (int i = 0; i < 4; i++) {
                 UIButton *b = [UIButton buttonWithType:UIButtonTypeSystem];
                 b.frame = CGRectMake(i * (bw + 3), 0, bw, 20);
                 b.backgroundColor = ((int)gChamsWeaponMatType == i) ? [UIColor colorWithWhite:0.4 alpha:1.0] : [UIColor colorWithWhite:0.15 alpha:1.0];
@@ -3385,6 +3635,169 @@ static void UpdateStreamMode(void) {
             cy += 30;
             
         } else if (_currentTab == 2) {
+            NLGroupBox *gWV = [[NLGroupBox alloc] initWithTitle:@"World View" frame:CGRectMake(0, 0, colW, 240)];
+            [c1 addSubview:gWV];
+            CGFloat y = 30;
+            
+            NLCheckbox *cbFB = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbFB.isOn = gFullbrightEnabled;
+            cbFB.onToggle = ^(BOOL v) {
+                gFullbrightEnabled = v;
+                [ConfigManager save];
+            };
+            [gWV addSubview:[[NLRow alloc] initWithTitle:@"Fullbright" y:y control:cbFB swatch:nil]];
+            y += 30;
+            
+            NLSlider *sFB = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@"x"];
+            sFB.min = 1.0f;
+            sFB.max = 5.0f;
+            sFB.value = gFullbrightMul;
+            sFB.onChange = ^(float v) {
+                gFullbrightMul = v;
+            };
+            sFB.onRelease = ^(float v) {
+                [ConfigManager save];
+            };
+            [gWV addSubview:[[NLRow alloc] initWithTitle:@"Brightness" y:y control:sFB swatch:nil]];
+            y += 30;
+            
+            NLCheckbox *cbNF = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbNF.isOn = gNoFogEnabled;
+            cbNF.onToggle = ^(BOOL v) {
+                gNoFogEnabled = v;
+                [ConfigManager save];
+            };
+            [gWV addSubview:[[NLRow alloc] initWithTitle:@"No Fog" y:y control:cbNF swatch:nil]];
+            y += 30;
+            
+            NLCheckbox *cbAmb = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbAmb.isOn = gAmbientTintEnabled;
+            cbAmb.onToggle = ^(BOOL v) {
+                gAmbientTintEnabled = v;
+                [ConfigManager save];
+            };
+            
+            NLColorSwatch *swAmb = [[NLColorSwatch alloc] initWithFrame:CGRectMake(0,0,16,16)];
+            uint32_t hAmb = gAmbientColorHex.load();
+            swAmb.color = [UIColor colorWithRed:((hAmb >> 24) & 0xFF)/255.0 green:((hAmb >> 16) & 0xFF)/255.0 blue:((hAmb >> 8) & 0xFF)/255.0 alpha:((hAmb & 0xFF) & 0xFF)/255.0];
+            __weak NLColorSwatch *weakSwAmb = swAmb;
+            swAmb.onTap = ^{
+                [weakSelf showColorPickerForSwatch:weakSwAmb currentColor:weakSwAmb.color saveKey:@"wv_amb_c"];
+            };
+            
+            [gWV addSubview:[[NLRow alloc] initWithTitle:@"Ambient Tint" y:y control:cbAmb swatch:swAmb]];
+            y += 30;
+            
+            NLSlider *sSharp = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@""];
+            sSharp.min = 0.0f;
+            sSharp.max = 1.0f;
+            sSharp.value = gSharpenVal;
+            sSharp.onChange = ^(float v) {
+                gSharpenVal = v;
+            };
+            sSharp.onRelease = ^(float v) {
+                [ConfigManager save];
+            };
+            [gWV addSubview:[[NLRow alloc] initWithTitle:@"Sharpen" y:y control:sSharp swatch:nil]];
+            y += 30;
+            
+            NLSlider *sBloom = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@""];
+            sBloom.min = 0.0f;
+            sBloom.max = 10.0f;
+            sBloom.value = gBloomVal;
+            sBloom.onChange = ^(float v) {
+                gBloomVal = v;
+                gGradingDirty = true;
+            };
+            sBloom.onRelease = ^(float v) {
+                [ConfigManager save];
+            };
+            [gWV addSubview:[[NLRow alloc] initWithTitle:@"Bloom" y:y control:sBloom swatch:nil]];
+            y += 30;
+            
+            NLGroupBox *gSky = [[NLGroupBox alloc] initWithTitle:@"Skybox Presets" frame:CGRectMake(0, 250, colW, 120)];
+            [c1 addSubview:gSky];
+            y = 30;
+            
+            NLColorSwatch *swSky = [[NLColorSwatch alloc] initWithFrame:CGRectMake(0,0,16,16)];
+            swSky.color = [UIColor colorWithRed:((gSkyboxColorHex >> 24) & 0xFF)/255.0 green:((gSkyboxColorHex >> 16) & 0xFF)/255.0 blue:((gSkyboxColorHex >> 8) & 0xFF)/255.0 alpha:(gSkyboxColorHex & 0xFF)/255.0];
+            __weak NLColorSwatch *weakSwSky = swSky;
+            swSky.onTap = ^{
+                [weakSelf showColorPickerForSwatch:weakSwSky currentColor:weakSwSky.color saveKey:@"v_sky_c"];
+            };
+            
+            NLCheckbox *cbSky = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbSky.isOn = gSkyboxEnabled;
+            cbSky.onToggle = ^(BOOL v) {
+                gSkyboxEnabled = v;
+                gSkyboxDirty = true;
+                [ConfigManager save];
+            };
+            [gSky addSubview:[[NLRow alloc] initWithTitle:@"Sky Color" y:y control:cbSky swatch:swSky]];
+            y += 30;
+            
+            NSArray *presetNames = @[@"Sunset", @"Night", @"Neon", @"Haze", @"Blue"];
+            CGFloat pw = (colW - 30 - 12) / 5.0;
+            for (int i = 0; i < 5; i++) {
+                UIButton *b = [UIButton buttonWithType:UIButtonTypeSystem];
+                b.frame = CGRectMake(15 + i * (pw + 3), y, pw, 20);
+                b.backgroundColor = [UIColor colorWithWhite:0.15 alpha:1.0];
+                [b setTitle:presetNames[i] forState:UIControlStateNormal];
+                [b setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
+                b.titleLabel.font = [UIFont systemFontOfSize:9];
+                b.layer.cornerRadius = 3;
+                b.tag = 2000 + i;
+                [b addTarget:weakSelf action:@selector(skyPresetTap:) forControlEvents:UIControlEventTouchUpInside];
+                [gSky addSubview:b];
+            }
+            
+            NLGroupBox *gCG = [[NLGroupBox alloc] initWithTitle:@"Color Grading" frame:CGRectMake(0, 0, colW, 150)];
+            [c2 addSubview:gCG];
+            y = 30;
+            
+            NLSlider *sSat = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@""];
+            sSat.min = -100.0f;
+            sSat.max = 100.0f;
+            sSat.value = gSaturationVal;
+            sSat.onChange = ^(float v) {
+                gSaturationVal = v;
+                gGradingDirty = true;
+            };
+            sSat.onRelease = ^(float v) {
+                [ConfigManager save];
+            };
+            [gCG addSubview:[[NLRow alloc] initWithTitle:@"Saturation" y:y control:sSat swatch:nil]];
+            y += 30;
+            
+            NLSlider *sCon = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@""];
+            sCon.min = -100.0f;
+            sCon.max = 100.0f;
+            sCon.value = gContrastVal;
+            sCon.onChange = ^(float v) {
+                gContrastVal = v;
+                gGradingDirty = true;
+            };
+            sCon.onRelease = ^(float v) {
+                [ConfigManager save];
+            };
+            [gCG addSubview:[[NLRow alloc] initWithTitle:@"Contrast" y:y control:sCon swatch:nil]];
+            y += 30;
+            
+            NLSlider *sGam = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@"EV"];
+            sGam.min = -3.0f;
+            sGam.max = 3.0f;
+            sGam.value = gGammaVal;
+            sGam.onChange = ^(float v) {
+                gGammaVal = v;
+                gGradingDirty = true;
+            };
+            sGam.onRelease = ^(float v) {
+                [ConfigManager save];
+            };
+            [gCG addSubview:[[NLRow alloc] initWithTitle:@"Gamma" y:y control:sGam swatch:nil]];
+            y += 30;
+            
+        } else if (_currentTab == 3) {
             NLGroupBox *gMove = [[NLGroupBox alloc] initWithTitle:@"Movement" frame:CGRectMake(0, 0, colW, 280)];
             [c1 addSubview:gMove];
             CGFloat y = 30;
@@ -3433,7 +3846,7 @@ static void UpdateStreamMode(void) {
             [gMove addSubview:[[NLRow alloc] initWithTitle:@"Jump Multi" y:y control:sJmp swatch:nil]];
             y += 30;
             
-            NLGroupBox *gWeapon = [[NLGroupBox alloc] initWithTitle:@"Weapon" frame:CGRectMake(0, 0, colW, 240)];
+            NLGroupBox *gWeapon = [[NLGroupBox alloc] initWithTitle:@"Weapon" frame:CGRectMake(0, 0, colW, 300)];
             [c2 addSubview:gWeapon];
             y = 30;
             
@@ -3464,7 +3877,25 @@ static void UpdateStreamMode(void) {
             [gWeapon addSubview:[[NLRow alloc] initWithTitle:@"Unlim Ammo" y:y control:cbUA swatch:nil]];
             y += 30;
             
-        } else if (_currentTab == 3) {
+            NLCheckbox *cbNS = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbNS.isOn = gNoSpreadEnabled;
+            cbNS.onToggle = ^(BOOL v) {
+                gNoSpreadEnabled = v;
+                [ConfigManager save];
+            };
+            [gWeapon addSubview:[[NLRow alloc] initWithTitle:@"No Spread" y:y control:cbNS swatch:nil]];
+            y += 30;
+            
+            NLCheckbox *cbNR = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbNR.isOn = gNoRecoilEnabled;
+            cbNR.onToggle = ^(BOOL v) {
+                gNoRecoilEnabled = v;
+                [ConfigManager save];
+            };
+            [gWeapon addSubview:[[NLRow alloc] initWithTitle:@"No Recoil" y:y control:cbNR swatch:nil]];
+            y += 30;
+            
+        } else if (_currentTab == 4) {
             NLGroupBox *gVis = [[NLGroupBox alloc] initWithTitle:@"World & View" frame:CGRectMake(0, 0, colW, 450)];
             [c1 addSubview:gVis];
             CGFloat y = 30;
@@ -3544,7 +3975,7 @@ static void UpdateStreamMode(void) {
             [gVis addSubview:[[NLRow alloc] initWithTitle:@"Nightmode" y:y control:cbNM swatch:nil]];
             y += 30;
             
-        } else if (_currentTab == 4) {
+        } else if (_currentTab == 5) {
             NLGroupBox *gSet = [[NLGroupBox alloc] initWithTitle:@"Settings" frame:CGRectMake(0, 0, colW, 270)];
             [c1 addSubview:gSet];
             CGFloat y = 30;
@@ -3610,7 +4041,7 @@ static void UpdateStreamMode(void) {
 
 - (void)selectPlayerChamsMat:(UIButton*)sender {
     int idx = (int)sender.tag - 1000;
-    if (idx < 0 || idx > 2) {
+    if (idx < 0 || idx > 3) {
         return;
     }
     
@@ -3636,7 +4067,7 @@ static void UpdateStreamMode(void) {
 
 - (void)selectWeaponChamsMat:(UIButton*)sender {
     int idx = (int)sender.tag - 1010;
-    if (idx < 0 || idx > 2) {
+    if (idx < 0 || idx > 3) {
         return;
     }
     
@@ -3658,6 +4089,19 @@ static void UpdateStreamMode(void) {
         [chev setTitle:@"^" forState:UIControlStateNormal];
     }
     sub.hidden = YES;
+}
+
+- (void)skyPresetTap:(UIButton*)sender {
+    static const uint32_t kPresets[] = {0xFF8C42FF, 0x101828FF, 0xE040FBFF, 0x7B2FBEFF, 0x4A90D9FF};
+    int idx = (int)sender.tag - 2000;
+    if (idx < 0 || idx > 4) {
+        return;
+    }
+    
+    gSkyboxColorHex = kPresets[idx];
+    gSkyboxEnabled = true;
+    gSkyboxDirty = true;
+    [ConfigManager save];
 }
 
 - (void)panAction:(UIPanGestureRecognizer*)p {
@@ -3699,6 +4143,193 @@ static void UpdateStreamMode(void) {
 }
 
 @end
+
+// WORLD VIEW
+static void SetVolParam(void* param, float v) {
+    if (!SANE_PTR(param) || !alive(param) || !p_runtime_invoke) {
+        return;
+    }
+    
+    void* k = *(void**)param;
+    void* mi = (k == gClampedFCls) ? p_cfaValMI : (k == gMinFCls) ? p_mfaValMI : (k == gFloatPCls) ? p_fpaValMI : nullptr;
+    if (!mi) {
+        return;
+    }
+    
+    float val = v;
+    void* args[1] = { &val };
+    void* exc = nullptr;
+    p_runtime_invoke(mi, param, args, &exc);
+    
+    if (!exc) {
+        *(bool*)((uintptr_t)param + 0x10) = true; // m_OverrideState
+    }
+}
+
+static void ForEachVolumeComponent(void* wantCls, void (*fn)(void*, void*), void* ctx) {
+    if (!wantCls || !fn || !gVolumeTypeHandle || !p_runtime_invoke || !p_gchandle_get_target) {
+        return;
+    }
+    
+    void* to = p_gchandle_get_target(gVolumeTypeHandle);
+    if (!SANE_PTR(to)) {
+        return;
+    }
+    
+    void* a[1] = {to};
+    void* exc = nullptr;
+    void* arr = p_runtime_invoke(p_findPlayerMI, nullptr, a, &exc);
+    if (exc || !SANE_PTR(arr)) {
+        return;
+    }
+    
+    int len = *(int*)((uintptr_t)arr + 0x18);
+    for (int i = 0; i < len && i < 64; i++) {
+        void* v = *(void**)((uintptr_t)arr + 0x20 + i*8);
+        if (!alive(v)) {
+            continue;
+        }
+        
+        void* profile = *(void**)((uintptr_t)v + 0x30); // sharedProfile
+        if (!alive(profile)) {
+            profile = *(void**)((uintptr_t)v + 0x48); // m_InternalProfile
+        }
+        if (!alive(profile)) {
+            continue;
+        }
+        
+        void* list = *(void**)((uintptr_t)profile + 0x18); // components
+        if (!SANE_PTR(list)) {
+            continue;
+        }
+        
+        void* items = *(void**)((uintptr_t)list + 0x10); // _items
+        if (!SANE_PTR(items)) {
+            continue;
+        }
+        
+        int n = *(int*)((uintptr_t)items + 0x18); // _size
+        for (int j = 0; j < n && j < 32; j++) {
+            void* comp = *(void**)((uintptr_t)items + 0x20 + j*8);
+            if (alive(comp) && *(void**)comp == wantCls) {
+                fn(comp, ctx);
+            }
+        }
+    }
+}
+
+static void ApplyGradingToComponent(void* comp, void* ctx) {
+    SetVolParam(*(void**)((uintptr_t)comp + 0x58), gSaturationVal.load()); // saturation
+    SetVolParam(*(void**)((uintptr_t)comp + 0x40), gContrastVal.load());   // contrast
+    SetVolParam(*(void**)((uintptr_t)comp + 0x38), gGammaVal.load());      // postExposure (EV100)
+}
+
+static void ApplyBloomToComponent(void* comp, void* ctx) {
+    SetVolParam(*(void**)((uintptr_t)comp + 0x48), gBloomVal.load()); // intensity
+}
+
+static void ApplyWorldView(void) {
+    @try {
+        bool fb = gFullbrightEnabled.load();
+        bool amb = gAmbientTintEnabled.load();
+        bool needLights = fb || amb || s_fbWas || s_ambWas;
+        
+        if (needLights && gLightTypeHandle && p_lightGetIntensity && p_lightSetIntensity && p_lightGetColor && p_lightSetColor) {
+            void* to = p_gchandle_get_target(gLightTypeHandle);
+            if (SANE_PTR(to)) {
+                void* a[1] = {to};
+                void* exc = nullptr;
+                void* arr = p_runtime_invoke(p_findPlayerMI, nullptr, a, &exc);
+                if (!exc && SANE_PTR(arr)) {
+                    int len = *(int*)((uintptr_t)arr + 0x18);
+                    float mul = gFullbrightMul.load();
+                    uint32_t hex = gAmbientColorHex.load();
+                    UnityColor tc(((hex >> 24) & 0xFF) / 255.0f, ((hex >> 16) & 0xFF) / 255.0f, ((hex >> 8) & 0xFF) / 255.0f, 1.0f);
+                    
+                    for (int i = 0; i < len && i < 128; i++) {
+                        void* l = *(void**)((uintptr_t)arr + 0x20 + i*8);
+                        if (!alive(l)) {
+                            continue;
+                        }
+                        
+                        auto it = gLightOrig.find(l);
+                        if (it == gLightOrig.end()) {
+                            SavedLight sl;
+                            sl.i = p_lightGetIntensity(l, p_lightGetIntensityMI);
+                            sl.c = p_lightGetColor(l, p_lightGetColorMI);
+                            gLightOrig[l] = sl;
+                            it = gLightOrig.find(l);
+                        }
+                        
+                        float wantI = it->second.i;
+                        UnityColor wantC = it->second.c;
+                        if (fb) {
+                            wantI = it->second.i * mul;
+                        }
+                        if (amb) {
+                            wantC = tc;
+                        }
+                        
+                        float curI = p_lightGetIntensity(l, p_lightGetIntensityMI);
+                        if (std::isfinite(wantI) && std::isfinite(curI) && fabsf(curI - wantI) > 0.05f) {
+                            p_lightSetIntensity(l, wantI, p_lightSetIntensityMI);
+                        }
+                        
+                        UnityColor curC = p_lightGetColor(l, p_lightGetColorMI);
+                        if (fabsf(curC.r - wantC.r) > 0.02f || fabsf(curC.g - wantC.g) > 0.02f || fabsf(curC.b - wantC.b) > 0.02f) {
+                            p_lightSetColor(l, wantC, p_lightSetColorMI);
+                        }
+                    }
+                }
+            }
+        }
+        s_fbWas = fb;
+        s_ambWas = amb;
+        
+        bool nf = gNoFogEnabled.load();
+        if (nf != s_nfWas && p_setFogMI && p_getFogMI) {
+            if (!s_fogOrigInit) {
+                s_fogOrig = p_getFog(p_getFogMI);
+                s_fogOrigInit = true;
+            }
+            p_setFog(nf ? false : s_fogOrig, p_setFogMI);
+            s_nfWas = nf;
+        }
+        
+        if (gGradingDirty.load()) {
+            gGradingDirty = false;
+            ForEachVolumeComponent(gColorAdjCls, ApplyGradingToComponent, nullptr);
+            ForEachVolumeComponent(gBloomCls, ApplyBloomToComponent, nullptr);
+        }
+        
+        float sharp = gSharpenVal.load();
+        if (sharp > 0.01f && SANE_PTR(g_localCamera) && alive(g_localCamera) && gCamDataCls && gCamDataTypeHandle && p_getCompsInChildrenMI) {
+            void* go = p_getGameObject ? p_getGameObject(g_localCamera, p_getGameObjectMI) : nullptr;
+            if (alive(go)) {
+                void* to = p_gchandle_get_target(gCamDataTypeHandle);
+                if (SANE_PTR(to)) {
+                    bool incInactive = false;
+                    void* args[2] = { to, &incInactive };
+                    void* exc = nullptr;
+                    void* rArr = p_runtime_invoke(p_getCompsInChildrenMI, go, args, &exc);
+                    if (!exc && SANE_PTR(rArr)) {
+                        int n = *(int*)((uintptr_t)rArr + 0x18);
+                        if (n > 0) {
+                            void* cd = *(void**)((uintptr_t)rArr + 0x20);
+                            if (alive(cd)) {
+                                if (*(int*)((uintptr_t)cd + 0x50) == 0) { // m_Antialiasing: None -> TAA
+                                    *(int*)((uintptr_t)cd + 0x50) = 3;
+                                }
+                                *(float*)((uintptr_t)cd + 0xB4) = sharp; // m_TaaSettings.m_ContrastAdaptiveSharpening
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    } @catch (NSException* e) {
+    }
+}
 
 static void ApplyNightMode(void) {
     @try {
@@ -3764,6 +4395,11 @@ static void espTick(void) {
         if (tMs - gLastNight > 500) {
             gLastNight = tMs;
             ApplyNightMode();
+        }
+        
+        if (tMs - gLastWorld > 500) {
+            gLastWorld = tMs;
+            ApplyWorldView();
         }
         
         if (tMs - gLastP > 500) {
@@ -4007,6 +4643,21 @@ static void espTick(void) {
                 hpv.y = fp.y + 1.6f;
             }
             
+            Vec3 aimPos = hpv;
+            if (alive(model) && p_getBoneTransform) {
+                void* animator = *(void**)((uintptr_t)model + off::kModelAnimator);
+                if (alive(animator)) {
+                    int aimBone = gAimBone.load();
+                    void* aimTransform = p_getBoneTransform(animator, aimBone, p_getBoneTransformMI);
+                    if (alive(aimTransform)) {
+                        Vec3 selectedBonePos;
+                        if (getPosFast(aimTransform, selectedBonePos) && Math::Finite(selectedBonePos)) {
+                            aimPos = selectedBonePos;
+                        }
+                    }
+                }
+            }
+
             float dx = fp.x - g_localEye.x;
             float dy = fp.y - g_localEye.y;
             float dz = fp.z - g_localEye.z;
@@ -4018,7 +4669,7 @@ static void espTick(void) {
             
             bool isVisible = true;
             if (gAimbotVisibleOnly && p_CheckSeen && g_localSceneChar) {
-                if (!p_CheckSeen(g_localSceneChar, hpv, p_checkSeenMI)) {
+                if (!p_CheckSeen(g_localSceneChar, aimPos, p_checkSeenMI)) {
                     isVisible = false;
                 }
             }
@@ -4111,13 +4762,13 @@ static void espTick(void) {
                 }
             }
             
-            if (gAimbotEnabled || gSilentAimEnabled) {
+            if (gAimbotEnabled || gAimOnFireEnabled || gSilentAimEnabled) {
                 if (gAimbotVisibleOnly && !isVisible) {
                     continue;
                 }
                 
                 Vec3 sa;
-                if (w2sFast(cam, hpv, sa) && sa.z > 0.05f) {
+                if (w2sFast(cam, aimPos, sa) && sa.z > 0.05f) {
                     float sx = (sa.x * sX) / gScreenScale;
                     float sy = gScreenPts.height - ((sa.y * sY) / gScreenScale);
                     float screenDist = sqrtf((sx - screenCx) * (sx - screenCx) + (sy - screenCy) * (sy - screenCy));
@@ -4125,13 +4776,13 @@ static void espTick(void) {
                     if (screenDist < (float)gAimbotFovPx && screenDist < bestScore) {
                         bestScore = screenDist;
                         best = c;
-                        bestAimPos = hpv;
+                        bestAimPos = aimPos;
                     }
                 }
             }
         }
         
-        if ((gAimbotEnabled || gSilentAimEnabled) && best && alive(slc) && alive(lcLocal)) {
+        if ((gAimbotEnabled || gAimOnFireEnabled || gSilentAimEnabled) && best && alive(slc) && alive(lcLocal)) {
             g_silentAimTarget = bestAimPos;
             g_silentAimActive = true;
             g_targetHead = bestAimPos;
@@ -4337,6 +4988,31 @@ static void bootstrap(void) {
         gMatCls = findClass("UnityEngine", "Material");
         gSkyboxCls = findClass("UnityEngine", "RenderSettings");
         gRendererCls = findClass("UnityEngine", "Renderer");
+        gLightCls = findClass("UnityEngine", "Light");
+        gColorAdjCls = findClass("UnityEngine.Rendering.Universal", "ColorAdjustments");
+        if (!gColorAdjCls) {
+            gColorAdjCls = findClass("", "ColorAdjustments");
+        }
+        gBloomCls = findClass("UnityEngine.Rendering.Universal", "Bloom");
+        if (!gBloomCls) {
+            gBloomCls = findClass("", "Bloom");
+        }
+        gClampedFCls = findClass("UnityEngine.Rendering", "ClampedFloatParameter");
+        if (!gClampedFCls) {
+            gClampedFCls = findClass("", "ClampedFloatParameter");
+        }
+        gMinFCls = findClass("UnityEngine.Rendering", "MinFloatParameter");
+        if (!gMinFCls) {
+            gMinFCls = findClass("", "MinFloatParameter");
+        }
+        gFloatPCls = findClass("UnityEngine.Rendering", "FloatParameter");
+        if (!gFloatPCls) {
+            gFloatPCls = findClass("", "FloatParameter");
+        }
+        gCamDataCls = findClass("UnityEngine.Rendering.Universal", "UniversalAdditionalCameraData");
+        if (!gCamDataCls) {
+            gCamDataCls = findClass("", "UniversalAdditionalCameraData");
+        }
         
         void* playerCls = findClass("", "SceneLevelPlayer");
         
@@ -4348,6 +5024,12 @@ static void bootstrap(void) {
         gPlayerTypeHandle = p_gchandle_new(p_type_get_object(p_class_get_type(playerCls)), true);
         if (gVolumeCls) {
             gVolumeTypeHandle = p_gchandle_new(p_type_get_object(p_class_get_type(gVolumeCls)), true);
+        }
+        if (gLightCls) {
+            gLightTypeHandle = p_gchandle_new(p_type_get_object(p_class_get_type(gLightCls)), true);
+        }
+        if (gCamDataCls) {
+            gCamDataTypeHandle = p_gchandle_new(p_type_get_object(p_class_get_type(gCamDataCls)), true);
         }
         
         if (gMatCls) {
@@ -4369,6 +5051,46 @@ static void bootstrap(void) {
         p_findPlayerMI = p_class_get_method_from_name(gObjCls, "FindObjectsOfType", 1);
         if (gVolumeCls) {
             p_findVolumeMI = p_class_get_method_from_name(gObjCls, "FindObjectsOfType", 1);
+        }
+        
+        if (gLightCls) {
+            p_lightGetIntensityMI = p_class_get_method_from_name(gLightCls, "get_intensity", 0);
+            p_lightSetIntensityMI = p_class_get_method_from_name(gLightCls, "set_intensity", 1);
+            p_lightGetColorMI = p_class_get_method_from_name(gLightCls, "get_color", 0);
+            p_lightSetColorMI = p_class_get_method_from_name(gLightCls, "set_color", 1);
+            if (p_lightGetIntensityMI) {
+                p_lightGetIntensity = (fn_lightGetIntensity)methodPtr(p_lightGetIntensityMI);
+            }
+            if (p_lightSetIntensityMI) {
+                p_lightSetIntensity = (fn_lightSetIntensity)methodPtr(p_lightSetIntensityMI);
+            }
+            if (p_lightGetColorMI) {
+                p_lightGetColor = (fn_lightGetColor)methodPtr(p_lightGetColorMI);
+            }
+            if (p_lightSetColorMI) {
+                p_lightSetColor = (fn_lightSetColor)methodPtr(p_lightSetColorMI);
+            }
+        }
+        
+        if (gSkyboxCls) {
+            p_setFogMI = p_class_get_method_from_name(gSkyboxCls, "set_fog", 1);
+            p_getFogMI = p_class_get_method_from_name(gSkyboxCls, "get_fog", 0);
+            if (p_setFogMI) {
+                p_setFog = (fn_setFog)methodPtr(p_setFogMI);
+            }
+            if (p_getFogMI) {
+                p_getFog = (fn_getFog)methodPtr(p_getFogMI);
+            }
+        }
+        
+        if (gClampedFCls) {
+            p_cfaValMI = p_class_get_method_from_name(gClampedFCls, "set_value", 1);
+        }
+        if (gMinFCls) {
+            p_mfaValMI = p_class_get_method_from_name(gMinFCls, "set_value", 1);
+        }
+        if (gFloatPCls) {
+            p_fpaValMI = p_class_get_method_from_name(gFloatPCls, "set_value", 1);
         }
         p_camW2SMI = p_class_get_method_from_name(camCls, "WorldToScreenPoint", 1);
         p_tfGetPosMI = p_class_get_method_from_name(gTransformCls, "get_position", 0);
@@ -4425,6 +5147,18 @@ static void bootstrap(void) {
             if (p_matSetFloatMI) {
                 p_matSetFloat = (fn_matSetFloat)methodPtr(p_matSetFloatMI);
             }
+            p_matSetIntMI = p_class_get_method_from_name(gMatCls, "SetInt", 2);
+            if (p_matSetIntMI) {
+                p_matSetInt = (fn_matSetInt)methodPtr(p_matSetIntMI);
+            }
+            p_matEnableKeywordMI = p_class_get_method_from_name(gMatCls, "EnableKeyword", 1);
+            if (p_matEnableKeywordMI) {
+                p_matEnableKeyword = (fn_matEnableKeyword)methodPtr(p_matEnableKeywordMI);
+            }
+            p_matSetRQMI = p_class_get_method_from_name(gMatCls, "set_renderQueue", 1);
+            if (p_matSetRQMI) {
+                p_matSetRQ = (fn_matSetRenderQueue)methodPtr(p_matSetRQMI);
+            }
         }
         
         if (gRendererCls) {
@@ -4468,6 +5202,11 @@ static void bootstrap(void) {
         
         void* sceneCamCls = findClass("", "SceneLevelCamera");
         if (sceneCamCls) {
+            p_sceneSetFovMI = p_class_get_method_from_name(sceneCamCls, "SetFieldOfView", 1);
+            if (p_sceneSetFovMI) {
+                p_sceneSetFov = (fn_sceneSetFov)methodPtr(p_sceneSetFovMI);
+            }
+
             p_lookAtTargetMI = p_class_get_method_from_name(sceneCamCls, "LookAtTarget", 1);
             if (p_lookAtTargetMI) {
                 p_lookAtTarget = (fn_LookAtTarget)methodPtr(p_lookAtTargetMI);
