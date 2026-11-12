@@ -1,0 +1,8 @@
+{
+  "servers": {
+    "frida": {
+      "type": "stdio",
+      "command": "/home/codespace/.python/current/bin/frida-mcp-server"
+    }
+  }
+}

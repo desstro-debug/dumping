@@ -385,6 +385,7 @@ namespace off {
     constexpr uint64_t kWepJyw = 0x1E4; // Vector3 jyw
     constexpr uint64_t kWepJzc = 0x204; // Vector3 jzc
     constexpr uint64_t kWepIsAiming = 0x1A1; // bool IsAiming
+    constexpr uint64_t kItemDataId = 0xB0;   // Item.DataId (System.String*, SyncVar)
     constexpr uint64_t kDataAmmo = 0xA8;
     constexpr uint64_t kDataShootCount = 0xB0; // int ShootCount
     constexpr uint64_t kDataShootMultiOffset = 0xB4; // Vector3 ShootMultiOffset
@@ -409,7 +410,170 @@ namespace off {
     constexpr uint64_t kMoveVelocity = 0x5C;
     
     constexpr uint64_t kVolumeWeight = 0x2C;
+    
+    // =====================================================================================
+    // RAGE / COMBAT OFFSETS
+    //
+    // Every value below is copied verbatim out of out/dump.cs. Sources:
+    //   ItemEquipWeaponRange      -> Image 0 Assembly-CSharp.dll  (TypeDefIndex 1307)
+    //   WeaponDataRange           -> Image 0 Assembly-CSharp.dll  (TypeDefIndex 1767)
+    //   ItemEquipWeaponRangeShotgun -> Image 0 Assembly-CSharp.dll (TypeDefIndex 1311)
+    //   SceneLevelCamera          -> Image 0 Assembly-CSharp.dll
+    //   Player / Character        -> Image 0 Assembly-CSharp.dll
+    //
+    // Offsets that only exist in the dump but not in this file are marked with the
+    // dump line they were read from so a rebuild after a game patch is a one-grep job.
+    // =====================================================================================
+    
+    // --- ItemEquipWeaponRange: combat-relevant instance data ---------------------------
+    constexpr uint64_t kRngIsAiming        = 0x1A1; // bool IsAiming
+    constexpr uint64_t kRngNetworkIsAiming = 0x1A2; // bool NetworkIsAiming
+    constexpr uint64_t kRngOnReloadEvent   = 0x1A8; // Action OnReloadEvent
+    constexpr uint64_t kRngUnlimitedAmmo   = 0x1B8; // bool UnlimitedAmmo
+    constexpr uint64_t kRngMagCapacity     = 0x25C; // int  (jzj, resolved via MagazineCapacity in dump)
+    constexpr uint64_t kRngReloadCooldown  = 0x258; // int  jzi
+    constexpr uint64_t kRngShotSerial      = 0x21C; // float jzf
+    constexpr uint64_t kRngHitList         = 0x210; // List<ItemEquipWeapon.Hit> jzd
+    constexpr uint64_t kRngShotSerialInt   = 0x218; // int  jze
+    constexpr uint64_t kRngGameObject      = 0x220; // GameObject jzg
+    
+    // --- Anti-cheat burst bookkeeping present on the weapon ---------------------------
+    constexpr uint64_t kRngAcBurstStart    = 0x238; // double AcBurstStart
+    constexpr uint64_t kRngAcPellets       = 0x240; // int    AcPelletsInBurst
+    constexpr uint64_t kRngAcMagRounds     = 0x244; // int    AcMagRoundsLeft
+    constexpr uint64_t kRngAcServerShots   = 0x248; // int    AcServerShots
+    constexpr uint64_t kRngAcAmmoBurstTime = 0x250; // double AcAmmoBurstTime
+    
+    // --- WeaponDataRange: data the weapon reads when it builds the shot ---------------
+    constexpr uint64_t kWdrAmmo            = 0xA8;  // int  Ammo
+    constexpr uint64_t kWdrShootCount      = 0xB0;  // int  ShootCount
+    constexpr uint64_t kWdrShootMultiOffset = 0xB4; // Vector3 ShootMultiOffset
+    constexpr uint64_t kWdrFireBackOffset  = 0x90;  // Vector3 _fireBackOffset
+    constexpr uint64_t kWdrFireBackTime    = 0x9C;  // float  _fireBackOffsetTime
+    constexpr uint64_t kWdrRecoilPattern   = 0xA0;  // List<Vector2> RecoilPattern
+    constexpr uint64_t kWdrPelletCount     = 0xC4;  // int  PelletCount (shotgun)
+    constexpr uint64_t kWdrRange           = 0xD0;  // float Range
+    constexpr uint64_t kWdrDamage          = 0xD8;  // float Damage
+    constexpr uint64_t kWdrHeadshotMul     = 0xDC;  // float HeadshotMultiplier
+    
+    // --- Character / player: rage reads beyond health and armor ------------------------
+    constexpr uint64_t kCharMaxHealth      = 0x138; // int  MaxHealth
+    constexpr uint64_t kCharTeam           = 0xBC;  // int  Team
+    constexpr uint64_t kCharFootsteps      = 0x154; // bool Footsteps (noise emission)
+    constexpr uint64_t kCharCrouch         = 0x155; // bool IsCrouch
+    constexpr uint64_t kCharSprint         = 0x156; // bool IsSprint
+    
+    // --- SceneLevelCamera: recoil kick lands here -------------------------------------
+    // dump.cs: SceneLevelCamera.rot        -> Vector2 @ 0x30 (yaw in .x, pitch in .y)
+    //          SceneLevelCamera.additionalRot -> Vector2 @ 0x38
+    //          IsBusy @ 0x60, IsDisable @ 0x61 (see kCamIsBusy / kCamIsDisable above)
+    constexpr uint64_t kCamRotYaw          = 0x30;  // Vector2 rot        (read only)
+    constexpr uint64_t kCamRotOffset       = 0x38;  // Vector2 additionalRot (anti-aim writes here)
+    constexpr uint64_t kCamRotPitch        = 0x34;  // Vector2 rot.y
+    constexpr uint64_t kCamStateSizeRage   = 0x08;  // one Vector2
 }
+
+// =========================================================================================
+// RAGE GLOBALS
+//
+// One flag or one tune per RAGE row. Everything here is a plain std::atomic so the
+// render thread (espTick), the camera LateUpdate hook and the weapon Update hook can
+// all read the same value without a lock.
+//
+// Naming rule used by the neighbouring code is kept: g<Rage><Thing>. The ConfigManager
+// key is always written next to the flag so save/load and UI never drift apart.
+// =========================================================================================
+static std::atomic<bool>  gRageEnabled{false};             // rg_e   master switch for the tab
+static std::atomic<bool>  gRageAutoAim{true};              // rg_a   pick a target and aim at it
+static std::atomic<bool>  gRageAutoFire{false};            // rg_f   pull the trigger when the shot is valid
+static std::atomic<bool>  gRageAutoScope{false};           // rg_sc  force ADS before firing
+static std::atomic<bool>  gRageAutoReload{true};           // rg_r   reload the moment the mag runs dry
+static std::atomic<bool>  gRageAutoPistol{false};          // rg_ap  switch to the sidearm at 0 ammo
+static std::atomic<bool>  gRageAutoZeus{false};            // rg_z   treat a full-auto spray as a tap
+static std::atomic<int>   gRageMinDamage{1};               // rg_dmg minimum damage the shot must be worth
+static std::atomic<int>   gRageHitchance{0};               // rg_hc  percent, 0 disables the check
+static std::atomic<int>   gRagePriority{0};                // rg_pri 0 distance, 1 lowest hp, 2 crosshair, 3 threat
+static std::atomic<int>   gRagePoint{0};                   // rg_pt  0 head, 1 chest, 2 pelvis, 3 nearest to crosshair
+static std::atomic<bool>  gRageVisibleOnly{true};          // rg_vo  never fire through a wall
+static std::atomic<bool>  gRageTeamCheck{true};            // rg_tc  skip teammates
+static std::atomic<float> gRageFovPx{600.0f};              // rg_fov aim cone in pixels, not degrees
+static std::atomic<float> gRageSmooth{0.35f};              // rg_sm  0 = instant snap, 1 = never arrive
+static std::atomic<float> gRageSwitchDelay{120.0f};        // rg_swd ms to hold a target before switching
+static std::atomic<float> gRageFireDelay{60.0f};           // rg_fd  ms between auto-fire pulls
+static std::atomic<float> gRageSlowAim{0.0f};              // rg_sla extra ms added to the fire delay
+static std::atomic<float> gRageMaxRange{300.0f};           // rg_mr  metres, mirrors gEspMaxDist
+static std::atomic<float> gRageAimStep{0.0f};              // rg_stp 0 = LookAtTarget, >0 = N steps per frame
+static std::atomic<bool>  gRageBypassSmoke{false};         // rg_smoke ignore smoke volumes
+static std::atomic<bool>  gRageIgnoreTeammatesInFov{true}; // rg_itf do not let a mate block the shot
+static std::atomic<bool>  gRageHitboxExpand{false};        // rg_hbx grow the aim cone on moving targets
+static std::atomic<float> gRageHitboxExpandPx{4.0f};       // rg_hbxp pixels added while the target strafes
+static std::atomic<bool>  gRageAutoStop{false};            // rg_ast stop firing when out of ammo
+static std::atomic<bool>  gRageBurst{false};               // rg_bst fire a burst instead of a single shot
+static std::atomic<int>   gRageBurstCount{3};              // rg_bc  rounds per burst
+static std::atomic<int>   gRageBurstPause{140};            // rg_bp  ms of silence between bursts
+static std::atomic<bool>  gRageAirStuck{false};            // rg_air aim only while grounded
+static std::atomic<bool>  gRageLogShots{false};            // rg_log write every auto-fired shot
+static std::atomic<int>   gRageLogMax{24};                 // rg_logn ring size for the shot log
+static std::atomic<bool>  gRagePerTargetStats{false};      // rg_pts track hit/miss per player
+static std::atomic<bool>  gRageTeleport{false};            // rg_tp snap behind the target, off by default
+static std::atomic<float> gRageTeleportDist{2.0f};         // rg_tpd metres behind the target
+static std::atomic<bool>  gRageAntiAim{false};             // rg_aa spin the local camera state
+static std::atomic<float> gRageAntiAimYaw{180.0f};         // rg_aay degrees of yaw offset
+static std::atomic<float> gRageAntiAimPitch{-89.0f};       // rg_aap degrees of pitch offset
+static std::atomic<bool>  gRageAntiAimJitter{false};       // rg_aaj flip the offsets every frame
+static std::atomic<int>   gRageAntiAimMode{0};             // rg_aam 0 static, 1 spin, 2 jitter, 3 back-and-forth
+static std::atomic<float> gRageAntiAimSpin{720.0f};        // rg_aas degrees per second while spinning
+static std::atomic<bool>  gRageForceBaim{false};           // rg_fb  always aim for the chest
+static std::atomic<bool>  gRageOnKey{false};               // rg_ok  only act while the rage hotkey is held
+static std::atomic<bool>  gRageDebug{false};               // rg_dbg verbose log line per decision
+
+// Per-target rolling statistics. Keyed by the il2cpp Player object pointer so the
+// map dies together with the match (the entries are pruned in RageTick).
+struct RageTargetStat {
+    int shots = 0;
+    int hits = 0;
+    int headshots = 0;
+    uint64_t firstSeenMs = 0;
+    uint64_t lastSeenMs = 0;
+    float lastDistance = 0.0f;
+    int lastHealth = 0;
+    int lastArmor = 0;
+    bool visible = false;
+};
+static std::unordered_map<void*, RageTargetStat> gRageStats;
+
+// Ring buffer of the last auto-fired shots, shown in the RAGE log panel.
+struct RageLogEntry {
+    char target[40];
+    float distance;
+    int damage;
+    bool hit;
+    uint64_t atMs;
+};
+static std::vector<RageLogEntry> gRageLog;
+static std::atomic<uint64_t> gRageLastLogMs{0};       // last shot-log row written
+static std::atomic<uint64_t> gRageLastPruneMs{0};     // last housekeeping sweep (separate clock)
+
+// Runtime state shared between the camera hook, the weapon hook and the tick.
+static std::atomic<void*> gRageTarget{nullptr};       // currently locked player
+static std::atomic<uint64_t> gRageTargetSince{0};     // when the lock started
+static std::atomic<uint64_t> gRageLastFireMs{0};      // last auto-fire pull
+static std::atomic<int> gRageBurstLeft{0};            // rounds left in the current burst
+static std::atomic<uint64_t> gRageBurstNextMs{0};     // when the next burst round is due
+static std::atomic<bool> gRageTriggerHeld{false};     // synthetic trigger state
+static std::atomic<int> gRageShotSerial{0};           // shots observed, for hitchance maths
+static std::atomic<int> gRageHitSerial{0};            // hits observed, for hitchance maths
+static std::atomic<int> gRageLastHitSerial{0};        // shot serial the last hit belongs to
+static std::atomic<uint64_t> gRageLastHitMs{0};       // when the last hit landed
+static Vec3 gRageLastTargetPos{};
+static uint64_t gRageLastTargetMs = 0;
+// Step-smoothing cursor. Kept separate from gRageLastTargetPos on purpose: the bookkeeping
+// block in RageTick overwrites gRageLastTargetPos with the real model position every frame,
+// which would otherwise restart the step from the true position and cancel the smoothing.
+static Vec3 g_smoothAimCursor{};
+static bool g_smoothAimCursorValid = false;
+static Vec3 gRageLastLocalPos{};
+static uint64_t gRageLastLocalMs = 0;
 
 // IL2CPP TYPES
 typedef void* (*fn_domain_get)();
@@ -456,6 +620,8 @@ typedef void* (*fn_getSkybox)(void* mi);
 typedef void (*fn_matSetColor)(void* self, void* name, UnityColor value, void* mi);
 typedef void* (*fn_rendGetSharedMats)(void*, void*);
 typedef void (*fn_rendSetSharedMats)(void*, void*, void*);
+typedef void (*fn_rendSetEnabled)(void*, bool, void*);
+typedef bool (*fn_rendGetEnabled)(void*, void*);
 typedef void (*fn_matSetFloat)(void*, void*, float, void*);
 typedef void (*fn_matSetTexture)(void*, void*, void*, void*);
 typedef void (*fn_matSetInt)(void*, void*, int, void*);
@@ -557,6 +723,8 @@ static void* p_mfaValMI = nullptr;
 static void* p_fpaValMI = nullptr;
 static void* p_rendGetSharedMatsMI = nullptr;
 static void* p_rendSetSharedMatsMI = nullptr;
+static void* p_rendSetEnabledMI = nullptr;
+static void* p_rendGetEnabledMI = nullptr;
 static void* p_getCompsInChildrenMI = nullptr;
 static void* p_getGameObjectMI = nullptr;
 static void* p_lookAtTargetMI = nullptr;
@@ -580,6 +748,8 @@ static fn_getSkybox p_getSkybox = nullptr;
 static fn_matSetColor p_matSetColor = nullptr;
 static fn_rendGetSharedMats p_rendGetSharedMats = nullptr;
 static fn_rendSetSharedMats p_rendSetSharedMats = nullptr;
+static fn_rendSetEnabled p_rendSetEnabled = nullptr;
+static fn_rendGetEnabled p_rendGetEnabled = nullptr;
 static fn_matSetFloat p_matSetFloat = nullptr;
 static fn_matSetTexture p_matSetTexture = nullptr;
 static fn_matSetInt p_matSetInt = nullptr;
@@ -976,6 +1146,27 @@ static void HudSetCrosshair(float gap, bool visible);
 static void HudSetScope(bool active);
 static void HudSampleFrame(void);
 
+// RAGE FORWARD DECLS
+// RageTick owns the whole rage pipeline and lives further down the file; espTick is the only
+// place that already has gCached / g_localCamera / g_localSceneChar refreshed, so it is the
+// single call site.
+static void RageTick(void);
+static void RageAutoScopeTick(void);
+static void RageNoteHit(void);
+static void RagePruneStats(void);
+static bool RageMeleeGuard(float distance);
+static void TriggerRageReload(void);
+static void TriggerRageSwitchWeapon(int slot);
+
+// LEGIT AIM FORWARD DECL
+// Defined next to AnyAimModeActive (it needs the ballistics globals); called from the LEGIT tab.
+static void LegitAimModeChanged(bool on);
+
+// THIRD PERSON FORWARD DECL
+// Applied at the tail of ApplyCameraOverrides, but defined after GetWeaponRenderersCached,
+// which it needs to switch the local body's renderers back on.
+static void ApplyThirdPerson(void* self, void* camera);
+
 static std::atomic<bool> gCamFovEnabled{false};
 static std::atomic<bool> gAspectEnabled{false};
 static std::atomic<float> gCamFovVal{80.0f};
@@ -1007,6 +1198,24 @@ static std::atomic<float> gContrastVal{0.0f};
 static std::atomic<float> gGammaVal{0.0f};
 static std::atomic<float> gBloomVal{0.0f};
 static std::atomic<float> gSharpenVal{0.0f};
+
+// THIRD PERSON (visual only: the camera is pulled back, nothing about the player's aim,
+// movement or hitboxes changes).
+//
+// The offset is applied at the very end of ApplyCameraOverrides, i.e. after the game's own
+// LateUpdate has already placed the camera. Rendering happens after LateUpdate, so the write
+// sticks for the frame. SceneLevelCamera.rot is never touched, which keeps the aim pipeline
+// (LookAtTarget) and the crosshair-to-ray relationship exactly as the game left them.
+static std::atomic<bool>  gTpEnabled{false};     // v_tp    master switch
+static std::atomic<float> gTpDistance{2.6f};     // v_tpd   metres behind the eye
+static std::atomic<float> gTpHeight{0.55f};      // v_tph   metres above the eye
+static std::atomic<float> gTpShoulder{0.0f};     // v_tps   metres to the right of the eye
+static std::atomic<bool>  gTpShowBody{true};     // v_tpb   force the local model renderers on
+static std::atomic<float> gTpFov{0.0f};          // v_tpf   0 = leave the game FOV alone
+
+// Renderer -> original enabled flag, so turning third person off restores first person.
+static std::unordered_map<void*, bool> gTpRendererState;
+static std::atomic<bool> gTpBodyApplied{false};
 
 struct SavedLight {
     float i;
@@ -1283,6 +1492,12 @@ static NSString* getIL2CPPString(void* strObj) {
     [d setFloat:gViewmodelFovVal forKey:@"c_vm_v"];
     [d setBool:gAspectEnabled forKey:@"c_a_e"];
     [d setFloat:gAspectVal forKey:@"c_a_v"];
+    [d setBool:gTpEnabled forKey:@"v_tp"];
+    [d setFloat:gTpDistance forKey:@"v_tpd"];
+    [d setFloat:gTpHeight forKey:@"v_tph"];
+    [d setFloat:gTpShoulder forKey:@"v_tps"];
+    [d setBool:gTpShowBody forKey:@"v_tpb"];
+    [d setFloat:gTpFov forKey:@"v_tpf"];
     [d setBool:gRapidFireEnabled forKey:@"w_rf"];
     [d setBool:gInstantReloadEnabled forKey:@"w_ir"];
     [d setBool:gUnlimAmmoEnabled forKey:@"w_ua"];
@@ -1464,6 +1679,51 @@ static NSString* getIL2CPPString(void* strObj) {
     [ConfigManager saveColor:gStatsColor forKey:@"c_stats"];
     [ConfigManager saveColor:gAimInfoColor forKey:@"c_ai"];
     [ConfigManager saveColor:gDamageLogColor forKey:@"c_dl"];
+    
+    // --- RAGE ---------------------------------------------------------------------------
+    [d setBool:gRageEnabled forKey:@"rg_e"];
+    [d setBool:gRageAutoAim forKey:@"rg_a"];
+    [d setBool:gRageAutoFire forKey:@"rg_f"];
+    [d setBool:gRageAutoScope forKey:@"rg_sc"];
+    [d setBool:gRageAutoReload forKey:@"rg_r"];
+    [d setBool:gRageAutoPistol forKey:@"rg_ap"];
+    [d setBool:gRageAutoZeus forKey:@"rg_z"];
+    [d setBool:gRageBurst forKey:@"rg_bst"];
+    [d setBool:gRageAirStuck forKey:@"rg_air"];
+    [d setBool:gRageAutoStop forKey:@"rg_ast"];
+    [d setBool:gRageVisibleOnly forKey:@"rg_vo"];
+    [d setBool:gRageTeamCheck forKey:@"rg_tc"];
+    [d setBool:gRageBypassSmoke forKey:@"rg_smoke"];
+    [d setBool:gRageIgnoreTeammatesInFov forKey:@"rg_itf"];
+    [d setBool:gRageHitboxExpand forKey:@"rg_hbx"];
+    [d setBool:gRageLogShots forKey:@"rg_log"];
+    [d setBool:gRagePerTargetStats forKey:@"rg_pts"];
+    [d setBool:gRageTeleport forKey:@"rg_tp"];
+    [d setBool:gRageAntiAim forKey:@"rg_aa"];
+    [d setBool:gRageAntiAimJitter forKey:@"rg_aaj"];
+    [d setBool:gRageForceBaim forKey:@"rg_fb"];
+    [d setBool:gRageOnKey forKey:@"rg_ok"];
+    [d setBool:gRageDebug forKey:@"rg_dbg"];
+    [d setInteger:gRageMinDamage forKey:@"rg_dmg"];
+    [d setInteger:gRageHitchance forKey:@"rg_hc"];
+    [d setInteger:gRagePriority forKey:@"rg_pri"];
+    [d setInteger:gRagePoint forKey:@"rg_pt"];
+    [d setInteger:gRageAntiAimMode forKey:@"rg_aam"];
+    [d setInteger:gRageBurstCount forKey:@"rg_bc"];
+    [d setInteger:gRageBurstPause forKey:@"rg_bp"];
+    [d setInteger:gRageLogMax forKey:@"rg_logn"];
+    [d setFloat:gRageFovPx forKey:@"rg_fov"];
+    [d setFloat:gRageSmooth forKey:@"rg_sm"];
+    [d setFloat:gRageSwitchDelay forKey:@"rg_swd"];
+    [d setFloat:gRageFireDelay forKey:@"rg_fd"];
+    [d setFloat:gRageSlowAim forKey:@"rg_sla"];
+    [d setFloat:gRageMaxRange forKey:@"rg_mr"];
+    [d setFloat:gRageAimStep forKey:@"rg_stp"];
+    [d setFloat:gRageHitboxExpandPx forKey:@"rg_hbxp"];
+    [d setFloat:gRageTeleportDist forKey:@"rg_tpd"];
+    [d setFloat:gRageAntiAimYaw forKey:@"rg_aay"];
+    [d setFloat:gRageAntiAimPitch forKey:@"rg_aap"];
+    [d setFloat:gRageAntiAimSpin forKey:@"rg_aas"];
     [d synchronize];
 }
 
@@ -1533,6 +1793,25 @@ static NSString* getIL2CPPString(void* strObj) {
     gAspectVal = [d floatForKey:@"c_a_v"];
     if (!std::isfinite(gAspectVal) || gAspectVal <= 0) {
         gAspectVal = 1.777f;
+    }
+    
+    gTpEnabled = [d boolForKey:@"v_tp"];
+    gTpDistance = [d floatForKey:@"v_tpd"];
+    if (!std::isfinite(gTpDistance) || gTpDistance < 0.3f) {
+        gTpDistance = 2.6f;
+    }
+    gTpHeight = [d floatForKey:@"v_tph"];
+    if (!std::isfinite(gTpHeight)) {
+        gTpHeight = 0.55f;
+    }
+    gTpShoulder = [d floatForKey:@"v_tps"];
+    if (!std::isfinite(gTpShoulder)) {
+        gTpShoulder = 0.0f;
+    }
+    gTpShowBody = [d boolForKey:@"v_tpb"];
+    gTpFov = [d floatForKey:@"v_tpf"];
+    if (!std::isfinite(gTpFov) || gTpFov < 0.0f) {
+        gTpFov = 0.0f;
     }
     
     gRapidFireEnabled = [d boolForKey:@"w_rf"];
@@ -1766,6 +2045,55 @@ static NSString* getIL2CPPString(void* strObj) {
     gStatsColor = [ConfigManager loadColorForKey:@"c_stats" defaultColor:[UIColor whiteColor]];
     gAimInfoColor = [ConfigManager loadColorForKey:@"c_ai" defaultColor:[UIColor colorWithRed:0.9 green:0.3 blue:0.9 alpha:1.0]];
     gDamageLogColor = [ConfigManager loadColorForKey:@"c_dl" defaultColor:[UIColor colorWithRed:1.0 green:0.5 blue:0.5 alpha:1.0]];
+    
+    // --- RAGE ---------------------------------------------------------------------------
+    // Every flag uses the "was it written" test so a fresh install keeps the default
+    // baked into the global instead of silently turning everything off.
+    gRageEnabled = [d objectForKey:@"rg_e"] ? [d boolForKey:@"rg_e"] : false;
+    gRageAutoAim = [d objectForKey:@"rg_a"] ? [d boolForKey:@"rg_a"] : true;
+    gRageAutoFire = [d boolForKey:@"rg_f"];
+    gRageAutoScope = [d boolForKey:@"rg_sc"];
+    gRageAutoReload = [d objectForKey:@"rg_r"] ? [d boolForKey:@"rg_r"] : true;
+    gRageAutoPistol = [d boolForKey:@"rg_ap"];
+    gRageAutoZeus = [d boolForKey:@"rg_z"];
+    gRageBurst = [d boolForKey:@"rg_bst"];
+    gRageAirStuck = [d boolForKey:@"rg_air"];
+    gRageAutoStop = [d boolForKey:@"rg_ast"];
+    gRageVisibleOnly = [d objectForKey:@"rg_vo"] ? [d boolForKey:@"rg_vo"] : true;
+    gRageTeamCheck = [d objectForKey:@"rg_tc"] ? [d boolForKey:@"rg_tc"] : true;
+    gRageBypassSmoke = [d boolForKey:@"rg_smoke"];
+    gRageIgnoreTeammatesInFov = [d objectForKey:@"rg_itf"] ? [d boolForKey:@"rg_itf"] : true;
+    gRageHitboxExpand = [d boolForKey:@"rg_hbx"];
+    gRageLogShots = [d boolForKey:@"rg_log"];
+    gRagePerTargetStats = [d boolForKey:@"rg_pts"];
+    gRageTeleport = [d boolForKey:@"rg_tp"];
+    gRageAntiAim = [d boolForKey:@"rg_aa"];
+    gRageAntiAimJitter = [d boolForKey:@"rg_aaj"];
+    gRageForceBaim = [d boolForKey:@"rg_fb"];
+    gRageOnKey = [d boolForKey:@"rg_ok"];
+    gRageDebug = [d boolForKey:@"rg_dbg"];
+    
+    gRageMinDamage = (int)ClampFinite([d floatForKey:@"rg_dmg"], 1.0f, 200.0f, 1.0f);
+    gRageHitchance = (int)ClampFinite([d floatForKey:@"rg_hc"], 0.0f, 100.0f, 0.0f);
+    gRagePriority = (int)ClampFinite([d floatForKey:@"rg_pri"], 0.0f, 3.0f, 0.0f);
+    gRagePoint = (int)ClampFinite([d floatForKey:@"rg_pt"], 0.0f, 3.0f, 0.0f);
+    gRageAntiAimMode = (int)ClampFinite([d floatForKey:@"rg_aam"], 0.0f, 3.0f, 0.0f);
+    gRageBurstCount = (int)ClampFinite([d floatForKey:@"rg_bc"], 1.0f, 12.0f, 3.0f);
+    gRageBurstPause = (int)ClampFinite([d floatForKey:@"rg_bp"], 20.0f, 2000.0f, 140.0f);
+    gRageLogMax = (int)ClampFinite([d floatForKey:@"rg_logn"], 4.0f, 64.0f, 24.0f);
+    
+    gRageFovPx = ClampFinite([d floatForKey:@"rg_fov"], 40.0f, 2000.0f, 600.0f);
+    gRageSmooth = ClampFinite([d floatForKey:@"rg_sm"], 0.0f, 0.98f, 0.35f);
+    gRageSwitchDelay = ClampFinite([d floatForKey:@"rg_swd"], 0.0f, 2000.0f, 120.0f);
+    gRageFireDelay = ClampFinite([d floatForKey:@"rg_fd"], 0.0f, 2000.0f, 60.0f);
+    gRageSlowAim = ClampFinite([d floatForKey:@"rg_sla"], 0.0f, 500.0f, 0.0f);
+    gRageMaxRange = ClampFinite([d floatForKey:@"rg_mr"], 10.0f, 600.0f, 300.0f);
+    gRageAimStep = ClampFinite([d floatForKey:@"rg_stp"], 0.0f, 32.0f, 0.0f);
+    gRageHitboxExpandPx = ClampFinite([d floatForKey:@"rg_hbxp"], 0.0f, 40.0f, 4.0f);
+    gRageTeleportDist = ClampFinite([d floatForKey:@"rg_tpd"], 0.5f, 10.0f, 2.0f);
+    gRageAntiAimYaw = ClampFinite([d floatForKey:@"rg_aay"], -180.0f, 180.0f, 180.0f);
+    gRageAntiAimPitch = ClampFinite([d floatForKey:@"rg_aap"], -89.0f, 89.0f, -89.0f);
+    gRageAntiAimSpin = ClampFinite([d floatForKey:@"rg_aas"], 0.0f, 3600.0f, 720.0f);
 }
 
 @end
@@ -1856,7 +2184,7 @@ static void ApplyCameraOverrides(void* self) {
     if (gCamFovEnabled) {
         float fieldOfView = gCamFovVal.load();
         if (!std::isfinite(fieldOfView)) {
-            return;
+            fieldOfView = 0.0f;
         }
 
         fieldOfView = Math::Clamp(fieldOfView, 30.0f, 140.0f);
@@ -1866,6 +2194,11 @@ static void ApplyCameraOverrides(void* self) {
             p_camSetFov(camera, fieldOfView, p_camSetFovMI);
         }
     }
+
+    // Third person goes last: it reads the camera transform the game just finished placing and
+    // pushes it back along its own view axis. Anything earlier in this function would be
+    // overwritten by the LateUpdate placement.
+    ApplyThirdPerson(self, camera);
 }
 
 static void ApplyViewmodelFov(void* self) {
@@ -2715,6 +3048,152 @@ static inline int ChamsMatIndex(int type, bool xray) {
         type = 0;
     }
     return type + (xray ? 3 : 0);
+}
+
+// -----------------------------------------------------------------------------------------
+// THIRD PERSON
+//
+// Pulls the already-placed camera back along its own view axis. Nothing else about the view is
+// touched: SceneLevelCamera.rot stays exactly as the game set it, so the aim pipeline and the
+// crosshair-to-ray relationship are unchanged.
+// -----------------------------------------------------------------------------------------
+static void ApplyThirdPerson(void* self, void* camera) {
+    if (!alive(self) || self != g_localSceneChar || !alive(camera)) {
+        return;
+    }
+
+    bool on = gTpEnabled.load();
+
+    // Turning it off restores the renderers first, otherwise the local body stays forced on in
+    // first person and blocks the whole screen.
+    if (!on) {
+        if (gTpBodyApplied.load()) {
+            for (auto& kv : gTpRendererState) {
+                if (alive(kv.first) && p_rendSetEnabled) {
+                    p_rendSetEnabled(kv.first, kv.second, p_rendSetEnabledMI);
+                }
+            }
+            gTpRendererState.clear();
+            gTpBodyApplied = false;
+        }
+        return;
+    }
+
+    if (!p_getTransform || !p_getTransformMI || !p_tfGetPos || !p_tfSetPos ||
+        !p_tfGetPosMI || !p_tfSetPosMI || !p_tfGetEuler || !p_tfGetEulerMI) {
+        return;
+    }
+
+    void* camT = p_getTransform(camera, p_getTransformMI);
+    if (!alive(camT)) {
+        return;
+    }
+
+    Vec3 pivot = p_tfGetPos(camT, p_tfGetPosMI);
+    if (!Math::Finite(pivot)) {
+        return;
+    }
+
+    Vec3 euler = p_tfGetEuler(camT, p_tfGetEulerMI);
+    if (!Math::Finite(euler)) {
+        return;
+    }
+
+    const float deg2rad = 0.017453292519943295f;
+    float yaw = euler.y * deg2rad;
+    float pitch = euler.x * deg2rad;
+
+    // Unity's forward for (pitch, yaw), with pitch positive looking down:
+    //   forward = (sin yaw * cos pitch, -sin pitch, cos yaw * cos pitch)
+    //   right   = (cos yaw, 0, -sin yaw)
+    float cp = cosf(pitch);
+    Vec3 fwd(sinf(yaw) * cp, -sinf(pitch), cosf(yaw) * cp);
+    Vec3 right(cosf(yaw), 0.0f, -sinf(yaw));
+
+    float dist = gTpDistance.load();
+    if (!std::isfinite(dist)) {
+        dist = 2.6f;
+    }
+    dist = Math::Clamp(dist, 0.3f, 15.0f);
+
+    float h = gTpHeight.load();
+    if (!std::isfinite(h)) {
+        h = 0.55f;
+    }
+    h = Math::Clamp(h, -2.0f, 4.0f);
+
+    float sh = gTpShoulder.load();
+    if (!std::isfinite(sh)) {
+        sh = 0.0f;
+    }
+    sh = Math::Clamp(sh, -2.0f, 2.0f);
+
+    Vec3 want = pivot - fwd * dist + Vec3(0.0f, h, 0.0f) + right * sh;
+    if (!Math::Finite(want)) {
+        return;
+    }
+
+    p_tfSetPos(camT, want, p_tfSetPosMI);
+
+    // Third person usually wants a wider lens, otherwise the pulled-back view feels like
+    // looking through a straw. 0 leaves the game's FOV alone.
+    float tpFov = gTpFov.load();
+    if (std::isfinite(tpFov) && tpFov >= 30.0f && tpFov <= 140.0f) {
+        if (p_sceneSetFov) {
+            p_sceneSetFov(self, tpFov, p_sceneSetFovMI);
+        } else if (p_camSetFov) {
+            p_camSetFov(camera, tpFov, p_camSetFovMI);
+        }
+    }
+
+    // First person hides the local body. Force its renderers back on, remembering the original
+    // flag so the switch back is exact.
+    if (!gTpShowBody.load() || !p_getGameObject || !p_getGameObjectMI || !p_rendSetEnabled) {
+        return;
+    }
+
+    void* modelContainer = *(void**)((uintptr_t)self + off::kCharModelContainer);
+    if (!alive(modelContainer)) {
+        return;
+    }
+
+    void* modelGO = p_getGameObject(modelContainer, p_getGameObjectMI);
+    if (!alive(modelGO)) {
+        return;
+    }
+
+    void* renderers = GetWeaponRenderersCached(modelGO);
+    if (!renderers) {
+        return;
+    }
+
+    int count = *(int*)((uintptr_t)renderers + 0x18);
+    void** items = (void**)((uintptr_t)renderers + 0x20);
+    if (count <= 0 || !items) {
+        return;
+    }
+    if (count > 512) {
+        count = 512;
+    }
+
+    for (int i = 0; i < count; i++) {
+        void* rend = items[i];
+        if (!alive(rend)) {
+            continue;
+        }
+        if (gTpRendererState.find(rend) == gTpRendererState.end()) {
+            // Remember the flag the game left on this renderer so disabling third person
+            // restores exactly what first person had.
+            bool wasEnabled = true;
+            if (p_rendGetEnabled) {
+                wasEnabled = p_rendGetEnabled(rend, p_rendGetEnabledMI);
+            }
+            gTpRendererState[rend] = wasEnabled;
+        }
+        p_rendSetEnabled(rend, true, p_rendSetEnabledMI);
+    }
+
+    gTpBodyApplied = true;
 }
 
 static void UpdateChamsForPlayer(void* player, void* charCtrl) {
@@ -4417,6 +4896,47 @@ static void UpdateStreamMode(void) {
 
 @end
 
+// ---------------------------------------------------------------------------------------------
+// Menu building blocks shared by the RAGE tab.
+//
+// The RAGE tab has ~40 rows; without these three helpers the tab would be 600 lines of
+// copy-pasted checkbox wiring, and a missed [ConfigManager save] in one of them is exactly the
+// class of bug that silently loses a setting.
+// ---------------------------------------------------------------------------------------------
+static NLCheckbox* RageMakeCheckbox(BOOL on, void (^toggle)(BOOL)) {
+    NLCheckbox *cb = [[NLCheckbox alloc] initWithFrame:CGRectMake(0, 0, 18, 18)];
+    cb.isOn = on;
+    cb.onToggle = toggle;
+    return cb;
+}
+
+static NLSlider* RageMakeSlider(float value, float lo, float hi, NSString* suffix,
+                                void (^change)(float), void (^release)(float)) {
+    NLSlider *s = [[NLSlider alloc] initWithFrame:CGRectMake(0, 0, 110, 18) suffix:suffix];
+    s.min = lo;
+    s.max = hi;
+    s.value = value;
+    s.onChange = change;
+    s.onRelease = release;
+    return s;
+}
+
+// A button that cycles through a fixed list of labels and reports the chosen index.
+static NLButton* RageMakeCycle(NSString* initial, NSArray<NSString*>* labels, NSInteger index,
+                               void (^onPick)(NSInteger)) {
+    NLButton *b = [[NLButton alloc] initWithTitle:initial];
+    __block NSInteger cur = index;
+    b.onTap = ^{
+        cur += 1;
+        if (cur >= (NSInteger)labels.count) {
+            cur = 0;
+        }
+        [b.titleLabel setText:[labels objectAtIndex:cur]];
+        onPick(cur);
+    };
+    return b;
+}
+
 @implementation MenuView {
     UIVisualEffectView *_blurView;
     UIView *_topBar;
@@ -4469,12 +4989,15 @@ static void UpdateStreamMode(void) {
         [_topBar addSubview:logoText];
         
         _tabs = [NSMutableArray array];
-        [self addTab:@"AIMBOT" x:120];
-        [self addTab:@"VISUALS" x:185];
-        [self addTab:@"WORLD" x:250];
-        [self addTab:@"PLAYER" x:315];
-        [self addTab:@"MISC" x:380];
-        [self addTab:@"SETTINGS" x:445];
+        // LEGIT first, RAGE right beside it: the two aim tabs stay adjacent so switching
+        // between the legit aimbot and the rage pipeline is one tap.
+        [self addTab:@"LEGIT" x:112];
+        [self addTab:@"RAGE" x:170];
+        [self addTab:@"VISUALS" x:228];
+        [self addTab:@"WORLD" x:286];
+        [self addTab:@"PLAYER" x:344];
+        [self addTab:@"MISC" x:402];
+        [self addTab:@"SETTINGS" x:460];
         
         UIButton *mb = [UIButton buttonWithType:UIButtonTypeCustom];
         mb.frame = CGRectMake(frame.size.width - 60, 10, 15, 15);
@@ -4496,7 +5019,9 @@ static void UpdateStreamMode(void) {
         _scrollView = [[UIScrollView alloc] initWithFrame:_content.bounds];
         _scrollView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
         _scrollView.showsVerticalScrollIndicator = NO;
-        _scrollView.contentSize = CGSizeMake(frame.size.width, 2800);
+        // VISUALS is the tallest tab (the third-person group sits at y 2660 + 240), so the
+        // scroll area has to cover it.
+        _scrollView.contentSize = CGSizeMake(frame.size.width, 2960);
         [_content addSubview:_scrollView];
         
         [self switchToTab:0];
@@ -4647,7 +5172,7 @@ static void UpdateStreamMode(void) {
 
 - (void)addTab:(NSString*)title x:(CGFloat)x {
     UIButton *b = [UIButton buttonWithType:UIButtonTypeCustom];
-    b.frame = CGRectMake(x, 0, 62, 35);
+    b.frame = CGRectMake(x, 0, 56, 35);
     [b setTitle:SafeStr(title) forState:UIControlStateNormal];
     b.titleLabel.font = [UIFont systemFontOfSize:10 weight:UIFontWeightBold];
     [b setTitleColor:[UIColor lightGrayColor] forState:UIControlStateNormal];
@@ -4703,7 +5228,11 @@ static void UpdateStreamMode(void) {
             cbAim.isOn = gAimbotEnabled;
             cbAim.onToggle = ^(BOOL v) {
                 gAimbotEnabled = v;
+                // Aimbot is useless if the shot is still fighting spread and recoil, so arming it
+                // also arms both ballistics neutralisers (never switches them back off).
+                LegitAimModeChanged(v);
                 [ConfigManager save];
+                [weakSelf buildContent];
             };
             [gAuto addSubview:[[NLRow alloc] initWithTitle:@"Aimbot" y:y control:cbAim swatch:nil]];
             y += 30;
@@ -4712,9 +5241,30 @@ static void UpdateStreamMode(void) {
             cbAimOnFire.isOn = gAimOnFireEnabled;
             cbAimOnFire.onToggle = ^(BOOL v) {
                 gAimOnFireEnabled = v;
+                LegitAimModeChanged(v);
                 [ConfigManager save];
+                [weakSelf buildContent];
             };
             [gAuto addSubview:[[NLRow alloc] initWithTitle:@"Aim On Fire" y:y control:cbAimOnFire swatch:nil]];
+            y += 30;
+
+            // Mirrors the PLAYER-tab toggles so the forced-on state is visible right here.
+            NLCheckbox *cbNS = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbNS.isOn = gNoSpreadEnabled;
+            cbNS.onToggle = ^(BOOL v) {
+                gNoSpreadEnabled = v;
+                [ConfigManager save];
+            };
+            [gAuto addSubview:[[NLRow alloc] initWithTitle:@"No Spread" y:y control:cbNS swatch:nil]];
+            y += 30;
+
+            NLCheckbox *cbNR = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbNR.isOn = gNoRecoilEnabled;
+            cbNR.onToggle = ^(BOOL v) {
+                gNoRecoilEnabled = v;
+                [ConfigManager save];
+            };
+            [gAuto addSubview:[[NLRow alloc] initWithTitle:@"No Recoil" y:y control:cbNR swatch:nil]];
             y += 30;
             
             NLButton *bBone = [[NLButton alloc] initWithTitle:@"Head"];
@@ -4982,7 +5532,7 @@ static void UpdateStreamMode(void) {
             [gCombat addSubview:[[NLRow alloc] initWithTitle:@"Ammo Bar" y:cby control:cbAB swatch:nil]];
             cby += 30;
             
-        } else if (_currentTab == 1) {
+        } else if (_currentTab == 2) {
             NLGroupBox *gEsp = [[NLGroupBox alloc] initWithTitle:@"Players" frame:CGRectMake(0, 0, colW, 340)];
             [c1 addSubview:gEsp];
             CGFloat y = 30;
@@ -6137,7 +6687,64 @@ static void UpdateStreamMode(void) {
             [gSound addSubview:[[NLRow alloc] initWithTitle:@"Feed Color" y:sy control:nil swatch:swKF]];
             sy += 30;
             
-        } else if (_currentTab == 2) {
+            // ---- Third person (camera only) ----
+            // Lives under VISUALS because it is a pure presentation feature: the camera is
+            // pulled back, nothing about aim, hitboxes or movement changes.
+            NLGroupBox *gTp = [[NLGroupBox alloc] initWithTitle:@"Third Person" frame:CGRectMake(0, 2660, colW, 240)];
+            [c2 addSubview:gTp];
+            CGFloat ty = 30;
+            
+            NLCheckbox *cbTpOn = RageMakeCheckbox(gTpEnabled, ^(BOOL v) {
+                gTpEnabled = v;
+                [ConfigManager save];
+            });
+            [gTp addSubview:[[NLRow alloc] initWithTitle:@"Enable" y:ty control:cbTpOn swatch:nil]];
+            ty += 30;
+            
+            NLSlider *sTpD = RageMakeSlider(gTpDistance, 0.3f, 15.0f, @"m", ^(float v) {
+                gTpDistance = v;
+            }, ^(float v) {
+                gTpDistance = v;
+                [ConfigManager save];
+            });
+            [gTp addSubview:[[NLRow alloc] initWithTitle:@"Distance" y:ty control:sTpD swatch:nil]];
+            ty += 30;
+            
+            NLSlider *sTpH = RageMakeSlider(gTpHeight, -2.0f, 4.0f, @"m", ^(float v) {
+                gTpHeight = v;
+            }, ^(float v) {
+                gTpHeight = v;
+                [ConfigManager save];
+            });
+            [gTp addSubview:[[NLRow alloc] initWithTitle:@"Height" y:ty control:sTpH swatch:nil]];
+            ty += 30;
+            
+            NLSlider *sTpS = RageMakeSlider(gTpShoulder, -2.0f, 2.0f, @"m", ^(float v) {
+                gTpShoulder = v;
+            }, ^(float v) {
+                gTpShoulder = v;
+                [ConfigManager save];
+            });
+            [gTp addSubview:[[NLRow alloc] initWithTitle:@"Shoulder" y:ty control:sTpS swatch:nil]];
+            ty += 30;
+            
+            NLCheckbox *cbTpB = RageMakeCheckbox(gTpShowBody, ^(BOOL v) {
+                gTpShowBody = v;
+                [ConfigManager save];
+            });
+            [gTp addSubview:[[NLRow alloc] initWithTitle:@"Show Own Body" y:ty control:cbTpB swatch:nil]];
+            ty += 30;
+            
+            NLSlider *sTpF = RageMakeSlider(gTpFov, 0.0f, 140.0f, @"°", ^(float v) {
+                gTpFov = v;
+            }, ^(float v) {
+                gTpFov = v;
+                [ConfigManager save];
+            });
+            [gTp addSubview:[[NLRow alloc] initWithTitle:@"Third Person FOV" y:ty control:sTpF swatch:nil]];
+            ty += 30;
+            
+        } else if (_currentTab == 3) {
             NLGroupBox *gWV = [[NLGroupBox alloc] initWithTitle:@"World View" frame:CGRectMake(0, 0, colW, 240)];
             [c1 addSubview:gWV];
             CGFloat y = 30;
@@ -6300,7 +6907,7 @@ static void UpdateStreamMode(void) {
             [gCG addSubview:[[NLRow alloc] initWithTitle:@"Gamma" y:y control:sGam swatch:nil]];
             y += 30;
             
-        } else if (_currentTab == 3) {
+        } else if (_currentTab == 4) {
             NLGroupBox *gMove = [[NLGroupBox alloc] initWithTitle:@"Movement" frame:CGRectMake(0, 0, colW, 280)];
             [c1 addSubview:gMove];
             CGFloat y = 30;
@@ -6411,7 +7018,7 @@ static void UpdateStreamMode(void) {
             [gWeapon addSubview:[[NLRow alloc] initWithTitle:@"Ballistics Debug" y:y control:cbBD swatch:nil]];
             y += 30;
             
-        } else if (_currentTab == 4) {
+        } else if (_currentTab == 5) {
             NLGroupBox *gVis = [[NLGroupBox alloc] initWithTitle:@"World & View" frame:CGRectMake(0, 0, colW, 450)];
             [c1 addSubview:gVis];
             CGFloat y = 30;
@@ -6491,7 +7098,8 @@ static void UpdateStreamMode(void) {
             [gVis addSubview:[[NLRow alloc] initWithTitle:@"Nightmode" y:y control:cbNM swatch:nil]];
             y += 30;
             
-        } else if (_currentTab == 5) {
+            
+        } else if (_currentTab == 6) {
             NLGroupBox *gSet = [[NLGroupBox alloc] initWithTitle:@"Settings" frame:CGRectMake(0, 0, colW, 270)];
             [c1 addSubview:gSet];
             CGFloat y = 30;
@@ -6613,6 +7221,386 @@ static void UpdateStreamMode(void) {
             };
             [gColors addSubview:[[NLRow alloc] initWithTitle:@"Info Panel" y:ccy control:nil swatch:swIPanel]];
             ccy += 30;
+        } else if (_currentTab == 1) {
+            // ======================= RAGE =======================
+            // Column 1: target selection, aim, trigger.
+            // Column 2: anti-aim, per-target bookkeeping, diagnostics.
+            NLGroupBox *gCore = [[NLGroupBox alloc] initWithTitle:@"Rage Core" frame:CGRectMake(0, 0, colW, 470)];
+            [c1 addSubview:gCore];
+            CGFloat y = 30;
+
+            NLCheckbox *cbRE = RageMakeCheckbox(gRageEnabled, ^(BOOL v) {
+                gRageEnabled = v;
+                [ConfigManager save];
+            });
+            [gCore addSubview:[[NLRow alloc] initWithTitle:@"Enable Rage" y:y control:cbRE swatch:nil]];
+            y += 30;
+
+            NLCheckbox *cbAA = RageMakeCheckbox(gRageAutoAim, ^(BOOL v) {
+                gRageAutoAim = v;
+                [ConfigManager save];
+            });
+            [gCore addSubview:[[NLRow alloc] initWithTitle:@"Auto Aim" y:y control:cbAA swatch:nil]];
+            y += 30;
+
+            NLCheckbox *cbAF = RageMakeCheckbox(gRageAutoFire, ^(BOOL v) {
+                gRageAutoFire = v;
+                [ConfigManager save];
+            });
+            [gCore addSubview:[[NLRow alloc] initWithTitle:@"Auto Fire" y:y control:cbAF swatch:nil]];
+            y += 30;
+
+            NLCheckbox *cbOK = RageMakeCheckbox(gRageOnKey, ^(BOOL v) {
+                gRageOnKey = v;
+                [ConfigManager save];
+            });
+            [gCore addSubview:[[NLRow alloc] initWithTitle:@"Only On Hotkey" y:y control:cbOK swatch:nil]];
+            y += 30;
+
+            NLCheckbox *cbVO = RageMakeCheckbox(gRageVisibleOnly, ^(BOOL v) {
+                gRageVisibleOnly = v;
+                [ConfigManager save];
+            });
+            [gCore addSubview:[[NLRow alloc] initWithTitle:@"Visible Only" y:y control:cbVO swatch:nil]];
+            y += 30;
+
+            NLCheckbox *cbTC = RageMakeCheckbox(gRageTeamCheck, ^(BOOL v) {
+                gRageTeamCheck = v;
+                [ConfigManager save];
+            });
+            [gCore addSubview:[[NLRow alloc] initWithTitle:@"Skip Team" y:y control:cbTC swatch:nil]];
+            y += 30;
+
+            NLButton *bPri = RageMakeCycle(@"Distance", (@[@"Distance", @"Lowest HP", @"Crosshair", @"Threat"]),
+                                           gRagePriority, ^(NSInteger idx) {
+                gRagePriority = (int)idx;
+                [ConfigManager save];
+            });
+            [gCore addSubview:[[NLRow alloc] initWithTitle:@"Priority" y:y control:bPri swatch:nil]];
+            y += 30;
+
+            NLButton *bPt = RageMakeCycle(@"Head", (@[@"Head", @"Chest", @"Pelvis", @"Nearest"]),
+                                          gRagePoint, ^(NSInteger idx) {
+                gRagePoint = (int)idx;
+                [ConfigManager save];
+            });
+            [gCore addSubview:[[NLRow alloc] initWithTitle:@"Aim Point" y:y control:bPt swatch:nil]];
+            y += 30;
+
+            NLCheckbox *cbFB = RageMakeCheckbox(gRageForceBaim, ^(BOOL v) {
+                gRageForceBaim = v;
+                [ConfigManager save];
+            });
+            [gCore addSubview:[[NLRow alloc] initWithTitle:@"Force Chest" y:y control:cbFB swatch:nil]];
+            y += 30;
+
+            NLSlider *sFov = RageMakeSlider(gRageFovPx, 50.0f, 1200.0f, @"px", ^(float v) {
+                gRageFovPx = v;
+            }, ^(float v) {
+                gRageFovPx = v;
+                [ConfigManager save];
+            });
+            [gCore addSubview:[[NLRow alloc] initWithTitle:@"Aim Cone" y:y control:sFov swatch:nil]];
+            y += 30;
+
+            NLSlider *sSm = RageMakeSlider(gRageSmooth, 0.0f, 0.98f, @"", ^(float v) {
+                gRageSmooth = v;
+            }, ^(float v) {
+                gRageSmooth = v;
+                [ConfigManager save];
+            });
+            [gCore addSubview:[[NLRow alloc] initWithTitle:@"Smoothing" y:y control:sSm swatch:nil]];
+            y += 30;
+
+            NLSlider *sStp = RageMakeSlider(gRageAimStep, 0.0f, 32.0f, @"", ^(float v) {
+                gRageAimStep = v;
+            }, ^(float v) {
+                gRageAimStep = v;
+                [ConfigManager save];
+            });
+            [gCore addSubview:[[NLRow alloc] initWithTitle:@"Aim Step" y:y control:sStp swatch:nil]];
+            y += 30;
+
+            NLSlider *sSwd = RageMakeSlider(gRageSwitchDelay, 0.0f, 1000.0f, @"ms", ^(float v) {
+                gRageSwitchDelay = v;
+            }, ^(float v) {
+                gRageSwitchDelay = v;
+                [ConfigManager save];
+            });
+            [gCore addSubview:[[NLRow alloc] initWithTitle:@"Switch Delay" y:y control:sSwd swatch:nil]];
+            y += 30;
+
+            NLSlider *sMr = RageMakeSlider(gRageMaxRange, 10.0f, 600.0f, @"m", ^(float v) {
+                gRageMaxRange = v;
+            }, ^(float v) {
+                gRageMaxRange = v;
+                [ConfigManager save];
+            });
+            [gCore addSubview:[[NLRow alloc] initWithTitle:@"Max Range" y:y control:sMr swatch:nil]];
+            y += 30;
+
+            NLGroupBox *gTrig = [[NLGroupBox alloc] initWithTitle:@"Trigger" frame:CGRectMake(0, 0, colW, 290)];
+            [c2 addSubview:gTrig];
+            CGFloat ty = 30;
+
+            NLSlider *sFd = RageMakeSlider(gRageFireDelay, 0.0f, 500.0f, @"ms", ^(float v) {
+                gRageFireDelay = v;
+            }, ^(float v) {
+                gRageFireDelay = v;
+                [ConfigManager save];
+            });
+            [gTrig addSubview:[[NLRow alloc] initWithTitle:@"Fire Delay" y:ty control:sFd swatch:nil]];
+            ty += 30;
+
+            NLSlider *sSla = RageMakeSlider(gRageSlowAim, 0.0f, 400.0f, @"ms", ^(float v) {
+                gRageSlowAim = v;
+            }, ^(float v) {
+                gRageSlowAim = v;
+                [ConfigManager save];
+            });
+            [gTrig addSubview:[[NLRow alloc] initWithTitle:@"Slow Aim" y:ty control:sSla swatch:nil]];
+            ty += 30;
+
+            NLSlider *sHc = RageMakeSlider(gRageHitchance, 0.0f, 100.0f, @"%", ^(float v) {
+                gRageHitchance = (int)v;
+            }, ^(float v) {
+                gRageHitchance = (int)v;
+                [ConfigManager save];
+            });
+            [gTrig addSubview:[[NLRow alloc] initWithTitle:@"Min Hitchance" y:ty control:sHc swatch:nil]];
+            ty += 30;
+
+            NLSlider *sDmg = RageMakeSlider(gRageMinDamage, 1.0f, 200.0f, @"", ^(float v) {
+                gRageMinDamage = (int)v;
+            }, ^(float v) {
+                gRageMinDamage = (int)v;
+                [ConfigManager save];
+            });
+            [gTrig addSubview:[[NLRow alloc] initWithTitle:@"Min Damage" y:ty control:sDmg swatch:nil]];
+            ty += 30;
+
+            NLCheckbox *cbBst = RageMakeCheckbox(gRageBurst, ^(BOOL v) {
+                gRageBurst = v;
+                [ConfigManager save];
+            });
+            [gTrig addSubview:[[NLRow alloc] initWithTitle:@"Burst Fire" y:ty control:cbBst swatch:nil]];
+            ty += 30;
+
+            NLSlider *sBc = RageMakeSlider(gRageBurstCount, 1.0f, 10.0f, @"", ^(float v) {
+                gRageBurstCount = (int)v;
+            }, ^(float v) {
+                gRageBurstCount = (int)v;
+                [ConfigManager save];
+            });
+            [gTrig addSubview:[[NLRow alloc] initWithTitle:@"Burst Rounds" y:ty control:sBc swatch:nil]];
+            ty += 30;
+
+            NLSlider *sBp = RageMakeSlider(gRageBurstPause, 0.0f, 2000.0f, @"ms", ^(float v) {
+                gRageBurstPause = (int)v;
+            }, ^(float v) {
+                gRageBurstPause = (int)v;
+                [ConfigManager save];
+            });
+            [gTrig addSubview:[[NLRow alloc] initWithTitle:@"Burst Pause" y:ty control:sBp swatch:nil]];
+            ty += 30;
+
+            NLCheckbox *cbAst = RageMakeCheckbox(gRageAutoStop, ^(BOOL v) {
+                gRageAutoStop = v;
+                [ConfigManager save];
+            });
+            [gTrig addSubview:[[NLRow alloc] initWithTitle:@"Stop When Dry" y:ty control:cbAst swatch:nil]];
+            ty += 30;
+
+            NLCheckbox *cbAir = RageMakeCheckbox(gRageAirStuck, ^(BOOL v) {
+                gRageAirStuck = v;
+                [ConfigManager save];
+            });
+            [gTrig addSubview:[[NLRow alloc] initWithTitle:@"Only While Grounded" y:ty control:cbAir swatch:nil]];
+            ty += 30;
+
+            NLGroupBox *gWeap = [[NLGroupBox alloc] initWithTitle:@"Weapon" frame:CGRectMake(0, 300, colW, 240)];
+            [c2 addSubview:gWeap];
+            CGFloat wy = 30;
+
+            NLCheckbox *cbSc = RageMakeCheckbox(gRageAutoScope, ^(BOOL v) {
+                gRageAutoScope = v;
+                [ConfigManager save];
+            });
+            [gWeap addSubview:[[NLRow alloc] initWithTitle:@"Auto Scope" y:wy control:cbSc swatch:nil]];
+            wy += 30;
+
+            NLCheckbox *cbRl = RageMakeCheckbox(gRageAutoReload, ^(BOOL v) {
+                gRageAutoReload = v;
+                [ConfigManager save];
+            });
+            [gWeap addSubview:[[NLRow alloc] initWithTitle:@"Auto Reload" y:wy control:cbRl swatch:nil]];
+            wy += 30;
+
+            NLCheckbox *cbAp = RageMakeCheckbox(gRageAutoPistol, ^(BOOL v) {
+                gRageAutoPistol = v;
+                [ConfigManager save];
+            });
+            [gWeap addSubview:[[NLRow alloc] initWithTitle:@"Auto Sidearm" y:wy control:cbAp swatch:nil]];
+            wy += 30;
+
+            NLCheckbox *cbZ = RageMakeCheckbox(gRageAutoZeus, ^(BOOL v) {
+                gRageAutoZeus = v;
+                [ConfigManager save];
+            });
+            [gWeap addSubview:[[NLRow alloc] initWithTitle:@"Melee Reach Guard" y:wy control:cbZ swatch:nil]];
+            wy += 30;
+
+            NLButton *bReload = [[NLButton alloc] initWithTitle:@"Reload Now"];
+            bReload.onTap = ^{
+                TriggerRageReload();
+            };
+            [gWeap addSubview:[[NLRow alloc] initWithTitle:@"Manual" y:wy control:bReload swatch:nil]];
+            wy += 30;
+
+            NLButton *bSwap = [[NLButton alloc] initWithTitle:@"Swap To Slot 2"];
+            bSwap.onTap = ^{
+                TriggerRageSwitchWeapon(1);
+            };
+            [gWeap addSubview:[[NLRow alloc] initWithTitle:@"" y:wy control:bSwap swatch:nil]];
+            wy += 30;
+
+            NLGroupBox *gAA = [[NLGroupBox alloc] initWithTitle:@"Anti-Aim" frame:CGRectMake(0, 560, colW, 260)];
+            [c2 addSubview:gAA];
+            CGFloat ay = 30;
+
+            NLCheckbox *cbAAn = RageMakeCheckbox(gRageAntiAim, ^(BOOL v) {
+                gRageAntiAim = v;
+                [ConfigManager save];
+            });
+            [gAA addSubview:[[NLRow alloc] initWithTitle:@"Enable" y:ay control:cbAAn swatch:nil]];
+            ay += 30;
+
+            NLButton *bAam = RageMakeCycle(@"Static", (@[@"Static", @"Spin", @"Jitter", @"Sway"]),
+                                           gRageAntiAimMode, ^(NSInteger idx) {
+                gRageAntiAimMode = (int)idx;
+                [ConfigManager save];
+            });
+            [gAA addSubview:[[NLRow alloc] initWithTitle:@"Mode" y:ay control:bAam swatch:nil]];
+            ay += 30;
+
+            NLSlider *sAay = RageMakeSlider(gRageAntiAimYaw, -180.0f, 180.0f, @"", ^(float v) {
+                gRageAntiAimYaw = v;
+            }, ^(float v) {
+                gRageAntiAimYaw = v;
+                [ConfigManager save];
+            });
+            [gAA addSubview:[[NLRow alloc] initWithTitle:@"Yaw Offset" y:ay control:sAay swatch:nil]];
+            ay += 30;
+
+            NLSlider *sAap = RageMakeSlider(gRageAntiAimPitch, -89.0f, 89.0f, @"", ^(float v) {
+                gRageAntiAimPitch = v;
+            }, ^(float v) {
+                gRageAntiAimPitch = v;
+                [ConfigManager save];
+            });
+            [gAA addSubview:[[NLRow alloc] initWithTitle:@"Pitch Offset" y:ay control:sAap swatch:nil]];
+            ay += 30;
+
+            NLSlider *sAas = RageMakeSlider(gRageAntiAimSpin, 0.0f, 2000.0f, @"", ^(float v) {
+                gRageAntiAimSpin = v;
+            }, ^(float v) {
+                gRageAntiAimSpin = v;
+                [ConfigManager save];
+            });
+            [gAA addSubview:[[NLRow alloc] initWithTitle:@"Spin Speed" y:ay control:sAas swatch:nil]];
+            ay += 30;
+
+            NLCheckbox *cbAaj = RageMakeCheckbox(gRageAntiAimJitter, ^(BOOL v) {
+                gRageAntiAimJitter = v;
+                [ConfigManager save];
+            });
+            [gAA addSubview:[[NLRow alloc] initWithTitle:@"Jitter" y:ay control:cbAaj swatch:nil]];
+            ay += 30;
+
+            NLGroupBox *gMisc = [[NLGroupBox alloc] initWithTitle:@"Utility" frame:CGRectMake(0, 830, colW, 150)];
+            [c2 addSubview:gMisc];
+            CGFloat my = 30;
+
+            NLCheckbox *cbSmoke = RageMakeCheckbox(gRageBypassSmoke, ^(BOOL v) {
+                gRageBypassSmoke = v;
+                [ConfigManager save];
+            });
+            [gMisc addSubview:[[NLRow alloc] initWithTitle:@"Bypass Smoke (25m)" y:my control:cbSmoke swatch:nil]];
+            my += 30;
+
+            NLCheckbox *cbHbx = RageMakeCheckbox(gRageHitboxExpand, ^(BOOL v) {
+                gRageHitboxExpand = v;
+                [ConfigManager save];
+            });
+            [gMisc addSubview:[[NLRow alloc] initWithTitle:@"Hitbox Expand" y:my control:cbHbx swatch:nil]];
+            my += 30;
+
+            NLSlider *sHbx = RageMakeSlider(gRageHitboxExpandPx, 0.0f, 40.0f, @"px", ^(float v) {
+                gRageHitboxExpandPx = v;
+            }, ^(float v) {
+                gRageHitboxExpandPx = v;
+                [ConfigManager save];
+            });
+            [gMisc addSubview:[[NLRow alloc] initWithTitle:@"Expand Amount" y:my control:sHbx swatch:nil]];
+            my += 30;
+
+            // Teleport is deliberately not exposed: SceneLevelCharacter.Teleport is a [Server]
+            // method, and the client-authority path (NetworkTransform.RpcTeleport) only moves the
+            // local transform, so the server would rubber-band the player back. Shipping the
+            // toggle would ship a control that cannot work, so the flag stays persisted but hidden.
+
+            NLGroupBox *gDiag = [[NLGroupBox alloc] initWithTitle:@"Diagnostics" frame:CGRectMake(0, 490, colW, 220)];
+            [c1 addSubview:gDiag];
+            CGFloat dy = 30;
+
+            NLCheckbox *cbPts = RageMakeCheckbox(gRagePerTargetStats, ^(BOOL v) {
+                gRagePerTargetStats = v;
+                [ConfigManager save];
+            });
+            [gDiag addSubview:[[NLRow alloc] initWithTitle:@"Per-Target Stats" y:dy control:cbPts swatch:nil]];
+            dy += 30;
+
+            NLCheckbox *cbLog = RageMakeCheckbox(gRageLogShots, ^(BOOL v) {
+                gRageLogShots = v;
+                [ConfigManager save];
+            });
+            [gDiag addSubview:[[NLRow alloc] initWithTitle:@"Shot Log" y:dy control:cbLog swatch:nil]];
+            dy += 30;
+
+            NLSlider *sLogn = RageMakeSlider(gRageLogMax, 4.0f, 64.0f, @"", ^(float v) {
+                gRageLogMax = (int)v;
+            }, ^(float v) {
+                gRageLogMax = (int)v;
+                [ConfigManager save];
+            });
+            [gDiag addSubview:[[NLRow alloc] initWithTitle:@"Log Size" y:dy control:sLogn swatch:nil]];
+            dy += 30;
+
+            NLCheckbox *cbItf = RageMakeCheckbox(gRageIgnoreTeammatesInFov, ^(BOOL v) {
+                gRageIgnoreTeammatesInFov = v;
+                [ConfigManager save];
+            });
+            [gDiag addSubview:[[NLRow alloc] initWithTitle:@"Ignore Mates In Cone" y:dy control:cbItf swatch:nil]];
+            dy += 30;
+
+            NLCheckbox *cbDbg = RageMakeCheckbox(gRageDebug, ^(BOOL v) {
+                gRageDebug = v;
+                [ConfigManager save];
+            });
+            [gDiag addSubview:[[NLRow alloc] initWithTitle:@"Verbose Log" y:dy control:cbDbg swatch:nil]];
+            dy += 30;
+
+            NLButton *bClear = [[NLButton alloc] initWithTitle:@"Clear Target Stats"];
+            bClear.onTap = ^{
+                gRageStats.clear();
+                gRageLog.clear();
+                gRageShotSerial = 0;
+                gRageHitSerial = 0;
+                gRageLastHitSerial = 0;
+                gRageLastFireMs = 0;
+            };
+            [gDiag addSubview:[[NLRow alloc] initWithTitle:@"Reset" y:dy control:bClear swatch:nil]];
+            dy += 30;
         }
     } @catch (NSException* e) {
     }
@@ -7254,6 +8242,17 @@ static void espTick(void) {
                         gHudHitMarkerDamage = damageDelta;
                         gStatHits = gStatHits.load() + 1;
                         gStatDamage = gStatDamage.load() + damageDelta;
+
+                        // The rage pipeline reads its hit rate from the same delta the HUD
+                        // does, but only when the shot came from the rage trigger: a
+                        // teammate's damage on the same player must not inflate it.
+                        if (gRageEnabled.load() && alive(p) && p == gRageTarget.load()) {
+                            uint64_t sinceRageShot = nowMs - gRageLastFireMs.load();
+                            if (sinceRageShot < 2000) {
+                                RageNoteHit();
+                            }
+                        }
+
                         if (gDamageLogEnabled.load()) {
                             HudAddEvent(SafeFmt(@"HIT %d", damageDelta).UTF8String, 1, nowMs + (uint64_t)gEventLogDuration.load());
                         }
@@ -7621,7 +8620,13 @@ static void espTick(void) {
         
         TriggerbotTick();
         HudTick();
-        
+
+        // Rage runs last: it reads the same gCached / g_localCamera snapshot the legacy
+        // features just refreshed, and its synthetic trigger must not be overwritten by the
+        // legacy triggerbot's own release path.
+        RageTick();
+        RageAutoScopeTick();
+
         [gEspView setNeedsDisplay];
     }
 }
@@ -8146,6 +9151,14 @@ static void bootstrap(void) {
             if (p_rendSetSharedMatsMI) {
                 p_rendSetSharedMats = (fn_rendSetSharedMats)methodPtr(p_rendSetSharedMatsMI);
             }
+            p_rendSetEnabledMI = p_class_get_method_from_name(gRendererCls, "set_enabled", 1);
+            if (p_rendSetEnabledMI) {
+                p_rendSetEnabled = (fn_rendSetEnabled)methodPtr(p_rendSetEnabledMI);
+            }
+            p_rendGetEnabledMI = p_class_get_method_from_name(gRendererCls, "get_enabled", 0);
+            if (p_rendGetEnabledMI) {
+                p_rendGetEnabled = (fn_rendGetEnabled)methodPtr(p_rendGetEnabledMI);
+            }
         }
         
         void* componentCls = findClass("UnityEngine", "Component");
@@ -8303,6 +9316,22 @@ static inline bool AnyAimModeActive(void) {
     return gAimbotEnabled.load() || gHotAimbotEnabled.load() ||
            gAimOnFireEnabled.load() || gHotAimOnFireEnabled.load() ||
            gSilentAimEnabled.load() || gTriggerbotEnabled.load();
+}
+
+// LEGIT: arming an aim mode also arms the ballistics neutralisers, so the very first shot is
+// already clean instead of needing a second trip to the weapon tab. Only ever switches them on:
+// turning an aim mode off leaves the manual toggles exactly where the user put them.
+static void LegitAimModeChanged(bool on) {
+    if (!on) {
+        return;
+    }
+    if (!gNoSpreadEnabled.load()) {
+        gNoSpreadEnabled = true;
+    }
+    if (!gNoRecoilEnabled.load()) {
+        gNoRecoilEnabled = true;
+    }
+    [ConfigManager save];
 }
 
 static bool NoSpreadActive(void) {
@@ -8880,6 +9909,1246 @@ static void InstallBallisticsHooks(void) {
 }
 
 // =========================================================================================
+// RAGE CORE
+//
+// Everything in this block answers one question: "given the player list, who should the
+// weapon be pointed at, and is this frame the right moment to fire?"
+//
+// Order matches runtime:
+//   1. helpers          - distance, damage, spread, hitchance
+//   2. target selection - RagePickTarget
+//   3. aim              - RageAimAt
+//   4. fire gate        - RageCanFire / RageFire / RageReleaseTrigger
+//   5. anti-aim         - RageAntiAimTick
+//   6. bookkeeping      - RageUpdateStats / RageNoteHit / RagePruneStats
+//   7. entry point      - RageTick
+//
+// Rules kept from the rest of the file:
+//   - no view angle is ever written: aiming goes through SceneLevelCamera.LookAtTarget
+//   - every pointer goes through alive() before it is dereferenced
+//   - every float from the game goes through Math::Finite
+// =========================================================================================
+
+// -----------------------------------------------------------------------------------------
+// 1. helpers
+// -----------------------------------------------------------------------------------------
+
+static inline float RageDist(const Vec3& a, const Vec3& b) {
+    float dx = b.x - a.x;
+    float dy = b.y - a.y;
+    float dz = b.z - a.z;
+    float d = sqrtf(dx*dx + dy*dy + dz*dz);
+    if (!std::isfinite(d)) {
+        return 0.0f;
+    }
+    return d;
+}
+
+static inline float RageDistSq(const Vec3& a, const Vec3& b) {
+    float dx = b.x - a.x;
+    float dy = b.y - a.y;
+    float dz = b.z - a.z;
+    float d = dx*dx + dy*dy + dz*dz;
+    if (!std::isfinite(d)) {
+        return 0.0f;
+    }
+    return d;
+}
+
+// Advertised damage of the weapon, straight off WeaponDataRange.
+static int RageWeaponDamage(void* weapon) {
+    if (!alive(weapon)) {
+        return 0;
+    }
+    void* data = *(void**)((uintptr_t)weapon + off::kWepRangeData);
+    if (!alive(data)) {
+        return 0;
+    }
+    int dmg = *(int*)((uintptr_t)data + off::kWdrDamage);
+    if (dmg <= 0 || dmg > 1000) {
+        return 0;
+    }
+    float mul = *(float*)((uintptr_t)data + off::kWdrHeadshotMul);
+    if (!std::isfinite(mul) || mul < 1.0f || mul > 10.0f) {
+        mul = 1.0f;
+    }
+    return (int)(dmg * mul);
+}
+
+// Pellets per trigger pull. A shotgun fires several projectiles, so effective damage is
+// per-pellet times pellet count.
+static int RagePelletCount(void* weapon) {
+    if (!alive(weapon)) {
+        return 1;
+    }
+    void* data = *(void**)((uintptr_t)weapon + off::kWepRangeData);
+    if (!alive(data)) {
+        return 1;
+    }
+    int pellets = *(int*)((uintptr_t)data + off::kWdrPelletCount);
+    if (pellets <= 0 || pellets > 32) {
+        return 1;
+    }
+    return pellets;
+}
+
+// Total damage a single trigger pull is worth right now.
+static int RageShotDamage(void* weapon) {
+    int base = RageWeaponDamage(weapon);
+    if (base <= 0) {
+        return 0;
+    }
+    return base * RagePelletCount(weapon);
+}
+
+// Current spread magnitude, from the live <Spread> backing field.
+static float RageSpreadNow(void* weapon) {
+    if (!alive(weapon)) {
+        return 0.0f;
+    }
+    Vec2 sp = *(Vec2*)((uintptr_t)weapon + off::kWepSpread);
+    if (!Math::Finite(sp.x) || !Math::Finite(sp.y)) {
+        return 0.0f;
+    }
+    float m = sqrtf(sp.x * sp.x + sp.y * sp.y);
+    if (!std::isfinite(m)) {
+        return 0.0f;
+    }
+    return m;
+}
+
+// Hitchance model.
+//
+// The game rolls a random point inside a unit circle of radius = spread. The shot lands if
+// the target's angular half-size at this distance is at least the spread radius, so:
+//
+//     chance = atan(targetRadius / distance) / spread
+//
+// Conservative by construction: never above 100 %, never 0 % for a target under the
+// crosshair.
+static int RageHitchance(void* weapon, float distance, bool headshot) {
+    int cfg = gRageHitchance.load();
+    if (cfg <= 0) {
+        return 100;
+    }
+    float spread = RageSpreadNow(weapon);
+    if (spread <= 0.00001f) {
+        return 100;
+    }
+    if (!std::isfinite(distance) || distance <= 0.01f) {
+        return 100;
+    }
+
+    // Standing player: ~0.45 m across the chest, ~0.22 m across the head.
+    float targetRadius = headshot ? 0.22f : 0.45f;
+    float angular = atanf((targetRadius * 0.5f) / distance);
+    if (!std::isfinite(angular) || angular <= 0.0f) {
+        return 0;
+    }
+
+    float chance = (angular / spread) * 100.0f;
+    if (!std::isfinite(chance) || chance <= 0.0f) {
+        return 0;
+    }
+    if (chance > 100.0f) {
+        chance = 100.0f;
+    }
+
+    // Session accuracy nudges the estimate, gently. Ten shots minimum before it applies.
+    int shots = gRageShotSerial.load();
+    int hits = gRageHitSerial.load();
+    if (shots >= 10 && shots < 500) {
+        float observed = (float)hits / (float)shots * 100.0f;
+        chance = chance * 0.75f + observed * 0.25f;
+    }
+
+    return (int)chance;
+}
+
+// -----------------------------------------------------------------------------------------
+// 2. target selection
+// -----------------------------------------------------------------------------------------
+
+// Resolve the aim point for a player, honouring the point selector.
+//
+//   rg_pt 0 -> head
+//   rg_pt 1 -> chest
+//   rg_pt 2 -> pelvis
+//   rg_pt 3 -> bone nearest the crosshair
+//
+// Falls back to the head transform whenever the requested bone is missing, so a
+// half-loaded character never leaves the aim point at the origin.
+static bool RageAimPoint(void* playerChar, Vec3& outAimPos, bool& outHeadshot) {
+    outAimPos = Vec3{0.0f, 0.0f, 0.0f};
+    outHeadshot = false;
+    if (!alive(playerChar)) {
+        return false;
+    }
+
+    void* modelContainer = *(void**)((uintptr_t)playerChar + off::kCharModelContainer);
+    if (!alive(modelContainer)) {
+        return false;
+    }
+
+    Vec3 feet;
+    if (!getPosFast(modelContainer, feet) || !Math::Finite(feet)) {
+        return false;
+    }
+
+    void* ctrl = *(void**)((uintptr_t)playerChar + off::kCharController);
+    void* model = nullptr;
+    Vec3 headPos = feet;
+
+    if (alive(ctrl)) {
+        void* rv = *(void**)((uintptr_t)ctrl + off::kOtherRemoteVis);
+        if (alive(rv)) {
+            model = *(void**)((uintptr_t)rv + off::kRvModel);
+            if (alive(model)) {
+                void* ht = *(void**)((uintptr_t)model + off::kModelHead);
+                if (alive(ht)) {
+                    Vec3 h;
+                    if (getPosFast(ht, h) && Math::Finite(h)) {
+                        headPos = h;
+                    }
+                }
+            }
+        }
+    }
+
+    // A head below the feet means a stale transform; fall back to standing height.
+    if (headPos.y <= feet.y) {
+        headPos.y = feet.y + 1.62f;
+    }
+
+    Vec3 chest = headPos;  chest.y  -= 0.28f;
+    Vec3 pelvis = headPos; pelvis.y -= 0.72f;
+
+    int point = gRagePoint.load();
+    if (gRageForceBaim.load()) {
+        point = 1;
+    }
+
+    Vec3 chosen = headPos;
+    bool headshot = true;
+
+    if (point == 1) {
+        chosen = chest; headshot = false;
+    } else if (point == 2) {
+        chosen = pelvis; headshot = false;
+    } else if (point == 3 && alive(model) && p_getBoneTransform) {
+        // Nearest-to-crosshair, approximated with nearest-to-eye. The camera basis is not
+        // needed for a choice this coarse, and it saves a transform per bone.
+        void* animator = *(void**)((uintptr_t)model + off::kModelAnimator);
+        if (alive(animator)) {
+            int bones[] = {0,7,8,9,10,11,12,13,14,15,16,17,18,1,2,3,4,5,6};
+            float bestD = 1e9f;
+            for (int i = 0; i < 19; i++) {
+                void* bt = p_getBoneTransform(animator, bones[i], p_getBoneTransformMI);
+                if (!alive(bt)) {
+                    continue;
+                }
+                Vec3 bp;
+                if (!getPosFast(bt, bp) || !Math::Finite(bp)) {
+                    continue;
+                }
+                float d = RageDistSq(bp, g_localEye);
+                if (d > 0.0f && d < bestD) {
+                    bestD = d;
+                    chosen = bp;
+                    headshot = (bones[i] == 10);
+                }
+            }
+        }
+    }
+
+    outAimPos = chosen;
+    outHeadshot = headshot;
+    return Math::Finite(chosen);
+}
+
+// Score a player for the priority selector. Lower is better.
+//
+//   0 distance   - closest first
+//   1 lowest hp  - closest to dying first
+//   2 crosshair  - smallest screen distance to the crosshair
+//   3 threat     - close, weighted by how much health they still have
+static float RageScore(void* playerChar, float distance, const Vec3& aimPos, bool visible) {
+    int prio = gRagePriority.load();
+
+    if (prio == 1) {
+        int hp = *(int*)((uintptr_t)playerChar + off::kCharHealth);
+        int armor = *(int*)((uintptr_t)playerChar + off::kCharArmor);
+        int effective = (hp > 0 ? hp : 0) + (armor > 0 ? armor : 0);
+        if (!visible) {
+            effective += 500;
+        }
+        return (float)effective;
+    }
+
+    if (prio == 2) {
+        if (!alive(g_localCamera)) {
+            return distance;
+        }
+        Vec3 sp;
+        if (!w2sFast(g_localCamera, aimPos, sp) || sp.z <= 0.05f) {
+            return 99999.0f;
+        }
+        float cx = gScreenPts.width * 0.5f;
+        float cy = gScreenPts.height * 0.5f;
+        float dx = sp.x - cx;
+        float dy = sp.y - cy;
+        return sqrtf(dx*dx + dy*dy);
+    }
+
+    if (prio == 3) {
+        int hp = *(int*)((uintptr_t)playerChar + off::kCharHealth);
+        if (hp <= 0) {
+            hp = 1;
+        }
+        float threat = distance * (1.0f + (float)hp / 100.0f);
+        if (!visible) {
+            threat += 200.0f;
+        }
+        return threat;
+    }
+
+    return visible ? distance : (distance + 1000.0f);
+}
+
+// Pick the player to work on this frame. Returns the player pointer, or nullptr.
+static void* RagePickTarget(void* cam, bool& outVisible, Vec3& outAimPos, bool& outHeadshot,
+                            float& outDistance, int& outDamage) {
+    outVisible = false;
+    outAimPos = Vec3{0.0f, 0.0f, 0.0f};
+    outHeadshot = false;
+    outDistance = 0.0f;
+    outDamage = 0;
+
+    if (!alive(cam) || gCached.empty()) {
+        return nullptr;
+    }
+
+    float maxRange = gRageMaxRange.load();
+    if (!std::isfinite(maxRange) || maxRange < 10.0f) {
+        maxRange = 300.0f;
+    }
+
+    float fov = gRageFovPx.load();
+    if (!std::isfinite(fov) || fov < 20.0f) {
+        fov = 600.0f;
+    }
+
+    void* best = nullptr;
+    float bestScore = 1e9f;
+    bool bestVisible = false;
+    Vec3 bestAim = Vec3{0.0f, 0.0f, 0.0f};
+    bool bestHead = false;
+    float bestDist = 0.0f;
+    int bestDamage = 0;
+
+    uint64_t now = NowMs();
+
+    // Snapshot the lock start before the loop: gRageTargetSince is only rewritten after the
+    // winner is known, so reading it inside the loop would compare the held target against
+    // last frame's value and let a fresh lock flip-flop for one frame.
+    uint64_t lockSince = gRageTargetSince.load();
+    if (lockSince == 0) {
+        lockSince = now;
+    }
+
+    for (void* p : gCached) {
+        if (!alive(p) || p == gLocal) {
+            continue;
+        }
+        if (*(bool*)((uintptr_t)p + off::kPlayerIsDead)) {
+            continue;
+        }
+
+        int team = *(int*)((uintptr_t)p + off::kPlayerTeam);
+        if (gRageTeamCheck.load() && gTeam >= 0 && team == gTeam) {
+            continue;
+        }
+
+        void* c = *(void**)((uintptr_t)p + off::kPlayerCharacter);
+        if (!alive(c)) {
+            continue;
+        }
+        if (*(bool*)((uintptr_t)c + off::kCharIsDead)) {
+            continue;
+        }
+
+        Vec3 aimPos;
+        bool headshot = false;
+        if (!RageAimPoint(c, aimPos, headshot) || !Math::Finite(aimPos)) {
+            continue;
+        }
+
+        float dist = RageDist(g_localEye, aimPos);
+        if (!std::isfinite(dist) || dist > maxRange) {
+            continue;
+        }
+
+        // Cone check in screen space: "within N pixels of the crosshair", resolution-free.
+        Vec3 sp;
+        if (!w2sFast(cam, aimPos, sp) || sp.z <= 0.05f) {
+            continue;
+        }
+        float cx = gScreenPts.width * 0.5f;
+        float cy = gScreenPts.height * 0.5f;
+        float dx = sp.x - cx;
+        float dy = sp.y - cy;
+        float screenDist = sqrtf(dx*dx + dy*dy);
+
+        // A strafing target gets a slightly wider effective cone when the expander is on.
+        float effectiveFov = fov;
+        if (gRageHitboxExpand.load()) {
+            void* cc = *(void**)((uintptr_t)c + off::kCharController);
+            if (alive(cc)) {
+                Vec3 vel = *(Vec3*)((uintptr_t)cc + off::kMoveVelocity);
+                if (Math::Finite(vel)) {
+                    float speed = sqrtf(vel.x*vel.x + vel.z*vel.z);
+                    if (speed > 1.0f) {
+                        effectiveFov += gRageHitboxExpandPx.load();
+                    }
+                }
+            }
+        }
+
+        if (!std::isfinite(screenDist) || screenDist > effectiveFov) {
+            continue;
+        }
+
+        bool visible = true;
+        // Smoke bypass: inside 25 m a failed line-of-sight test is usually a smoke puff
+        // sitting between the camera and the target rather than a real occluder, so the
+        // target is treated as visible there. Outside that range the test still decides.
+        bool smokeRelaxed = gRageBypassSmoke.load() && dist <= 25.0f;
+        if (gRageVisibleOnly.load() && !smokeRelaxed && p_CheckSeen && alive(g_localSceneChar)) {
+            if (!p_CheckSeen(g_localSceneChar, aimPos, p_checkSeenMI)) {
+                visible = false;
+            }
+        }
+
+        float score = RageScore(c, dist, aimPos, visible);
+
+        // Switch-delay gate: hold the current target briefly so the crosshair does not
+        // snap between two enemies in the same frame.
+        void* held = gRageTarget.load();
+        if (held && held == p && now - lockSince < (uint64_t)gRageSwitchDelay.load()) {
+            score -= 50.0f;
+        }
+
+        if (score < bestScore) {
+            bestScore = score;
+            best = p;
+            bestAim = aimPos;
+            bestHead = headshot;
+            bestDist = dist;
+            bestVisible = visible;
+            bestDamage = RageShotDamage(g_localWeapon);
+        }
+    }
+
+    if (best) {
+        if (gRageTarget.load() != best) {
+            gRageTargetSince = now;
+            gRageLastTargetMs = now;
+        }
+
+        // "Ignore mates in cone": off means a teammate standing nearer the crosshair than the
+        // chosen enemy suppresses the shot, so a spray cannot be sent through a mate's back.
+        // On means teammates never factor in, which is the default for a rage build.
+        if (!gRageIgnoreTeammatesInFov.load() && gTeam >= 0 && alive(best)) {
+            float cx = gScreenPts.width * 0.5f;
+            float cy = gScreenPts.height * 0.5f;
+
+            Vec3 bestSp;
+            float bestScreen = 1e9f;
+            if (w2sFast(cam, bestAim, bestSp) && bestSp.z > 0.05f) {
+                float dx = bestSp.x - cx;
+                float dy = bestSp.y - cy;
+                bestScreen = sqrtf(dx*dx + dy*dy);
+            }
+
+            if (bestScreen < 1e8f) {
+                for (void* mate : gCached) {
+                    if (!alive(mate) || mate == best || mate == gLocal) {
+                        continue;
+                    }
+                    if (*(bool*)((uintptr_t)mate + off::kPlayerIsDead)) {
+                        continue;
+                    }
+                    if (*(int*)((uintptr_t)mate + off::kPlayerTeam) != gTeam) {
+                        continue;
+                    }
+                    void* mc = *(void**)((uintptr_t)mate + off::kPlayerCharacter);
+                    if (!alive(mc)) {
+                        continue;
+                    }
+                    void* mmc = *(void**)((uintptr_t)mc + off::kCharModelContainer);
+                    if (!alive(mmc)) {
+                        continue;
+                    }
+                    Vec3 mpos;
+                    if (!getPosFast(mmc, mpos) || !Math::Finite(mpos)) {
+                        continue;
+                    }
+                    Vec3 msp;
+                    if (!w2sFast(cam, mpos, msp) || msp.z <= 0.05f) {
+                        continue;
+                    }
+                    float mdx = msp.x - cx;
+                    float mdy = msp.y - cy;
+                    float mateScreen = sqrtf(mdx*mdx + mdy*mdy);
+                    if (mateScreen < bestScreen) {
+                        // A mate is in front of the target: hold fire this frame.
+                        best = nullptr;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (best) {
+            gRageTarget = best;
+        }
+    } else if (now - lockSince > 1000) {
+        // Nothing for a full second: drop the lock so the next pick starts clean.
+        gRageTarget = nullptr;
+    }
+
+    outVisible = bestVisible;
+    outAimPos = bestAim;
+    outHeadshot = bestHead;
+    outDistance = bestDist;
+    outDamage = bestDamage;
+    return best;
+}
+
+// -----------------------------------------------------------------------------------------
+// 3. aim
+// -----------------------------------------------------------------------------------------
+
+// Point the local scene camera at a world position.
+//
+// Goes through SceneLevelCamera.LookAtTarget, the same entry the game's own aim assist
+// uses, so no view angle is ever written into memory by hand.
+static void RageAimAt(const Vec3& aimPos) {
+    if (!p_lookAtTarget || !alive(g_localSceneChar) || !Math::Finite(aimPos)) {
+        return;
+    }
+
+    // IsBusy / IsDisable live on SceneLevelCamera (0x60 / 0x61), not on the character, so
+    // the camera has to be the object we interrogate here.
+    if (!alive(g_localCamera)) {
+        return;
+    }
+    if (*(bool*)((uintptr_t)g_localCamera + off::kCamIsDisable) ||
+        *(bool*)((uintptr_t)g_localCamera + off::kCamIsBusy)) {
+        return;
+    }
+
+    Vec3 target = aimPos;
+    float s = gRageSmooth.load();
+    if (!std::isfinite(s) || s < 0.0f) {
+        s = 0.0f;
+    }
+    if (s > 0.98f) {
+        s = 0.98f;
+    }
+
+    if (s > 0.0f) {
+        if (!Math::Finite(g_smoothTarget)) {
+            g_smoothTarget = target;
+        }
+        Vec3 diff = target - g_smoothTarget;
+        g_smoothTarget = g_smoothTarget + diff * (1.0f - s);
+        target = g_smoothTarget;
+    } else {
+        g_smoothTarget = target;
+    }
+
+    // Aim step: advance only a slice per frame, turning a hard snap into a visible sweep.
+    float step = gRageAimStep.load();
+    if (std::isfinite(step) && step > 0.0f) {
+        int steps = (int)step;
+        if (steps < 1) {
+            steps = 1;
+        }
+        if (steps > 32) {
+            steps = 32;
+        }
+        if (!g_smoothAimCursorValid || !Math::Finite(g_smoothAimCursor)) {
+            g_smoothAimCursor = target;
+            g_smoothAimCursorValid = true;
+        }
+        Vec3 from = g_smoothAimCursor;
+        g_smoothAimCursor = from + (target - from) * (1.0f / (float)steps);
+        target = g_smoothAimCursor;
+    } else {
+        g_smoothAimCursor = target;
+        g_smoothAimCursorValid = true;
+    }
+
+    if (!Math::Finite(target)) {
+        return;
+    }
+
+    p_lookAtTarget(g_localSceneChar, target, p_lookAtTargetMI);
+    gRageLastTargetMs = NowMs();
+}
+
+// -----------------------------------------------------------------------------------------
+// 4. fire gate
+// -----------------------------------------------------------------------------------------
+
+static bool RageWeaponReady() {
+    if (!alive(g_localWeapon)) {
+        return false;
+    }
+    if (*(bool*)((uintptr_t)g_localWeapon + off::kWepIsReload)) {
+        return false;
+    }
+    int ammo = *(int*)((uintptr_t)g_localWeapon + off::kWepAmmo);
+    if (ammo <= 0) {
+        return false;
+    }
+    return true;
+}
+
+static bool RageCanFire(bool visible, float distance, int damage, bool headshot, void*& outTarget) {
+    outTarget = nullptr;
+
+    if (!gRageAutoFire.load()) {
+        return false;
+    }
+    if (gRageOnKey.load() && !gRageTriggerHeld.load()) {
+        return false;
+    }
+    if (!RageWeaponReady()) {
+        return false;
+    }
+
+    uint64_t now = NowMs();
+    if (gRageBurst.load()) {
+        if (gRageBurstLeft.load() <= 0 && now < gRageBurstNextMs.load()) {
+            return false;
+        }
+    } else {
+        uint64_t since = now - gRageLastFireMs.load();
+        uint64_t need = (uint64_t)(gRageFireDelay.load() + gRageSlowAim.load());
+        if (since < need) {
+            return false;
+        }
+    }
+
+    if (gRageVisibleOnly.load() && !visible) {
+        return false;
+    }
+
+    float maxRange = gRageMaxRange.load();
+    if (!std::isfinite(maxRange) || maxRange < 10.0f) {
+        maxRange = 300.0f;
+    }
+    if (distance > maxRange) {
+        return false;
+    }
+
+    // Melee / Zeus class: only pull the trigger when the target is actually in reach.
+    if (!RageMeleeGuard(distance)) {
+        return false;
+    }
+
+    int need = gRageMinDamage.load();
+    if (need > 1) {
+        int effective = damage > 0 ? damage : RageShotDamage(g_localWeapon);
+        if (effective < need) {
+            return false;
+        }
+    }
+
+    int hc = RageHitchance(g_localWeapon, distance, headshot);
+    if (hc > 0 && hc < gRageHitchance.load()) {
+        return false;
+    }
+
+    // Air-stuck: only fire while grounded, so a jump cannot waste the shot.
+    if (gRageAirStuck.load() && alive(g_localCC)) {
+        if (!*(bool*)((uintptr_t)g_localCC + off::kMoveIsGrounded)) {
+            return false;
+        }
+    }
+
+    outTarget = gRageTarget.load();
+    return alive(outTarget);
+}
+
+// Pull the trigger through the real mobile-input path.
+//
+// Reuses TriggerbotFireDown/Up so there is exactly one place that knows how to synthesise
+// a fire event, and one place to fix if the mobile input class changes.
+static void RageFire() {
+    if (!RageWeaponReady() || gRageTriggerHeld.load()) {
+        return;
+    }
+
+    TriggerbotFireDown();
+    gRageTriggerHeld = true;
+    gRageLastFireMs = NowMs();
+    gRageShotSerial = gRageShotSerial.load() + 1;
+
+    if (gRageBurst.load()) {
+        int left = gRageBurstLeft.load();
+        if (left <= 0) {
+            left = gRageBurstCount.load();
+        }
+        left -= 1;
+        gRageBurstLeft = left;
+        if (left <= 0) {
+            gRageBurstNextMs = NowMs() + (uint64_t)gRageBurstPause.load();
+        }
+    }
+
+    if (gRageLogShots.load()) {
+        RageLogEntry e;
+        memset(&e, 0, sizeof(e));
+
+        void* t = gRageTarget.load();
+        if (alive(t)) {
+            void* ni = *(void**)((uintptr_t)t + off::kPlayerNickName);
+            NSString* nick = getIL2CPPString(ni);
+            if (nick && nick.length > 0) {
+                strncpy(e.target, [nick UTF8String], sizeof(e.target) - 1);
+            } else {
+                strncpy(e.target, "?", sizeof(e.target) - 1);
+            }
+        } else {
+            strncpy(e.target, "-", sizeof(e.target) - 1);
+        }
+
+        e.distance = 0.0f;
+        e.damage = RageShotDamage(g_localWeapon);
+        e.hit = false;
+        e.atMs = NowMs();
+
+        int maxEntries = gRageLogMax.load();
+        if (maxEntries < 4) {
+            maxEntries = 4;
+        }
+        if (maxEntries > 64) {
+            maxEntries = 64;
+        }
+        if ((int)gRageLog.size() >= maxEntries) {
+            gRageLog.erase(gRageLog.begin());
+        }
+        gRageLog.push_back(e);
+        gRageLastLogMs = NowMs();
+
+        if (gRageDebug.load()) {
+            LOG(@"[RAGE] fire -> %s dist=%.1f dmg=%d", e.target, e.distance, e.damage);
+        }
+    }
+}
+
+static void RageReleaseTrigger() {
+    if (!gRageTriggerHeld.load()) {
+        return;
+    }
+    TriggerbotFireUp();
+    gRageTriggerHeld = false;
+    if (gRageBurst.load() && gRageBurstLeft.load() <= 0) {
+        gRageBurstNextMs = NowMs() + (uint64_t)gRageBurstPause.load();
+    }
+}
+
+// -----------------------------------------------------------------------------------------
+// 4b. weapon service (reload / swap / scope)
+//
+// Everything here goes through the weapon's own public methods via runtime_invoke, so the
+// game's state machine still owns the reload, the animation and the ammo bookkeeping. No
+// ammo/reload flag is ever poked by hand.
+// -----------------------------------------------------------------------------------------
+
+// Invoke a zero/one-arg instance method resolved lazily from the live object's class.
+static void* RageInvoke(void* instance, const char* name, int argc, void** args) {
+    if (!p_runtime_invoke || !p_class_get_method_from_name || !alive(instance)) {
+        return nullptr;
+    }
+    void* klass = *(void**)instance;
+    if (!SANE_PTR(klass)) {
+        return nullptr;
+    }
+    void* mi = p_class_get_method_from_name(klass, name, argc);
+    if (!mi) {
+        return nullptr;
+    }
+    void* exc = nullptr;
+    return p_runtime_invoke(mi, instance, args, &exc);
+}
+
+// Ask the equipped weapon to reload through ItemEquipWeaponRange.Reload().
+// Falls back to RequestReload() (the [Command] wrapper) on builds where Reload is hidden.
+static void TriggerRageReload() {
+    if (!alive(g_localWeapon)) {
+        return;
+    }
+
+    void* klass = *(void**)g_localWeapon;
+    if (!SANE_PTR(klass)) {
+        return;
+    }
+
+    void* mi = p_class_get_method_from_name(klass, "Reload", 0);
+    if (!mi) {
+        mi = p_class_get_method_from_name(klass, "RequestReload", 0);
+    }
+    if (!mi) {
+        if (gRageDebug.load()) {
+            LOG(@"[RAGE] reload: no Reload()/RequestReload() on weapon class");
+        }
+        return;
+    }
+
+    void* exc = nullptr;
+    p_runtime_invoke(mi, g_localWeapon, nullptr, &exc);
+
+    if (gRageDebug.load()) {
+        LOG(@"[RAGE] reload requested (exc=%p)", exc);
+    }
+}
+
+// Swap to another inventory slot.
+//
+// slot 1 is the sidearm on the standard two-slot rig. The character resolves the slot to an
+// Item (SceneLevelCharacter.GetItemBySlot), we take its DataId and hand that to
+// SceneLevelCharacterController.EquipItem(string), which is the same path the weapon wheel
+// uses.
+static void TriggerRageSwitchWeapon(int slot) {
+    if (!alive(g_localChar)) {
+        return;
+    }
+
+    void* item = nullptr;
+    {
+        int s = slot;
+        void* args[1] = {&s};
+        item = RageInvoke(g_localChar, "GetItemBySlot", 1, args);
+    }
+    if (!alive(item)) {
+        if (gRageDebug.load()) {
+            LOG(@"[RAGE] switch weapon: slot %d empty", slot);
+        }
+        return;
+    }
+
+    void* dataId = *(void**)((uintptr_t)item + off::kItemDataId);
+    if (!SANE_PTR(dataId)) {
+        return;
+    }
+
+    void* ctrl = *(void**)((uintptr_t)g_localChar + off::kCharController);
+    if (!alive(ctrl)) {
+        return;
+    }
+
+    void* args[1] = {&dataId};
+    void* exc = nullptr;
+    void* klass = *(void**)ctrl;
+    void* mi = p_class_get_method_from_name(klass, "EquipItem", 1);
+    if (mi) {
+        p_runtime_invoke(mi, ctrl, args, &exc);
+    } else {
+        mi = p_class_get_method_from_name(klass, "RefreshEquip", 0);
+        if (mi) {
+            p_runtime_invoke(mi, ctrl, nullptr, &exc);
+        }
+    }
+
+    if (gRageDebug.load()) {
+        LOG(@"[RAGE] switch weapon -> slot %d (exc=%p)", slot, exc);
+    }
+}
+
+// Force the scope in before a shot when auto-scope is on.
+//
+// SetAimingState(bool) is the same entry the fire button uses, so the ADS animation, the
+// FOV change and the spread reduction all come from the game.
+static void RageAutoScopeTick() {
+    if (!gRageAutoScope.load() || !alive(g_localWeapon) || !gRageEnabled.load()) {
+        return;
+    }
+    if (*(bool*)((uintptr_t)g_localWeapon + off::kWepIsAiming)) {
+        return;
+    }
+    if (!gRageAutoFire.load()) {
+        return;
+    }
+    if (gRageOnKey.load() && !gRageTriggerHeld.load() && !gRageAutoAim.load()) {
+        return;
+    }
+
+    // SetAimingState(bool) takes the value by pointer, exactly like runtime_invoke wants it.
+    static bool scopeOn = true;
+    void* scopeArgs[1] = {&scopeOn};
+    RageInvoke(g_localWeapon, "SetAimingState", 1, scopeArgs);
+}
+
+// Zeus / knife class weapons only connect at hugging range. Refuse the shot past that so the
+// auto-fire path does not burn a charge on a target it cannot reach.
+static bool RageMeleeGuard(float distance) {
+    if (!gRageAutoZeus.load()) {
+        return true;
+    }
+    if (IsRangeWeapon(g_localWeapon)) {
+        return true;
+    }
+    return distance <= 3.0f;
+}
+
+// -----------------------------------------------------------------------------------------
+// 5. anti-aim
+// -----------------------------------------------------------------------------------------
+
+// Rotate the local camera state so the player model faces away, while the view stays where
+// the player is actually looking.
+//
+// Writes SceneLevelCamera::additionalRot (0x38): the same field the recoil kick lands in, so
+// the write is a bounded 8-byte window on the camera rather than a blind poke. The player's
+// real look angle (rot, 0x30) is left alone on purpose: anti-aim only needs to move the
+// rendered muzzle/hands, and leaving rot intact keeps the aim pipeline (which goes through
+// LookAtTarget) authoritative.
+static void RageAntiAimTick() {
+    // Always release the offset first, so toggling anti-aim off mid-match restores the view.
+    static Vec2 lastWritten = Vec2(0.0f, 0.0f);
+
+    if (!gRageAntiAim.load() || !alive(g_localCamera)) {
+        if (lastWritten.x != 0.0f || lastWritten.y != 0.0f) {
+            *(Vec2*)((uintptr_t)g_localCamera + off::kCamRotOffset) = Vec2(0.0f, 0.0f);
+            lastWritten = Vec2(0.0f, 0.0f);
+        }
+        return;
+    }
+
+    if (*(bool*)((uintptr_t)g_localCamera + off::kCamIsBusy) ||
+        *(bool*)((uintptr_t)g_localCamera + off::kCamIsDisable)) {
+        return;
+    }
+
+    int mode = gRageAntiAimMode.load();
+    if (mode < 0 || mode > 3) {
+        mode = 0;
+    }
+
+    float yaw = gRageAntiAimYaw.load();
+    float pitch = gRageAntiAimPitch.load();
+    if (!std::isfinite(yaw)) {
+        yaw = 180.0f;
+    }
+    if (!std::isfinite(pitch)) {
+        pitch = -89.0f;
+    }
+
+    uint64_t now = NowMs();
+
+    switch (mode) {
+        case 1: {
+            // Spin: yaw advances at a fixed rate and wraps at 360.
+            float spin = gRageAntiAimSpin.load();
+            if (!std::isfinite(spin) || spin <= 0.0f) {
+                spin = 720.0f;
+            }
+            static uint64_t spinStart = 0;
+            if (spinStart == 0) {
+                spinStart = now;
+            }
+            float dt = (float)(now - spinStart) / 1000.0f;
+            float a = fmodf(dt * spin, 360.0f);
+            if (a < 0.0f) {
+                a += 360.0f;
+            }
+            yaw = a > 180.0f ? a - 360.0f : a;
+            break;
+        }
+        case 2: {
+            // Jitter: flip between +offset and -offset every frame.
+            static bool flip = false;
+            flip = !flip;
+            yaw = flip ? yaw : -yaw;
+            pitch = flip ? pitch : -pitch * 0.5f;
+            break;
+        }
+        case 3: {
+            // Back and forth: triangle wave across the configured yaw.
+            static uint64_t t0 = 0;
+            if (t0 == 0) {
+                t0 = now;
+            }
+            float dt = (float)(now - t0) / 1000.0f;
+            float period = 1.2f;
+            float phase = fmodf(dt / period, 2.0f);
+            float tri = phase < 1.0f ? phase : 2.0f - phase;
+            yaw = (tri * 2.0f - 1.0f) * yaw;
+            break;
+        }
+        default:
+            // Static: use the configured offsets verbatim.
+            break;
+    }
+
+    if (gRageAntiAimJitter.load() && mode != 2) {
+        yaw += ((float)(arc4random_uniform(41)) / 10.0f - 2.0f);
+    }
+
+    if (!std::isfinite(yaw) || !std::isfinite(pitch)) {
+        return;
+    }
+    if (yaw > 180.0f)  yaw = 180.0f;
+    if (yaw < -180.0f) yaw = -180.0f;
+    if (pitch > 89.0f)  pitch = 89.0f;
+    if (pitch < -89.0f) pitch = -89.0f;
+
+    // Only write when the value actually changes, so a static anti-aim does not cause a
+    // dirty-frame storm.
+    Vec2 want = Vec2(yaw, pitch);
+    if (fabsf(want.x - lastWritten.x) < 0.01f && fabsf(want.y - lastWritten.y) < 0.01f) {
+        return;
+    }
+
+    *(Vec2*)((uintptr_t)g_localCamera + off::kCamRotOffset) = want;
+    lastWritten = want;
+}
+
+// -----------------------------------------------------------------------------------------
+// 6. per-target bookkeeping
+// -----------------------------------------------------------------------------------------
+
+static void RageUpdateStats(void* player, void* playerChar, float distance, bool visible) {
+    if (!gRagePerTargetStats.load() || !alive(player) || !alive(playerChar)) {
+        return;
+    }
+
+    RageTargetStat& s = gRageStats[player];
+    uint64_t now = NowMs();
+    if (s.firstSeenMs == 0) {
+        s.firstSeenMs = now;
+    }
+    s.lastSeenMs = now;
+    s.lastDistance = distance;
+    s.lastHealth = *(int*)((uintptr_t)playerChar + off::kCharHealth);
+    s.lastArmor = *(int*)((uintptr_t)playerChar + off::kCharArmor);
+    s.visible = visible;
+}
+
+// Drop stat rows for players that left the cache.
+static void RagePruneStats() {
+    if (gRageStats.empty()) {
+        return;
+    }
+    for (auto it = gRageStats.begin(); it != gRageStats.end(); ) {
+        bool found = false;
+        for (void* q : gCached) {
+            if (q == it->first) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            it = gRageStats.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
+// Note a shot against the current target.
+static void RageNoteShot() {
+    void* t = gRageTarget.load();
+    if (!alive(t)) {
+        return;
+    }
+    auto it = gRageStats.find(t);
+    if (it != gRageStats.end()) {
+        it->second.shots += 1;
+    } else {
+        RageTargetStat s;
+        s.shots = 1;
+        s.firstSeenMs = NowMs();
+        gRageStats[t] = s;
+    }
+}
+
+// Note a hit against the current target. Called from the damage-delta path in espTick.
+static void RageNoteHit() {
+    if (!gRagePerTargetStats.load()) {
+        return;
+    }
+    gRageHitSerial = gRageHitSerial.load() + 1;
+    gRageLastHitMs = NowMs();
+    gRageLastHitSerial = gRageShotSerial.load();
+
+    // Attribute the hit to the newest log row for the current target.
+    void* t = gRageTarget.load();
+    if (alive(t) && !gRageLog.empty()) {
+        for (size_t i = gRageLog.size(); i-- > 0; ) {
+            if (gRageLog[i].hit) {
+                continue;
+            }
+            gRageLog[i].hit = true;
+            break;
+        }
+    }
+
+    if (!alive(t)) {
+        return;
+    }
+    auto it = gRageStats.find(t);
+    if (it != gRageStats.end()) {
+        it->second.hits += 1;
+        if (gRagePoint.load() == 0) {
+            it->second.headshots += 1;
+        }
+    }
+}
+
+// -----------------------------------------------------------------------------------------
+// 7. entry point
+// -----------------------------------------------------------------------------------------
+
+// One RAGE frame. Called from espTick, which already runs on the display-link thread and
+// already refreshes gCached, g_localEye, g_localCamera and g_localSceneChar.
+static void RageTick() {
+    if (!gRageEnabled.load()) {
+        // Master switch off: never leave a synthetic trigger held down.
+        RageReleaseTrigger();
+        return;
+    }
+
+    if (!gAttached || !p_runtime_invoke || !p_lookAtTarget) {
+        return;
+    }
+    if (!alive(g_localSceneChar) || !alive(g_localCamera)) {
+        RageReleaseTrigger();
+        return;
+    }
+
+    uint64_t now = NowMs();
+
+    // --- aim --------------------------------------------------------------------------
+    bool visible = false;
+    Vec3 aimPos = Vec3{0.0f, 0.0f, 0.0f};
+    bool headshot = false;
+    float distance = 0.0f;
+    int damage = 0;
+    void* target = RagePickTarget(g_localCamera, visible, aimPos, headshot, distance, damage);
+
+    bool haveTarget = alive(target) && Math::Finite(aimPos);
+
+    if (gRageAutoAim.load() && haveTarget) {
+        RageAimAt(aimPos);
+    } else if (!gRageAutoAim.load()) {
+        // Auto-aim off: anchor the smooth target so re-enabling does not sweep.
+        g_smoothTarget = Vec3{0.0f, 0.0f, 0.0f};
+        g_smoothAimCursorValid = false;
+    }
+
+    // Keep the shared aim state in sync so the HUD aim line and the aim-info panel show
+    // what the rage pipeline is doing, not what the legacy aimbot would do.
+    if (haveTarget) {
+        g_targetHead = aimPos;
+        g_haveTarget = true;
+        g_silentAimTarget = aimPos;
+        g_aimTargetObj = target;
+    } else if (!gAimbotEnabled.load() && !gAimOnFireEnabled.load() && !gSilentAimEnabled.load()) {
+        // Nobody else owns the shared aim state: release it, and drop the step cursor so the
+        // next lock starts from the real position instead of sweeping in from the old one.
+        g_smoothAimCursorValid = false;
+        g_haveTarget = false;
+        g_silentAimActive = false;
+        g_aimTargetObj = nullptr;
+    }
+
+    // --- bookkeeping ------------------------------------------------------------------
+    if (haveTarget) {
+        void* c = *(void**)((uintptr_t)target + off::kPlayerCharacter);
+        RageUpdateStats(target, c, distance, visible);
+
+        if (alive(c)) {
+            void* mc = *(void**)((uintptr_t)c + off::kCharModelContainer);
+            if (alive(mc)) {
+                Vec3 tpos;
+                if (getPosFast(mc, tpos) && Math::Finite(tpos)) {
+                    gRageLastTargetPos = tpos;
+                    gRageLastTargetMs = now;
+                }
+            }
+        }
+    }
+
+    // --- trigger ----------------------------------------------------------------------
+    if (gRageAutoFire.load() && haveTarget) {
+        void* fireTarget = nullptr;
+        if (RageCanFire(visible, distance, damage, headshot, fireTarget)) {
+            RageNoteShot();
+            RageFire();
+        }
+    }
+
+    // The mobile input fire path is edge-triggered, so lift the synthetic trigger once the
+    // shot has had time to register.
+    if (gRageTriggerHeld.load()) {
+        uint64_t held = now - gRageLastFireMs.load();
+        uint64_t holdFor = gRageBurst.load() ? 60 : 90;
+        if (held >= holdFor) {
+            RageReleaseTrigger();
+        }
+    }
+
+    // --- auto reload / auto pistol ----------------------------------------------------
+    if (alive(g_localWeapon)) {
+        bool reloading = *(bool*)((uintptr_t)g_localWeapon + off::kWepIsReload);
+        int ammo = *(int*)((uintptr_t)g_localWeapon + off::kWepAmmo);
+
+        if (gRageAutoReload.load() && !reloading && ammo <= 0 && !gRageAutoStop.load()) {
+            // Reload through the weapon's own path, not by flipping the flag by hand.
+            TriggerRageReload();
+            if (gRageDebug.load() && now - gRageLastPruneMs.load() > 1000) {
+                gRageLastPruneMs = now;
+                LOG(@"[RAGE] auto reload (ammo=%d)", ammo);
+            }
+        }
+
+        if (gRageAutoPistol.load() && ammo <= 0 && !reloading) {
+            int total = *(int*)((uintptr_t)g_localWeapon + off::kWepAmmoTotal);
+            if (total <= 0) {
+                // Dry primary: try the sidearm slot. No-op if the game has no slot bound.
+                TriggerRageSwitchWeapon(1);
+            }
+        }
+    }
+
+    // --- anti-aim ---------------------------------------------------------------------
+    RageAntiAimTick();
+
+    // --- periodic housekeeping --------------------------------------------------------
+    if (now - gRageLastPruneMs.load() > 2000) {
+        gRageLastPruneMs = now;
+        RagePruneStats();
+
+        if (!gRageLog.empty()) {
+            size_t before = gRageLog.size();
+            gRageLog.erase(
+                std::remove_if(gRageLog.begin(), gRageLog.end(),
+                               [now](const RageLogEntry& e) { return now - e.atMs > 30000; }),
+                gRageLog.end());
+            if (gRageLog.size() != before && gRageDebug.load()) {
+                LOG(@"[RAGE] pruned %zu log entries", before - gRageLog.size());
+            }
+        }
+    }
+}
+
+
+// =========================================================================================
 // HUD MODEL
 // =========================================================================================
 
@@ -8925,7 +11194,7 @@ static void HudAddDamage(CGPoint pos, int amount, uint64_t until) {
         return;
     }
     if (gDamageStack.load()) {
-        uint64_t now = NowMs();
+    uint64_t now = NowMs();
         for (auto& d : gHudDamage) {
             float dx = d.pos.x - pos.x;
             float dy = d.pos.y - pos.y;
