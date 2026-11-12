@@ -5213,9 +5213,10 @@ static NLButton* RageMakeCycle(NSString* initial, NSArray<NSString*>* labels, NS
         
         CGFloat colW = (_scrollView.bounds.size.width - 45) / 2;
         CGFloat yBase = 20;
+        CGFloat columnHeight = MAX(0, _scrollView.contentSize.height - yBase);
         
-        UIView *c1 = [[UIView alloc] initWithFrame:CGRectMake(15, yBase, colW, 1100)];
-        UIView *c2 = [[UIView alloc] initWithFrame:CGRectMake(15 + colW + 15, yBase, colW, 1100)];
+        UIView *c1 = [[UIView alloc] initWithFrame:CGRectMake(15, yBase, colW, columnHeight)];
+        UIView *c2 = [[UIView alloc] initWithFrame:CGRectMake(15 + colW + 15, yBase, colW, columnHeight)];
         [_scrollView addSubview:c1];
         [_scrollView addSubview:c2];
         
