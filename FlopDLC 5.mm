@@ -358,7 +358,25 @@ namespace off {
     constexpr uint64_t kWepLastShotTime = 0x228;
     constexpr uint64_t kWepSpread = 0x1F0; // Vector2 <Spread>k__BackingField
     constexpr uint64_t kWepRecoil = 0x1F8; // Vector3 <Recoil>k__BackingField
+    constexpr uint64_t kWepRangeData = 0x1B0; // WeaponDataRange <RangeData>k__BackingField
+    constexpr uint64_t kWepOffset = 0x1D8; // Vector3 Offset
+    constexpr uint64_t kWepJyw = 0x1E4; // Vector3 jyw
+    constexpr uint64_t kWepJzc = 0x204; // Vector3 jzc
+    constexpr uint64_t kWepIsAiming = 0x1A1; // bool IsAiming
     constexpr uint64_t kDataAmmo = 0xA8;
+    constexpr uint64_t kDataRecoilPattern = 0xA0; // List<Vector2> RecoilPattern
+    constexpr uint64_t kDataFireBackOffset = 0x90; // Vector3 _fireBackOffset
+    constexpr uint64_t kDataFireBackTime = 0x9C; // float _fireBackOffsetTime
+    constexpr uint64_t kRangeShootOffset = 0xF8; // Vector2 ShootOffset
+    constexpr uint64_t kRangeSpreadMove = 0x100; // Vector2 SpreadMove
+    constexpr uint64_t kRangeOffsetCool = 0x108; // float OffsetCool
+    constexpr uint64_t kRangeStandingBallisticMul = 0x10C; // float StandingBallisticMul
+    constexpr uint64_t kRangeRecoilPatternScale = 0x110; // float RecoilPatternScale
+    constexpr uint64_t kRangeUnscopedRecoilMul = 0x114; // float UnscopedRecoilMul
+    constexpr uint64_t kCamRot = 0x30; // Vector2 rot
+    constexpr uint64_t kCamAdditionalRot = 0x38; // Vector2 additionalRot
+    constexpr uint64_t kCamStateBegin = 0x30; // SceneLevelCamera::rot
+    constexpr uint64_t kCamStateSize = 0x10; // rot + additionalRot only (safe to restore)
     
     constexpr uint64_t kMoveIsGrounded = 0x28;
     constexpr uint64_t kMoveSpeed = 0x3C;
@@ -577,6 +595,112 @@ static std::atomic<bool> gInstantReloadEnabled{false};
 static std::atomic<bool> gUnlimAmmoEnabled{false};
 static std::atomic<bool> gNoSpreadEnabled{false};
 static std::atomic<bool> gNoRecoilEnabled{false};
+
+// BALLISTICS
+static std::atomic<bool> gAutoNoSpread{true};
+static std::atomic<bool> gAutoNoRecoil{true};
+static std::atomic<bool> gBallisticsDebug{false};
+static std::atomic<bool> gSpreadFloorEnabled{false};
+static std::atomic<float> gSpreadFloor{0.0f};
+
+// HUD / VISUALS
+static std::atomic<bool> gHeadDotEnabled{true};
+static std::atomic<bool> gDistanceEnabled{true};
+static std::atomic<bool> gHealthTextEnabled{false};
+static std::atomic<bool> gHitMarkerEnabled{true};
+static std::atomic<bool> gDamageNumbersEnabled{true};
+static std::atomic<bool> gRadarEnabled{false};
+static std::atomic<bool> gCrosshairEnabled{false};
+static std::atomic<bool> gScopeOverlayEnabled{false};
+static std::atomic<bool> gAimLineEnabled{false};
+static std::atomic<bool> gTeamColorEnabled{false};
+static std::atomic<bool> gVisibleColorEnabled{false};
+static std::atomic<bool> gSnapBottomEnabled{false};
+static std::atomic<bool> gKillFeedEnabled{true};
+static std::atomic<int> gBoxStyle{0};
+static std::atomic<float> gSkelThickness{1.5f};
+static std::atomic<int> gRadarRange{60};
+static std::atomic<float> gRadarSize{120.0f};
+static std::atomic<bool> gRadarRotate{true};
+
+static UIColor* gTeamColor = [UIColor cyanColor];
+static UIColor* gVisibleColor = [UIColor greenColor];
+static UIColor* gHiddenColor = [UIColor redColor];
+static UIColor* gHitMarkerColor = [UIColor whiteColor];
+static UIColor* gRadarColor = [UIColor greenColor];
+static UIColor* gCrosshairColor = [UIColor whiteColor];
+
+struct HudPlayerInfo {
+    CGRect box;
+    CGPoint head;
+    CGPoint feet;
+    int health;
+    int armor;
+    int team;
+    bool visible;
+    float distance;
+};
+
+struct HudDamageInfo {
+    CGPoint pos;
+    int amount;
+    uint64_t until;
+};
+
+struct HudKillInfo {
+    char name[40];
+    uint64_t until;
+};
+
+struct HudRadarBlip {
+    float x;
+    float y;
+    int team;
+    bool dead;
+};
+
+static std::vector<HudPlayerInfo> gHudPlayers;
+static std::vector<HudDamageInfo> gHudDamage;
+static std::vector<HudKillInfo> gHudKills;
+static std::vector<HudRadarBlip> gHudRadar;
+static CGPoint gHudAimLineTarget = CGPointMake(0, 0);
+static bool gHudAimLineActive = false;
+static float gHudCrosshairGap = 6.0f;
+static bool gHudCrosshairVisible = false;
+static bool gHudScopeActive = false;
+static uint64_t gHudHitMarkerUntil = 0;
+static int gHudHitMarkerDamage = 0;
+
+// FPS / FRAME-TIME GRAPH
+static std::atomic<bool> gFpsEnabled{true};
+static std::atomic<int> gFpsValue{0};
+static std::atomic<float> gFrameMs{0.0f};
+static std::vector<float> gFpsHistory;
+static uint64_t gFpsLastSample = 0;
+static int gFpsFrames = 0;
+
+// BALLISTICS / HUD FORWARD DECLS
+static bool NoSpreadActive(void);
+static bool NoRecoilActive(void);
+static bool IsRangeWeapon(void* weapon);
+static void BallisticsTick(void);
+static void BallisticsWeaponTick(void* weapon);
+static void BallisticsCameraPre(void* camera);
+static void BallisticsCameraPost(void* camera);
+static void BallisticsFirePre(void);
+static void BallisticsFirePost(void);
+static void InstallBallisticsHooks(void);
+static void SetupHudView(void);
+static void HudTick(void);
+static void HudBeginFrame(void);
+static void HudAddPlayer(const HudPlayerInfo& info);
+static void HudAddDamage(CGPoint pos, int amount, uint64_t until);
+static void HudAddKill(const char* name, uint64_t until);
+static void HudAddRadar(float x, float y, int team, bool dead);
+static void HudSetAimLine(bool active, CGPoint target);
+static void HudSetCrosshair(float gap, bool visible);
+static void HudSetScope(bool active);
+static void HudSampleFrame(void);
 
 static std::atomic<bool> gCamFovEnabled{false};
 static std::atomic<bool> gAspectEnabled{false};
@@ -841,6 +965,30 @@ static NSString* getIL2CPPString(void* strObj) {
     [d setBool:gUnlimAmmoEnabled forKey:@"w_ua"];
     [d setBool:gNoSpreadEnabled forKey:@"w_ns"];
     [d setBool:gNoRecoilEnabled forKey:@"w_nr"];
+    [d setBool:gAutoNoSpread forKey:@"b_ans"];
+    [d setBool:gAutoNoRecoil forKey:@"b_anr"];
+    [d setBool:gBallisticsDebug forKey:@"b_dbg"];
+    [d setBool:gSpreadFloorEnabled forKey:@"b_sfe"];
+    [d setFloat:gSpreadFloor forKey:@"b_sf"];
+    [d setBool:gHeadDotEnabled forKey:@"h_hd"];
+    [d setBool:gDistanceEnabled forKey:@"h_dst"];
+    [d setBool:gHealthTextEnabled forKey:@"h_hp"];
+    [d setBool:gHitMarkerEnabled forKey:@"h_hm"];
+    [d setBool:gDamageNumbersEnabled forKey:@"h_dn"];
+    [d setBool:gRadarEnabled forKey:@"h_rad"];
+    [d setBool:gCrosshairEnabled forKey:@"h_ch"];
+    [d setBool:gScopeOverlayEnabled forKey:@"h_scope"];
+    [d setBool:gAimLineEnabled forKey:@"h_al"];
+    [d setBool:gTeamColorEnabled forKey:@"h_tc"];
+    [d setBool:gVisibleColorEnabled forKey:@"h_vc"];
+    [d setBool:gSnapBottomEnabled forKey:@"h_sb"];
+    [d setBool:gKillFeedEnabled forKey:@"h_kf"];
+    [d setInteger:gBoxStyle forKey:@"h_bs"];
+    [d setFloat:gSkelThickness forKey:@"h_st"];
+    [d setInteger:gRadarRange forKey:@"h_rr"];
+    [d setFloat:gRadarSize forKey:@"h_rs"];
+    [d setBool:gRadarRotate forKey:@"h_rrot"];
+    [d setBool:gFpsEnabled forKey:@"h_fps"];
     [d setBool:gNightModeEnabled forKey:@"v_nm"];
     [d setBool:gSkyboxEnabled forKey:@"v_sky_e"];
     [d setInteger:(NSInteger)gSkyboxColorHex.load() forKey:@"v_sky_c"];
@@ -865,6 +1013,12 @@ static NSString* getIL2CPPString(void* strObj) {
     [ConfigManager saveColor:gSkelColor forKey:@"c_s"];
     [ConfigManager saveColor:gNameColor forKey:@"c_n"];
     [ConfigManager saveColor:gTracerColor forKey:@"c_t"];
+    [ConfigManager saveColor:gTeamColor forKey:@"c_team"];
+    [ConfigManager saveColor:gVisibleColor forKey:@"c_vis"];
+    [ConfigManager saveColor:gHiddenColor forKey:@"c_hid"];
+    [ConfigManager saveColor:gHitMarkerColor forKey:@"c_hm"];
+    [ConfigManager saveColor:gRadarColor forKey:@"c_radar"];
+    [ConfigManager saveColor:gCrosshairColor forKey:@"c_cross"];
     [d synchronize];
 }
 
@@ -941,6 +1095,33 @@ static NSString* getIL2CPPString(void* strObj) {
     gUnlimAmmoEnabled = [d boolForKey:@"w_ua"];
     gNoSpreadEnabled = [d boolForKey:@"w_ns"];
     gNoRecoilEnabled = [d boolForKey:@"w_nr"];
+    gAutoNoSpread = [d objectForKey:@"b_ans"] ? [d boolForKey:@"b_ans"] : true;
+    gAutoNoRecoil = [d objectForKey:@"b_anr"] ? [d boolForKey:@"b_anr"] : true;
+    gBallisticsDebug = [d boolForKey:@"b_dbg"];
+    gSpreadFloorEnabled = [d boolForKey:@"b_sfe"];
+    gSpreadFloor = Math::Clamp([d floatForKey:@"b_sf"], 0.0f, 0.05f);
+    gHeadDotEnabled = [d objectForKey:@"h_hd"] ? [d boolForKey:@"h_hd"] : true;
+    gDistanceEnabled = [d objectForKey:@"h_dst"] ? [d boolForKey:@"h_dst"] : true;
+    gHealthTextEnabled = [d boolForKey:@"h_hp"];
+    gHitMarkerEnabled = [d objectForKey:@"h_hm"] ? [d boolForKey:@"h_hm"] : true;
+    gDamageNumbersEnabled = [d objectForKey:@"h_dn"] ? [d boolForKey:@"h_dn"] : true;
+    gRadarEnabled = [d boolForKey:@"h_rad"];
+    gCrosshairEnabled = [d boolForKey:@"h_ch"];
+    gScopeOverlayEnabled = [d boolForKey:@"h_scope"];
+    gAimLineEnabled = [d boolForKey:@"h_al"];
+    gTeamColorEnabled = [d objectForKey:@"h_tc"] ? [d boolForKey:@"h_tc"] : false;
+    gVisibleColorEnabled = [d objectForKey:@"h_vc"] ? [d boolForKey:@"h_vc"] : false;
+    gSnapBottomEnabled = [d boolForKey:@"h_sb"];
+    gKillFeedEnabled = [d objectForKey:@"h_kf"] ? [d boolForKey:@"h_kf"] : true;
+    gBoxStyle = (int)[d integerForKey:@"h_bs"];
+    gSkelThickness = Math::Clamp([d floatForKey:@"h_st"], 0.5f, 4.0f);
+    gRadarRange = (int)[d integerForKey:@"h_rr"];
+    if (gRadarRange < 20) {
+        gRadarRange = 60;
+    }
+    gRadarSize = Math::Clamp([d floatForKey:@"h_rs"], 70.0f, 220.0f);
+    gRadarRotate = [d objectForKey:@"h_rrot"] ? [d boolForKey:@"h_rrot"] : true;
+    gFpsEnabled = [d objectForKey:@"h_fps"] ? [d boolForKey:@"h_fps"] : true;
     
     gNightModeEnabled = [d boolForKey:@"v_nm"];
     gSkyboxEnabled = [d boolForKey:@"v_sky_e"];
@@ -994,6 +1175,12 @@ static NSString* getIL2CPPString(void* strObj) {
     gSkelColor = [ConfigManager loadColorForKey:@"c_s" defaultColor:[UIColor greenColor]];
     gNameColor = [ConfigManager loadColorForKey:@"c_n" defaultColor:[UIColor whiteColor]];
     gTracerColor = [ConfigManager loadColorForKey:@"c_t" defaultColor:[UIColor whiteColor]];
+    gTeamColor = [ConfigManager loadColorForKey:@"c_team" defaultColor:[UIColor cyanColor]];
+    gVisibleColor = [ConfigManager loadColorForKey:@"c_vis" defaultColor:[UIColor greenColor]];
+    gHiddenColor = [ConfigManager loadColorForKey:@"c_hid" defaultColor:[UIColor redColor]];
+    gHitMarkerColor = [ConfigManager loadColorForKey:@"c_hm" defaultColor:[UIColor whiteColor]];
+    gRadarColor = [ConfigManager loadColorForKey:@"c_radar" defaultColor:[UIColor greenColor]];
+    gCrosshairColor = [ConfigManager loadColorForKey:@"c_cross" defaultColor:[UIColor whiteColor]];
 }
 
 @end
@@ -1148,6 +1335,10 @@ static void ApplyViewmodelFov(void* self) {
 }
 
 static void hook_CamLateUpdate(void* self, void* mi) {
+    if (SANE_PTR(self) && self == g_localSceneChar) {
+        BallisticsCameraPre(self);
+    }
+    
     if (orig_CamLateUpdate) {
         orig_CamLateUpdate(self, mi);
     }
@@ -1158,17 +1349,10 @@ static void hook_CamLateUpdate(void* self, void* mi) {
     
     // LateUpdate runs after weapon Update — keep spread/recoil at 0 for the next shot
     if (g_localWeapon && SANE_PTR(g_localWeapon)) {
-        if (gNoSpreadEnabled) {
-            *(float*)((uintptr_t)g_localWeapon + off::kWepSpread) = 0.0f;
-            *(float*)((uintptr_t)g_localWeapon + off::kWepSpread + 0x4) = 0.0f;
-        }
-        if (gNoRecoilEnabled) {
-            float* rec = (float*)((uintptr_t)g_localWeapon + off::kWepRecoil);
-            rec[0] = 0.0f;
-            rec[1] = 0.0f;
-            rec[2] = 0.0f;
-        }
+        BallisticsWeaponTick(g_localWeapon);
     }
+    BallisticsTick();
+    BallisticsCameraPost(self);
     
     ApplyCameraOverrides(self);
     
@@ -1198,14 +1382,42 @@ static void hook_CamLateUpdate(void* self, void* mi) {
 
 static void hook_UiOnClickFireDown(void* self, void* mi) {
     ApplyAimOnFire();
+    BallisticsFirePre();
 
     if (orig_UiOnClickFireDown) {
         orig_UiOnClickFireDown(self, mi);
     }
+    
+    BallisticsFirePost();
+}
+
+typedef void (*fn_UiOnClickFire)(void* self, void* mi);
+static fn_UiOnClickFire orig_UiOnClickFire = nullptr;
+
+static void hook_UiOnClickFire(void* self, void* mi) {
+    ApplyAimOnFire();
+    BallisticsFirePre();
+
+    if (orig_UiOnClickFire) {
+        orig_UiOnClickFire(self, mi);
+    }
+    
+    BallisticsFirePost();
 }
 
 typedef void (*fn_WepUpdate)(void* self, void* mi);
 static fn_WepUpdate orig_WepUpdate = nullptr;
+static fn_WepUpdate orig_WepUpdateShotgun = nullptr;
+
+static void hook_WepUpdateShotgun(void* self, void* mi) {
+    if (orig_WepUpdateShotgun) {
+        orig_WepUpdateShotgun(self, mi);
+    }
+    if (!SANE_PTR(self)) {
+        return;
+    }
+    BallisticsWeaponTick(self);
+}
 
 static void hook_WepUpdate(void* self, void* mi) {
     if (orig_WepUpdate) {
@@ -1240,17 +1452,7 @@ static void hook_WepUpdate(void* self, void* mi) {
         *(int*)((uintptr_t)self + off::kWepAmmoTotal) = 9999;
     }
     
-    if (gNoSpreadEnabled) {
-        *(float*)((uintptr_t)self + off::kWepSpread) = 0.0f;
-        *(float*)((uintptr_t)self + off::kWepSpread + 0x4) = 0.0f;
-    }
-    
-    if (gNoRecoilEnabled) {
-        float* rec = (float*)((uintptr_t)self + off::kWepRecoil);
-        rec[0] = 0.0f;
-        rec[1] = 0.0f;
-        rec[2] = 0.0f;
-    }
+    BallisticsWeaponTick(self);
 }
 
 typedef void (*fn_MoveUpdate)(void* self, void* mi);
@@ -1303,6 +1505,10 @@ static void InstallAllHooks(void) {
             if (mi) {
                 hook_install(mi, (void*)hook_UiOnClickFireDown, (void**)&orig_UiOnClickFireDown);
             }
+            void* miFire = p_class_get_method_from_name(mobileInputsCls, "OnClickFire", 0);
+            if (miFire) {
+                hook_install(miFire, (void*)hook_UiOnClickFire, (void**)&orig_UiOnClickFire);
+            }
         }
 
         if (wepCls) {
@@ -1311,6 +1517,16 @@ static void InstallAllHooks(void) {
                 hook_install(mi, (void*)hook_WepUpdate, (void**)&orig_WepUpdate);
             }
         }
+        
+        void* shotgunCls = findClass("", "ItemEquipWeaponRangeShotgun");
+        if (shotgunCls) {
+            void* mi = p_class_get_method_from_name(shotgunCls, "Update", 0);
+            if (mi) {
+                hook_install(mi, (void*)hook_WepUpdateShotgun, (void**)&orig_WepUpdateShotgun);
+            }
+        }
+        
+        InstallBallisticsHooks();
         
         if (moveCls) {
             void* mi = p_class_get_method_from_name(moveCls, "Update", 0);
@@ -2821,6 +3037,10 @@ static UIImage* CreateKeyIcon(CGSize size, UIColor *color) {
 @property (nonatomic, strong) NSMutableArray<NSValue*>* oofDirs;
 @property (nonatomic, strong) NSMutableArray<NSValue*>* weaponBoxes;
 @property (nonatomic, strong) NSMutableArray<NSString*>* weaponLabels;
+@property (nonatomic, strong) NSMutableArray<NSValue*>* headDots;
+@property (nonatomic, strong) NSMutableArray<NSValue*>* snapLines;
+@property (nonatomic, strong) NSMutableArray<UIColor*>* boxColors;
+@property (nonatomic, strong) NSMutableArray<NSString*>* healthTexts;
 @end
 
 @implementation ESPView
@@ -2844,6 +3064,10 @@ static UIImage* CreateKeyIcon(CGSize size, UIColor *color) {
         _oofDirs = [NSMutableArray arrayWithCapacity:32];
         _weaponBoxes = [NSMutableArray arrayWithCapacity:32];
         _weaponLabels = [NSMutableArray arrayWithCapacity:32];
+        _headDots = [NSMutableArray arrayWithCapacity:32];
+        _snapLines = [NSMutableArray arrayWithCapacity:32];
+        _boxColors = [NSMutableArray arrayWithCapacity:32];
+        _healthTexts = [NSMutableArray arrayWithCapacity:32];
     }
     return self;
 }
@@ -2892,8 +3116,29 @@ static UIImage* CreateKeyIcon(CGSize size, UIColor *color) {
         
         for (NSUInteger i = 0; i < self.boxes.count; i++) {
             CGRect r = [self.boxes[i] CGRectValue];
-            CGContextSetStrokeColorWithColor(ctx, (gBoxColor ?: [UIColor redColor]).CGColor);
-            CGContextStrokeRect(ctx, r);
+            UIColor *bc = (i < self.boxColors.count) ? self.boxColors[i] : gBoxColor;
+            CGContextSetStrokeColorWithColor(ctx, (bc ?: [UIColor redColor]).CGColor);
+            
+            int boxStyle = gBoxStyle.load();
+            if (boxStyle == 1) {
+                CGFloat cl = MIN(r.size.width, r.size.height) * 0.28f;
+                CGContextSetLineWidth(ctx, 1.5);
+                CGContextMoveToPoint(ctx, r.origin.x, r.origin.y + cl);
+                CGContextAddLineToPoint(ctx, r.origin.x, r.origin.y);
+                CGContextAddLineToPoint(ctx, r.origin.x + cl, r.origin.y);
+                CGContextMoveToPoint(ctx, r.origin.x + r.size.width - cl, r.origin.y);
+                CGContextAddLineToPoint(ctx, r.origin.x + r.size.width, r.origin.y);
+                CGContextAddLineToPoint(ctx, r.origin.x + r.size.width, r.origin.y + cl);
+                CGContextMoveToPoint(ctx, r.origin.x + r.size.width, r.origin.y + r.size.height - cl);
+                CGContextAddLineToPoint(ctx, r.origin.x + r.size.width, r.origin.y + r.size.height);
+                CGContextAddLineToPoint(ctx, r.origin.x + r.size.width - cl, r.origin.y + r.size.height);
+                CGContextMoveToPoint(ctx, r.origin.x + cl, r.origin.y + r.size.height);
+                CGContextAddLineToPoint(ctx, r.origin.x, r.origin.y + r.size.height);
+                CGContextAddLineToPoint(ctx, r.origin.x, r.origin.y + r.size.height - cl);
+                CGContextStrokePath(ctx);
+            } else {
+                CGContextStrokeRect(ctx, r);
+            }
             
             if (gNameEnabled && i < self.names.count && i < self.nameTexts.count) {
                 NSString *name = SafeStr(self.names[i]);
@@ -2906,6 +3151,12 @@ static UIImage* CreateKeyIcon(CGSize size, UIColor *color) {
                 NSString *lbl = SafeStr(self.labels[i]);
                 CGSize size = [lbl sizeWithAttributes:fa];
                 [lbl drawAtPoint:CGPointMake(r.origin.x + r.size.width + 2, r.origin.y + r.size.height/2 - size.height/2) withAttributes:fa];
+            }
+            
+            if (gHealthTextEnabled && i < self.healthTexts.count) {
+                NSString *hp = SafeStr(self.healthTexts[i]);
+                CGSize hsz = [hp sizeWithAttributes:fa];
+                [hp drawAtPoint:CGPointMake(r.origin.x + r.size.width/2 - hsz.width/2, r.origin.y + r.size.height + 2) withAttributes:fa];
             }
             
             if (gHealthBarEnabled && i < self.hps.count) {
@@ -2951,12 +3202,34 @@ static UIImage* CreateKeyIcon(CGSize size, UIColor *color) {
     
     if (gSkeletonEnabled && self.skeletonLines.count > 0) {
         CGContextSetStrokeColorWithColor(ctx, (gSkelColor ?: [UIColor greenColor]).CGColor);
-        CGContextSetLineWidth(ctx, 1.5);
+        CGContextSetLineWidth(ctx, gSkelThickness.load());
         
         for (NSValue *v in self.skeletonLines) {
             CGRect r = [v CGRectValue];
             CGContextMoveToPoint(ctx, r.origin.x, r.origin.y);
             CGContextAddLineToPoint(ctx, r.size.width, r.size.height);
+        }
+        CGContextStrokePath(ctx);
+    }
+    
+    if (gHeadDotEnabled && self.headDots.count > 0) {
+        for (NSUInteger i = 0; i < self.headDots.count; i++) {
+            CGPoint p = [self.headDots[i] CGPointValue];
+            UIColor *hc = (i < self.boxColors.count) ? self.boxColors[i] : (gBoxColor ?: [UIColor redColor]);
+            CGContextSetFillColorWithColor(ctx, (hc ?: [UIColor redColor]).CGColor);
+            CGContextFillEllipseInRect(ctx, CGRectMake(p.x - 2.5, p.y - 2.5, 5.0, 5.0));
+        }
+    }
+    
+    if (gSnapBottomEnabled && self.snapLines.count > 0) {
+        CGContextSetLineWidth(ctx, 1.0);
+        CGContextSetStrokeColorWithColor(ctx, (gTracerColor ?: [UIColor whiteColor]).CGColor);
+        CGFloat bx = rect.size.width / 2.0f;
+        CGFloat by = rect.size.height;
+        for (NSValue *v in self.snapLines) {
+            CGPoint p = [v CGPointValue];
+            CGContextMoveToPoint(ctx, bx, by);
+            CGContextAddLineToPoint(ctx, p.x, p.y);
         }
         CGContextStrokePath(ctx);
     }
@@ -3253,7 +3526,7 @@ static void UpdateStreamMode(void) {
         _scrollView = [[UIScrollView alloc] initWithFrame:_content.bounds];
         _scrollView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
         _scrollView.showsVerticalScrollIndicator = NO;
-        _scrollView.contentSize = CGSizeMake(frame.size.width, 600);
+        _scrollView.contentSize = CGSizeMake(frame.size.width, 1200);
         [_content addSubview:_scrollView];
         
         [self switchToTab:0];
@@ -3325,6 +3598,20 @@ static void UpdateStreamMode(void) {
                 [[NSUserDefaults standardUserDefaults] setInteger:(NSInteger)hex forKey:weakKey];
                 [[NSUserDefaults standardUserDefaults] synchronize];
                 return;
+            }
+            
+            else if ([weakKey isEqualToString:@"c_team"]) {
+                gTeamColor = newColor;
+            } else if ([weakKey isEqualToString:@"c_vis"]) {
+                gVisibleColor = newColor;
+            } else if ([weakKey isEqualToString:@"c_hid"]) {
+                gHiddenColor = newColor;
+            } else if ([weakKey isEqualToString:@"c_hm"]) {
+                gHitMarkerColor = newColor;
+            } else if ([weakKey isEqualToString:@"c_radar"]) {
+                gRadarColor = newColor;
+            } else if ([weakKey isEqualToString:@"c_cross"]) {
+                gCrosshairColor = newColor;
             }
             
             [ConfigManager saveColor:newColor forKey:weakKey];
@@ -3407,8 +3694,8 @@ static void UpdateStreamMode(void) {
         CGFloat colW = (_scrollView.bounds.size.width - 45) / 2;
         CGFloat yBase = 20;
         
-        UIView *c1 = [[UIView alloc] initWithFrame:CGRectMake(15, yBase, colW, 600)];
-        UIView *c2 = [[UIView alloc] initWithFrame:CGRectMake(15 + colW + 15, yBase, colW, 600)];
+        UIView *c1 = [[UIView alloc] initWithFrame:CGRectMake(15, yBase, colW, 1100)];
+        UIView *c2 = [[UIView alloc] initWithFrame:CGRectMake(15 + colW + 15, yBase, colW, 1100)];
         [_scrollView addSubview:c1];
         [_scrollView addSubview:c2];
         
@@ -3712,6 +3999,210 @@ static void UpdateStreamMode(void) {
             [gChams addSubview:matSelWep];
             cy += 30;
             
+            NLGroupBox *gHud = [[NLGroupBox alloc] initWithTitle:@"HUD & Extras" frame:CGRectMake(0, 430, colW, 620)];
+            [c2 addSubview:gHud];
+            CGFloat hy = 30;
+            
+            NLCheckbox *cbHD = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbHD.isOn = gHeadDotEnabled;
+            cbHD.onToggle = ^(BOOL v) {
+                gHeadDotEnabled = v;
+                [ConfigManager save];
+            };
+            [gHud addSubview:[[NLRow alloc] initWithTitle:@"Head Dot" y:hy control:cbHD swatch:nil]];
+            hy += 30;
+            
+            NLCheckbox *cbDist = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbDist.isOn = gDistanceEnabled;
+            cbDist.onToggle = ^(BOOL v) {
+                gDistanceEnabled = v;
+                [ConfigManager save];
+            };
+            [gHud addSubview:[[NLRow alloc] initWithTitle:@"Distance" y:hy control:cbDist swatch:nil]];
+            hy += 30;
+            
+            NLCheckbox *cbHP = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbHP.isOn = gHealthTextEnabled;
+            cbHP.onToggle = ^(BOOL v) {
+                gHealthTextEnabled = v;
+                [ConfigManager save];
+            };
+            [gHud addSubview:[[NLRow alloc] initWithTitle:@"Health Text" y:hy control:cbHP swatch:nil]];
+            hy += 30;
+            
+            NLCheckbox *cbHM = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbHM.isOn = gHitMarkerEnabled;
+            cbHM.onToggle = ^(BOOL v) {
+                gHitMarkerEnabled = v;
+                [ConfigManager save];
+            };
+            [gHud addSubview:[[NLRow alloc] initWithTitle:@"Hit Marker" y:hy control:cbHM swatch:nil]];
+            hy += 30;
+            
+            NLCheckbox *cbDN = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbDN.isOn = gDamageNumbersEnabled;
+            cbDN.onToggle = ^(BOOL v) {
+                gDamageNumbersEnabled = v;
+                [ConfigManager save];
+            };
+            [gHud addSubview:[[NLRow alloc] initWithTitle:@"Damage Numbers" y:hy control:cbDN swatch:nil]];
+            hy += 30;
+            
+            NLCheckbox *cbRadar = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbRadar.isOn = gRadarEnabled;
+            cbRadar.onToggle = ^(BOOL v) {
+                gRadarEnabled = v;
+                [ConfigManager save];
+            };
+            [gHud addSubview:[[NLRow alloc] initWithTitle:@"Radar" y:hy control:cbRadar swatch:nil]];
+            hy += 30;
+            
+            NLCheckbox *cbCross = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbCross.isOn = gCrosshairEnabled;
+            cbCross.onToggle = ^(BOOL v) {
+                gCrosshairEnabled = v;
+                [ConfigManager save];
+            };
+            [gHud addSubview:[[NLRow alloc] initWithTitle:@"Dynamic Crosshair" y:hy control:cbCross swatch:nil]];
+            hy += 30;
+            
+            NLCheckbox *cbScope = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbScope.isOn = gScopeOverlayEnabled;
+            cbScope.onToggle = ^(BOOL v) {
+                gScopeOverlayEnabled = v;
+                [ConfigManager save];
+            };
+            [gHud addSubview:[[NLRow alloc] initWithTitle:@"Scope Overlay" y:hy control:cbScope swatch:nil]];
+            hy += 30;
+            
+            NLCheckbox *cbAL = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbAL.isOn = gAimLineEnabled;
+            cbAL.onToggle = ^(BOOL v) {
+                gAimLineEnabled = v;
+                [ConfigManager save];
+            };
+            [gHud addSubview:[[NLRow alloc] initWithTitle:@"Aim Line" y:hy control:cbAL swatch:nil]];
+            hy += 30;
+            
+            NLColorSwatch *swTeam = [[NLColorSwatch alloc] initWithFrame:CGRectMake(0,0,16,16)];
+            swTeam.color = gTeamColor;
+            __weak NLColorSwatch *weakSwTeam = swTeam;
+            swTeam.onTap = ^{
+                [weakSelf showColorPickerForSwatch:weakSwTeam currentColor:weakSwTeam.color saveKey:@"c_team"];
+            };
+            
+            NLCheckbox *cbTC = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbTC.isOn = gTeamColorEnabled;
+            cbTC.onToggle = ^(BOOL v) {
+                gTeamColorEnabled = v;
+                [ConfigManager save];
+            };
+            [gHud addSubview:[[NLRow alloc] initWithTitle:@"Team Colors" y:hy control:cbTC swatch:swTeam]];
+            hy += 30;
+            
+            NLColorSwatch *swVis = [[NLColorSwatch alloc] initWithFrame:CGRectMake(0,0,16,16)];
+            swVis.color = gVisibleColor;
+            __weak NLColorSwatch *weakSwVis = swVis;
+            swVis.onTap = ^{
+                [weakSelf showColorPickerForSwatch:weakSwVis currentColor:weakSwVis.color saveKey:@"c_vis"];
+            };
+            
+            NLCheckbox *cbVC = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbVC.isOn = gVisibleColorEnabled;
+            cbVC.onToggle = ^(BOOL v) {
+                gVisibleColorEnabled = v;
+                [ConfigManager save];
+            };
+            [gHud addSubview:[[NLRow alloc] initWithTitle:@"Visible Colors" y:hy control:cbVC swatch:swVis]];
+            hy += 30;
+            
+            NLCheckbox *cbSB = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbSB.isOn = gSnapBottomEnabled;
+            cbSB.onToggle = ^(BOOL v) {
+                gSnapBottomEnabled = v;
+                [ConfigManager save];
+            };
+            [gHud addSubview:[[NLRow alloc] initWithTitle:@"Snap From Bottom" y:hy control:cbSB swatch:nil]];
+            hy += 30;
+            
+            NLCheckbox *cbKF = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbKF.isOn = gKillFeedEnabled;
+            cbKF.onToggle = ^(BOOL v) {
+                gKillFeedEnabled = v;
+                [ConfigManager save];
+            };
+            [gHud addSubview:[[NLRow alloc] initWithTitle:@"Kill Feed" y:hy control:cbKF swatch:nil]];
+            hy += 30;
+            
+            NLButton *bBoxStyle = [[NLButton alloc] initWithTitle:(gBoxStyle == 0 ? @"Full" : @"Corner")];
+            __weak NLButton *weakBoxStyle = bBoxStyle;
+            bBoxStyle.onTap = ^{
+                int s = gBoxStyle;
+                s = (s == 0) ? 1 : 0;
+                gBoxStyle = s;
+                [weakBoxStyle.titleLabel setText:(s == 0 ? @"Full" : @"Corner")];
+                [ConfigManager save];
+            };
+            [gHud addSubview:[[NLRow alloc] initWithTitle:@"Box Style" y:hy control:bBoxStyle swatch:nil]];
+            hy += 30;
+            
+            NLSlider *sSkel = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@"px"];
+            sSkel.min = 0.5f;
+            sSkel.max = 4.0f;
+            sSkel.value = gSkelThickness;
+            sSkel.onChange = ^(float v) {
+                gSkelThickness = v;
+            };
+            sSkel.onRelease = ^(float v) {
+                [ConfigManager save];
+            };
+            [gHud addSubview:[[NLRow alloc] initWithTitle:@"Skeleton Width" y:hy control:sSkel swatch:nil]];
+            hy += 30;
+            
+            NLSlider *sRadarRange = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@"m"];
+            sRadarRange.min = 20.0f;
+            sRadarRange.max = 150.0f;
+            sRadarRange.value = (float)gRadarRange;
+            sRadarRange.onChange = ^(float v) {
+                gRadarRange = (int)v;
+            };
+            sRadarRange.onRelease = ^(float v) {
+                [ConfigManager save];
+            };
+            [gHud addSubview:[[NLRow alloc] initWithTitle:@"Radar Range" y:hy control:sRadarRange swatch:nil]];
+            hy += 30;
+            
+            NLSlider *sRadarSize = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@"px"];
+            sRadarSize.min = 70.0f;
+            sRadarSize.max = 220.0f;
+            sRadarSize.value = gRadarSize;
+            sRadarSize.onChange = ^(float v) {
+                gRadarSize = v;
+            };
+            sRadarSize.onRelease = ^(float v) {
+                [ConfigManager save];
+            };
+            [gHud addSubview:[[NLRow alloc] initWithTitle:@"Radar Size" y:hy control:sRadarSize swatch:nil]];
+            hy += 30;
+            
+            NLCheckbox *cbRR = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbRR.isOn = gRadarRotate;
+            cbRR.onToggle = ^(BOOL v) {
+                gRadarRotate = v;
+                [ConfigManager save];
+            };
+            [gHud addSubview:[[NLRow alloc] initWithTitle:@"Radar Rotate" y:hy control:cbRR swatch:nil]];
+            hy += 30;
+            
+            NLCheckbox *cbFps = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbFps.isOn = gFpsEnabled;
+            cbFps.onToggle = ^(BOOL v) {
+                gFpsEnabled = v;
+                [ConfigManager save];
+            };
+            [gHud addSubview:[[NLRow alloc] initWithTitle:@"FPS Graph" y:hy control:cbFps swatch:nil]];
+            hy += 30;
+            
         } else if (_currentTab == 2) {
             NLGroupBox *gWV = [[NLGroupBox alloc] initWithTitle:@"World View" frame:CGRectMake(0, 0, colW, 240)];
             [c1 addSubview:gWV];
@@ -3933,7 +4424,7 @@ static void UpdateStreamMode(void) {
             [gMove addSubview:[[NLRow alloc] initWithTitle:@"Jump Multi" y:y control:sJmp swatch:nil]];
             y += 30;
             
-            NLGroupBox *gWeapon = [[NLGroupBox alloc] initWithTitle:@"Weapon" frame:CGRectMake(0, 0, colW, 300)];
+            NLGroupBox *gWeapon = [[NLGroupBox alloc] initWithTitle:@"Weapon" frame:CGRectMake(0, 0, colW, 480)];
             [c2 addSubview:gWeapon];
             y = 30;
             
@@ -3980,6 +4471,55 @@ static void UpdateStreamMode(void) {
                 [ConfigManager save];
             };
             [gWeapon addSubview:[[NLRow alloc] initWithTitle:@"No Recoil" y:y control:cbNR swatch:nil]];
+            y += 30;
+            
+            NLCheckbox *cbANS = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbANS.isOn = gAutoNoSpread;
+            cbANS.onToggle = ^(BOOL v) {
+                gAutoNoSpread = v;
+                [ConfigManager save];
+            };
+            [gWeapon addSubview:[[NLRow alloc] initWithTitle:@"No Spread (Aimbot)" y:y control:cbANS swatch:nil]];
+            y += 30;
+            
+            NLCheckbox *cbANR = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbANR.isOn = gAutoNoRecoil;
+            cbANR.onToggle = ^(BOOL v) {
+                gAutoNoRecoil = v;
+                [ConfigManager save];
+            };
+            [gWeapon addSubview:[[NLRow alloc] initWithTitle:@"No Recoil (Aimbot)" y:y control:cbANR swatch:nil]];
+            y += 30;
+            
+            NLCheckbox *cbSFE = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbSFE.isOn = gSpreadFloorEnabled;
+            cbSFE.onToggle = ^(BOOL v) {
+                gSpreadFloorEnabled = v;
+                [ConfigManager save];
+            };
+            [gWeapon addSubview:[[NLRow alloc] initWithTitle:@"Spread Floor" y:y control:cbSFE swatch:nil]];
+            y += 30;
+            
+            NLSlider *sFloor = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@""];
+            sFloor.min = 0.0f;
+            sFloor.max = 0.02f;
+            sFloor.value = gSpreadFloor;
+            sFloor.onChange = ^(float v) {
+                gSpreadFloor = v;
+            };
+            sFloor.onRelease = ^(float v) {
+                [ConfigManager save];
+            };
+            [gWeapon addSubview:[[NLRow alloc] initWithTitle:@"Floor Value" y:y control:sFloor swatch:nil]];
+            y += 30;
+            
+            NLCheckbox *cbBD = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbBD.isOn = gBallisticsDebug;
+            cbBD.onToggle = ^(BOOL v) {
+                gBallisticsDebug = v;
+                [ConfigManager save];
+            };
+            [gWeapon addSubview:[[NLRow alloc] initWithTitle:@"Ballistics Debug" y:y control:cbBD swatch:nil]];
             y += 30;
             
         } else if (_currentTab == 4) {
@@ -4677,6 +5217,20 @@ static void espTick(void) {
         [gEspView.oofDirs removeAllObjects];
         [gEspView.weaponBoxes removeAllObjects];
         [gEspView.weaponLabels removeAllObjects];
+        [gEspView.headDots removeAllObjects];
+        [gEspView.snapLines removeAllObjects];
+        [gEspView.boxColors removeAllObjects];
+        [gEspView.healthTexts removeAllObjects];
+        
+        HudBeginFrame();
+        
+        float localYaw = 0.0f;
+        if (alive(g_localCamTransform) && p_tfGetEuler) {
+            Vec3 le = p_tfGetEuler(g_localCamTransform, p_tfGetEulerMI);
+            if (Math::Finite(le)) {
+                localYaw = le.y;
+            }
+        }
         
         void* best = nullptr;
         float bestScore = 99999.0f;
@@ -4716,6 +5270,22 @@ static void espTick(void) {
                 continue;
             }
             
+            if (gRadarEnabled) {
+                void* rmc = *(void**)((uintptr_t)c + off::kCharModelContainer);
+                if (alive(rmc)) {
+                    Vec3 rfp;
+                    if (getPosFast(rmc, rfp)) {
+                        float rdx = rfp.x - g_localEye.x;
+                        float rdz = rfp.z - g_localEye.z;
+                        float yawRad = gRadarRotate ? (-localYaw * Math::DEG2RAD) : 0.0f;
+                        float rx = rdx * cosf(yawRad) - rdz * sinf(yawRad);
+                        float rz = rdx * sinf(yawRad) + rdz * cosf(yawRad);
+                        HudAddRadar(rx, rz, tm, *(bool*)((uintptr_t)p + off::kPlayerIsDead));
+                    }
+                }
+            }
+            
+            int damageDelta = 0;
             if (enemyTeam) {
                 int curH = *(int*)((uintptr_t)c + off::kCharHealth);
                 auto it = gLastEnemyHealth.find(p);
@@ -4723,9 +5293,19 @@ static void espTick(void) {
                     int prevH = it->second;
                     
                     if (prevH > 0 && curH < prevH && recentShot) {
+                        damageDelta = prevH - curH;
+                        gHudHitMarkerUntil = nowMs + 220;
+                        gHudHitMarkerDamage = damageDelta;
+                        
                         if (curH == 0) {
                             if (gKillSoundEnabled) {
                                 PlayKillSound();
+                            }
+                            
+                            void* nickObj = *(void**)((uintptr_t)p + off::kPlayerNickName);
+                            NSString* nick = getIL2CPPString(nickObj);
+                            if (nick && nick.length > 0 && gKillFeedEnabled) {
+                                HudAddKill([nick UTF8String], nowMs + 6000);
                             }
                         } else if (gHitSoundEnabled) {
                             if (nowMs - g_lastHitSoundTime > 100) {
@@ -4809,7 +5389,9 @@ static void espTick(void) {
             }
             
             bool isVisible = true;
-            if (gAimbotVisibleOnly && p_CheckSeen && g_localSceneChar) {
+            bool needVisCheck = gAimbotVisibleOnly ||
+                                (gVisibleColorEnabled && (gEspEnabled || gHotEspEnabled));
+            if (needVisCheck && p_CheckSeen && g_localSceneChar) {
                 if (!p_CheckSeen(g_localSceneChar, aimPos, p_checkSeenMI)) {
                     isVisible = false;
                 }
@@ -4835,10 +5417,43 @@ static void espTick(void) {
                         int hh = *(int*)((uintptr_t)c + off::kCharHealth);
                         int aa = *(int*)((uintptr_t)c + off::kCharArmor);
                         
+                        UIColor* boxColor = gBoxColor;
+                        if (gTeamColorEnabled) {
+                            boxColor = gTeamColor;
+                        }
+                        if (gVisibleColorEnabled) {
+                            boxColor = isVisible ? gVisibleColor : gHiddenColor;
+                        }
+                        
                         [gEspView.boxes addObject:[NSValue valueWithCGRect:CGRectMake(xx, yy, bw, bh)]];
                         [gEspView.labels addObject:SafeFmt(@"%.0fm", realDist)];
                         [gEspView.hps addObject:@(hh > 0 ? hh : 0)];
                         [gEspView.armors addObject:@(aa > 0 ? aa : 0)];
+                        [gEspView.boxColors addObject:(boxColor ?: [UIColor redColor])];
+                        [gEspView.headDots addObject:[NSValue valueWithCGPoint:CGPointMake(xh, yh)]];
+                        
+                        if (gSnapBottomEnabled) {
+                            [gEspView.snapLines addObject:[NSValue valueWithCGPoint:CGPointMake(xh, yh)]];
+                        }
+                        
+                        if (gHealthTextEnabled) {
+                            [gEspView.healthTexts addObject:SafeFmt(@"%d", hh > 0 ? hh : 0)];
+                        }
+                        
+                        HudPlayerInfo hpi;
+                        hpi.box = CGRectMake(xx, yy, bw, bh);
+                        hpi.head = CGPointMake(xh, yh);
+                        hpi.feet = CGPointMake(xh, yf);
+                        hpi.health = hh > 0 ? hh : 0;
+                        hpi.armor = aa > 0 ? aa : 0;
+                        hpi.team = tm;
+                        hpi.visible = isVisible;
+                        hpi.distance = realDist;
+                        HudAddPlayer(hpi);
+                        
+                        if (damageDelta > 0 && gDamageNumbersEnabled) {
+                            HudAddDamage(CGPointMake(xh, yh - 12.0f), damageDelta, nowMs + 900);
+                        }
                         
                         if (gNameEnabled) {
                             void* nickObj = *(void**)((uintptr_t)p + off::kPlayerNickName);
@@ -4964,6 +5579,32 @@ static void espTick(void) {
             g_silentAimActive = false;
             g_haveTarget = false;
         }
+        
+        if (gAimLineEnabled && g_haveTarget) {
+            Vec3 sa;
+            if (w2sFast(cam, bestAimPos, sa) && sa.z > 0.05f) {
+                CGFloat ax = (sa.x * sX) / gScreenScale;
+                CGFloat ay = gScreenPts.height - ((sa.y * sY) / gScreenScale);
+                HudSetAimLine(true, CGPointMake(ax, ay));
+            } else {
+                HudSetAimLine(false, CGPointMake(0, 0));
+            }
+        } else {
+            HudSetAimLine(false, CGPointMake(0, 0));
+        }
+        
+        bool localAiming = false;
+        float localSpread = 0.0f;
+        if (alive(g_localWeapon) && IsRangeWeapon(g_localWeapon)) {
+            localAiming = *(bool*)((uintptr_t)g_localWeapon + off::kWepIsAiming);
+            Vec2 sp = *(Vec2*)((uintptr_t)g_localWeapon + off::kWepSpread);
+            if (Math::Finite(sp.x) && Math::Finite(sp.y)) {
+                localSpread = sqrtf(sp.x * sp.x + sp.y * sp.y);
+            }
+        }
+        HudSetCrosshair(6.0f + localSpread * 160.0f, gCrosshairEnabled);
+        HudSetScope(localAiming && gScopeOverlayEnabled);
+        HudTick();
         
         [gEspView setNeedsDisplay];
     }
@@ -5131,6 +5772,8 @@ static void startMainUI(void) {
             gEspView = [[ESPView alloc] initWithFrame:gMainWin.bounds];
             gEspView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
             [gOverlayContainer addSubview:gEspView];
+            
+            SetupHudView();
             
             gHotZone = [[HotZoneView alloc] initWithFrame:CGRectMake((gMainWin.bounds.size.width - 60)/2, (gMainWin.bounds.size.height - 60)/2, 60, 60)];
             [gOverlayContainer addSubview:gHotZone];
@@ -5590,3 +6233,897 @@ static void ctor(void) {
         bootstrap();
     });
 }
+
+// =========================================================================================
+// BALLISTICS CORE — WORKING NO SPREAD / NO RECOIL
+// =========================================================================================
+// Layers, in order of strength:
+//   1. WeaponDataRange asset neutralization (ShootOffset / SpreadMove / RecoilPatternScale /
+//      StandingBallisticMul / UnscopedRecoilMul / _fireBackOffset). This is the data the
+//      weapon reads when it builds the shot direction, so zeroing it removes the source.
+//   2. Runtime state neutralization (<Spread>, <Recoil>, Offset, jyw, jzc) every tick and
+//      immediately around UseProcess / Update / camera LateUpdate.
+//   3. Method-slot hooks for GetSpreadMultiplier and UseProcess. They cover reflection and
+//      runtime-invoke paths and return an exact zero multiplier when the feature is active.
+//   4. UnityEngine.Random.insideUnitCircle / insideUnitSphere hooks. If the shot code uses
+//      the standard Unity random circle for pellet/cone jitter, this kills that jitter too.
+//   5. Camera snapshot around the fire button. Recoil that is applied to the view inside the
+//      shot call is rolled back immediately, so the crosshair does not climb.
+// =========================================================================================
+
+struct RangeSnapshot {
+    void* klass;
+    Vec2 shootOffset;
+    Vec2 spreadMove;
+    float offsetCool;
+    float standingMul;
+    float patternScale;
+    float unscopedMul;
+    Vec3 fireBackOffset;
+    float fireBackTime;
+};
+
+static std::unordered_map<void*, RangeSnapshot> gRangeSnapshots;
+static std::atomic<bool> gRangeApplied{false};
+static void* gRangeClassPtr = nullptr;
+static void* gShotgunClassPtr = nullptr;
+static std::atomic<uint64_t> gLastBallisticsLog{0};
+static std::atomic<uint64_t> gSpreadWindowUntil{0};
+
+static inline float SpreadFloorValue(void) {
+    if (!gSpreadFloorEnabled.load()) {
+        return 0.0f;
+    }
+    float v = gSpreadFloor.load();
+    if (!std::isfinite(v) || v < 0.0f) {
+        return 0.0f;
+    }
+    return Math::Clamp(v, 0.0f, 0.02f);
+}
+
+static bool NoSpreadActive(void) {
+    if (gNoSpreadEnabled.load()) {
+        return true;
+    }
+    if (!gAutoNoSpread.load()) {
+        return false;
+    }
+    return gAimbotEnabled.load() || gHotAimbotEnabled.load() ||
+           gAimOnFireEnabled.load() || gHotAimOnFireEnabled.load();
+}
+
+static bool NoRecoilActive(void) {
+    if (gNoRecoilEnabled.load()) {
+        return true;
+    }
+    if (!gAutoNoRecoil.load()) {
+        return false;
+    }
+    return gAimbotEnabled.load() || gHotAimbotEnabled.load() ||
+           gAimOnFireEnabled.load() || gHotAimOnFireEnabled.load();
+}
+
+// ItemEquipWeaponRange and ItemEquipWeaponRangeShotgun are the only classes that own the
+// spread/recoil fields. Grenade and melee items share the ItemEquipWeapon base and are
+// much smaller, so writing range offsets into them would corrupt the heap. Never touch a
+// weapon unless its il2cpp class pointer matches one of the two range classes.
+static bool IsRangeWeapon(void* weapon) {
+    if (!SANE_PTR(weapon)) {
+        return false;
+    }
+    if (!gRangeClassPtr && !gShotgunClassPtr) {
+        return false;
+    }
+    void* klass = *(void**)weapon;
+    if (!SANE_PTR(klass)) {
+        return false;
+    }
+    return klass == gRangeClassPtr || (gShotgunClassPtr && klass == gShotgunClassPtr);
+}
+
+static void CaptureRangeData(void* data) {
+    if (!SANE_PTR(data)) {
+        return;
+    }
+    if (gRangeSnapshots.find(data) != gRangeSnapshots.end()) {
+        return;
+    }
+    
+    RangeSnapshot snap;
+    snap.klass = *(void**)data;
+    snap.shootOffset = *(Vec2*)((uintptr_t)data + off::kRangeShootOffset);
+    snap.spreadMove = *(Vec2*)((uintptr_t)data + off::kRangeSpreadMove);
+    snap.offsetCool = *(float*)((uintptr_t)data + off::kRangeOffsetCool);
+    snap.standingMul = *(float*)((uintptr_t)data + off::kRangeStandingBallisticMul);
+    snap.patternScale = *(float*)((uintptr_t)data + off::kRangeRecoilPatternScale);
+    snap.unscopedMul = *(float*)((uintptr_t)data + off::kRangeUnscopedRecoilMul);
+    snap.fireBackOffset = *(Vec3*)((uintptr_t)data + off::kDataFireBackOffset);
+    snap.fireBackTime = *(float*)((uintptr_t)data + off::kDataFireBackTime);
+    gRangeSnapshots[data] = snap;
+}
+
+static void ApplyRangeData(void* data) {
+    if (!SANE_PTR(data)) {
+        return;
+    }
+    CaptureRangeData(data);
+    
+    float floorValue = SpreadFloorValue();
+    Vec2 offset(floorValue, floorValue);
+    
+    *(Vec2*)((uintptr_t)data + off::kRangeShootOffset) = offset;
+    *(Vec2*)((uintptr_t)data + off::kRangeSpreadMove) = Vec2(0.0f, 0.0f);
+    *(float*)((uintptr_t)data + off::kRangeOffsetCool) = 0.0f;
+    *(float*)((uintptr_t)data + off::kRangeStandingBallisticMul) = 0.0f;
+    *(float*)((uintptr_t)data + off::kRangeRecoilPatternScale) = 0.0f;
+    *(float*)((uintptr_t)data + off::kRangeUnscopedRecoilMul) = 0.0f;
+    *(Vec3*)((uintptr_t)data + off::kDataFireBackOffset) = Vec3(0.0f, 0.0f, 0.0f);
+    *(float*)((uintptr_t)data + off::kDataFireBackTime) = 0.0f;
+}
+
+static void RestoreRangeData(void) {
+    if (!gRangeApplied.load() && gRangeSnapshots.empty()) {
+        return;
+    }
+    
+    for (auto& kv : gRangeSnapshots) {
+        void* data = kv.first;
+        RangeSnapshot& snap = kv.second;
+        if (!SANE_PTR(data)) {
+            continue;
+        }
+        // Guard against a recycled address: only restore if the object still has the
+        // same il2cpp class pointer that it had when the snapshot was taken.
+        if (!SANE_PTR(snap.klass) || *(void**)data != snap.klass) {
+            continue;
+        }
+        
+        *(Vec2*)((uintptr_t)data + off::kRangeShootOffset) = snap.shootOffset;
+        *(Vec2*)((uintptr_t)data + off::kRangeSpreadMove) = snap.spreadMove;
+        *(float*)((uintptr_t)data + off::kRangeOffsetCool) = snap.offsetCool;
+        *(float*)((uintptr_t)data + off::kRangeStandingBallisticMul) = snap.standingMul;
+        *(float*)((uintptr_t)data + off::kRangeRecoilPatternScale) = snap.patternScale;
+        *(float*)((uintptr_t)data + off::kRangeUnscopedRecoilMul) = snap.unscopedMul;
+        *(Vec3*)((uintptr_t)data + off::kDataFireBackOffset) = snap.fireBackOffset;
+        *(float*)((uintptr_t)data + off::kDataFireBackTime) = snap.fireBackTime;
+    }
+    
+    gRangeSnapshots.clear();
+    gRangeApplied = false;
+}
+
+static void PatchWeaponRangeData(void* weapon) {
+    if (!IsRangeWeapon(weapon)) {
+        return;
+    }
+    void* data = *(void**)((uintptr_t)weapon + off::kWepRangeData);
+    if (!SANE_PTR(data)) {
+        return;
+    }
+    ApplyRangeData(data);
+    gRangeApplied = true;
+}
+
+static void ZeroSpreadRuntime(void* weapon) {
+    if (!IsRangeWeapon(weapon)) {
+        return;
+    }
+    float floorValue = SpreadFloorValue();
+    *(Vec2*)((uintptr_t)weapon + off::kWepSpread) = Vec2(floorValue, floorValue);
+}
+
+static void ZeroRecoilRuntime(void* weapon) {
+    if (!IsRangeWeapon(weapon)) {
+        return;
+    }
+    *(Vec3*)((uintptr_t)weapon + off::kWepRecoil) = Vec3(0.0f, 0.0f, 0.0f);
+    *(Vec3*)((uintptr_t)weapon + off::kWepOffset) = Vec3(0.0f, 0.0f, 0.0f);
+    *(Vec3*)((uintptr_t)weapon + off::kWepJyw) = Vec3(0.0f, 0.0f, 0.0f);
+    *(Vec3*)((uintptr_t)weapon + off::kWepJzc) = Vec3(0.0f, 0.0f, 0.0f);
+}
+
+static void BallisticsWeaponTick(void* weapon) {
+    if (!IsRangeWeapon(weapon)) {
+        return;
+    }
+    
+    bool noSpread = NoSpreadActive();
+    bool noRecoil = NoRecoilActive();
+    if (!noSpread && !noRecoil) {
+        return;
+    }
+    
+    if (noSpread) {
+        PatchWeaponRangeData(weapon);
+        ZeroSpreadRuntime(weapon);
+    }
+    if (noRecoil) {
+        ZeroRecoilRuntime(weapon);
+    }
+}
+
+static void BallisticsCameraPre(void* camera) {
+    if (!SANE_PTR(camera)) {
+        return;
+    }
+    
+    if (NoRecoilActive()) {
+        *(Vec2*)((uintptr_t)camera + off::kCamAdditionalRot) = Vec2(0.0f, 0.0f);
+    }
+    if (alive(g_localWeapon)) {
+        BallisticsWeaponTick(g_localWeapon);
+    }
+}
+
+static void BallisticsCameraPost(void* camera) {
+    if (!SANE_PTR(camera)) {
+        return;
+    }
+    
+    if (NoRecoilActive()) {
+        *(Vec2*)((uintptr_t)camera + off::kCamAdditionalRot) = Vec2(0.0f, 0.0f);
+    }
+}
+
+static unsigned char gFireCamSnapshot[off::kCamStateSize];
+static bool gFireCamSnapshotValid = false;
+
+static void BallisticsFirePre(void) {
+    gFireCamSnapshotValid = false;
+    if (NoSpreadActive()) {
+        gSpreadWindowUntil = NowMs() + 300;
+    }
+    
+    if (!NoRecoilActive()) {
+        return;
+    }
+    if (!SANE_PTR(g_localSceneChar)) {
+        return;
+    }
+    
+    memcpy(gFireCamSnapshot,
+           (void*)((uintptr_t)g_localSceneChar + off::kCamStateBegin),
+           off::kCamStateSize);
+    gFireCamSnapshotValid = true;
+    
+    if (alive(g_localWeapon)) {
+        BallisticsWeaponTick(g_localWeapon);
+    }
+}
+
+static void BallisticsFirePost(void) {
+    if (!gFireCamSnapshotValid) {
+        return;
+    }
+    gFireCamSnapshotValid = false;
+    
+    if (!SANE_PTR(g_localSceneChar)) {
+        return;
+    }
+    
+    memcpy((void*)((uintptr_t)g_localSceneChar + off::kCamStateBegin),
+           gFireCamSnapshot,
+           off::kCamStateSize);
+    
+    if (alive(g_localWeapon)) {
+        BallisticsWeaponTick(g_localWeapon);
+    }
+}
+
+static void BallisticsTick(void) {
+    bool noSpread = NoSpreadActive();
+    bool noRecoil = NoRecoilActive();
+    
+    if (!noSpread && !noRecoil) {
+        if (gRangeApplied.load()) {
+            RestoreRangeData();
+        }
+        return;
+    }
+    
+    if (alive(g_localWeapon)) {
+        if (noSpread) {
+            PatchWeaponRangeData(g_localWeapon);
+        }
+        if (noSpread) {
+            ZeroSpreadRuntime(g_localWeapon);
+        }
+        if (noRecoil) {
+            ZeroRecoilRuntime(g_localWeapon);
+        }
+    }
+    
+    // SceneLevelCamera owns rot (0x30) and additionalRot (0x38); recoil kick lands in
+    // additionalRot. The Unity Camera component is a separate object (0x48), so the
+    // write has to target the SceneLevelCamera instance itself.
+    if (noRecoil && SANE_PTR(g_localSceneChar)) {
+        *(Vec2*)((uintptr_t)g_localSceneChar + off::kCamAdditionalRot) = Vec2(0.0f, 0.0f);
+    }
+    
+    uint64_t now = NowMs();
+    if (gBallisticsDebug.load() && now - gLastBallisticsLog.load() > 2000) {
+        gLastBallisticsLog = now;
+        if (IsRangeWeapon(g_localWeapon)) {
+            void* data = *(void**)((uintptr_t)g_localWeapon + off::kWepRangeData);
+            Vec2 sp = *(Vec2*)((uintptr_t)g_localWeapon + off::kWepSpread);
+            Vec3 rc = *(Vec3*)((uintptr_t)g_localWeapon + off::kWepRecoil);
+            LOG(@"[BALL] spread=(%.4f,%.4f) recoil=(%.4f,%.4f,%.4f) data=%p shoot=(%.4f,%.4f) scale=%.4f",
+                sp.x, sp.y, rc.x, rc.y, rc.z, data,
+                SANE_PTR(data) ? ((Vec2*)((uintptr_t)data + off::kRangeShootOffset))->x : 0.0f,
+                SANE_PTR(data) ? ((Vec2*)((uintptr_t)data + off::kRangeShootOffset))->y : 0.0f,
+                SANE_PTR(data) ? *(float*)((uintptr_t)data + off::kRangeRecoilPatternScale) : 0.0f);
+        }
+    }
+}
+
+// =========================================================================================
+// BALLISTICS HOOKS
+// =========================================================================================
+
+typedef Vec2 (*fn_GetSpreadMultiplier)(void*, void*, void*);
+static fn_GetSpreadMultiplier orig_GetSpreadMultiplier = nullptr;
+
+static Vec2 hook_GetSpreadMultiplier(void* self, void* info, void* mi) {
+    if (NoSpreadActive()) {
+        return Vec2(SpreadFloorValue(), SpreadFloorValue());
+    }
+    if (orig_GetSpreadMultiplier) {
+        return orig_GetSpreadMultiplier(self, info, mi);
+    }
+    return Vec2(0.0f, 0.0f);
+}
+
+typedef void (*fn_UseProcess)(void*, void*, void*);
+static fn_UseProcess orig_UseProcess = nullptr;
+
+static void hook_UseProcess(void* self, void* info, void* mi) {
+    BallisticsFirePre();
+    if (NoSpreadActive()) {
+        BallisticsWeaponTick(self);
+    }
+    
+    if (orig_UseProcess) {
+        orig_UseProcess(self, info, mi);
+    }
+    
+    if (NoSpreadActive() || NoRecoilActive()) {
+        BallisticsWeaponTick(self);
+    }
+    BallisticsFirePost();
+}
+
+typedef Vec2 (*fn_GetInsideUnitCircle)(void*);
+static fn_GetInsideUnitCircle orig_GetInsideUnitCircle = nullptr;
+
+static Vec2 hook_GetInsideUnitCircle(void* mi) {
+    // Only suppress during the fire window: Unity.Random is shared with VFX, grenade
+    // physics and UI, so a permanent zero would visibly break unrelated systems.
+    if (NoSpreadActive() && NowMs() < gSpreadWindowUntil.load()) {
+        return Vec2(0.0f, 0.0f);
+    }
+    if (orig_GetInsideUnitCircle) {
+        return orig_GetInsideUnitCircle(mi);
+    }
+    return Vec2(0.0f, 0.0f);
+}
+
+typedef Vec3 (*fn_GetInsideUnitSphere)(void*);
+static fn_GetInsideUnitSphere orig_GetInsideUnitSphere = nullptr;
+
+static Vec3 hook_GetInsideUnitSphere(void* mi) {
+    if (NoSpreadActive() && NowMs() < gSpreadWindowUntil.load()) {
+        return Vec3(0.0f, 0.0f, 0.0f);
+    }
+    if (orig_GetInsideUnitSphere) {
+        return orig_GetInsideUnitSphere(mi);
+    }
+    return Vec3(0.0f, 0.0f, 0.0f);
+}
+
+static void InstallBallisticsHooks(void) {
+    @try {
+        void* rangeCls = findClass("", "ItemEquipWeaponRange");
+        gRangeClassPtr = rangeCls;
+        gShotgunClassPtr = findClass("", "ItemEquipWeaponRangeShotgun");
+        if (rangeCls) {
+            void* miSpread = p_class_get_method_from_name(rangeCls, "GetSpreadMultiplier", 1);
+            if (miSpread) {
+                hook_install(miSpread, (void*)hook_GetSpreadMultiplier, (void**)&orig_GetSpreadMultiplier);
+                LOG(@"[BALL] GetSpreadMultiplier hook installed");
+            }
+            
+            void* miUse = p_class_get_method_from_name(rangeCls, "UseProcess", 1);
+            if (miUse) {
+                hook_install(miUse, (void*)hook_UseProcess, (void**)&orig_UseProcess);
+                LOG(@"[BALL] UseProcess hook installed");
+            }
+        }
+        
+        void* randomCls = findClass("UnityEngine", "Random");
+        if (randomCls) {
+            void* miCircle = p_class_get_method_from_name(randomCls, "get_insideUnitCircle", 0);
+            if (miCircle) {
+                hook_install(miCircle, (void*)hook_GetInsideUnitCircle, (void**)&orig_GetInsideUnitCircle);
+                LOG(@"[BALL] insideUnitCircle hook installed");
+            }
+            void* miSphere = p_class_get_method_from_name(randomCls, "get_insideUnitSphere", 0);
+            if (miSphere) {
+                hook_install(miSphere, (void*)hook_GetInsideUnitSphere, (void**)&orig_GetInsideUnitSphere);
+                LOG(@"[BALL] insideUnitSphere hook installed");
+            }
+        }
+    } @catch (NSException* e) {
+        LOG(@"[BALL] hooks: %@", SafeStr([e reason]));
+    }
+}
+
+// =========================================================================================
+// HUD MODEL
+// =========================================================================================
+
+static void HudBeginFrame(void) {
+    gHudPlayers.clear();
+    gHudRadar.clear();
+    gHudAimLineActive = false;
+    gHudCrosshairVisible = false;
+    gHudScopeActive = false;
+    
+    uint64_t now = NowMs();
+    for (auto it = gHudDamage.begin(); it != gHudDamage.end(); ) {
+        if (it->until <= now) {
+            it = gHudDamage.erase(it);
+        } else {
+            ++it;
+        }
+    }
+    for (auto it = gHudKills.begin(); it != gHudKills.end(); ) {
+        if (it->until <= now) {
+            it = gHudKills.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
+static void HudAddPlayer(const HudPlayerInfo& info) {
+    if (gHudPlayers.size() < 128) {
+        gHudPlayers.push_back(info);
+    }
+}
+
+static void HudAddDamage(CGPoint pos, int amount, uint64_t until) {
+    if (!gDamageNumbersEnabled.load()) {
+        return;
+    }
+    if (gHudDamage.size() >= 48) {
+        gHudDamage.erase(gHudDamage.begin());
+    }
+    HudDamageInfo d;
+    d.pos = pos;
+    d.amount = amount;
+    d.until = until;
+    gHudDamage.push_back(d);
+}
+
+static void HudAddKill(const char* name, uint64_t until) {
+    if (!gKillFeedEnabled.load() || !name) {
+        return;
+    }
+    if (gHudKills.size() >= 8) {
+        gHudKills.erase(gHudKills.begin());
+    }
+    HudKillInfo k;
+    memset(k.name, 0, sizeof(k.name));
+    strncpy(k.name, name, sizeof(k.name) - 1);
+    k.until = until;
+    gHudKills.push_back(k);
+}
+
+static void HudAddRadar(float x, float y, int team, bool dead) {
+    if (!gRadarEnabled.load()) {
+        return;
+    }
+    if (gHudRadar.size() >= 128) {
+        gHudRadar.erase(gHudRadar.begin());
+    }
+    HudRadarBlip b;
+    b.x = x;
+    b.y = y;
+    b.team = team;
+    b.dead = dead;
+    gHudRadar.push_back(b);
+}
+
+static void HudSetAimLine(bool active, CGPoint target) {
+    gHudAimLineActive = active;
+    gHudAimLineTarget = target;
+}
+
+static void HudSetCrosshair(float gap, bool visible) {
+    gHudCrosshairGap = Math::Clamp(gap, 2.0f, 80.0f);
+    gHudCrosshairVisible = visible;
+}
+
+static void HudSetScope(bool active) {
+    gHudScopeActive = active;
+}
+
+// =========================================================================================
+// HUD VIEW
+// =========================================================================================
+
+@class HudView;
+
+static HudView* gHudView = nil;
+
+static void HudSampleFrame(void) {
+    uint64_t now = NowMs();
+    if (gFpsLastSample == 0) {
+        gFpsLastSample = now;
+        gFpsFrames = 0;
+        return;
+    }
+    
+    gFpsFrames++;
+    uint64_t elapsed = now - gFpsLastSample;
+    if (elapsed < 500) {
+        return;
+    }
+    
+    float fps = (float)gFpsFrames * 1000.0f / (float)elapsed;
+    if (fps < 0.0f) {
+        fps = 0.0f;
+    }
+    if (fps > 999.0f) {
+        fps = 999.0f;
+    }
+    
+    gFpsValue = (int)(fps + 0.5f);
+    gFrameMs = (float)elapsed / (float)gFpsFrames;
+    
+    if (gFpsHistory.size() >= 120) {
+        gFpsHistory.erase(gFpsHistory.begin());
+    }
+    gFpsHistory.push_back(fps);
+    
+    gFpsFrames = 0;
+    gFpsLastSample = now;
+}
+
+static void HudTick(void) {
+    HudSampleFrame();
+    if (gHudView) {
+        [gHudView setNeedsDisplay];
+    }
+}
+
+@interface HudView : UIView
+@end
+
+@implementation HudView
+
+- (instancetype)initWithFrame:(CGRect)frame {
+    self = [super initWithFrame:frame];
+    if (self) {
+        self.backgroundColor = [UIColor clearColor];
+        self.userInteractionEnabled = NO;
+        self.opaque = NO;
+        self.clearsContextBeforeDrawing = NO;
+        self.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    }
+    return self;
+}
+
+- (void)drawScopeOverlay:(CGContextRef)ctx rect:(CGRect)rect {
+    if (!gHudScopeActive || !gScopeOverlayEnabled) {
+        return;
+    }
+    
+    CGFloat w = rect.size.width;
+    CGFloat h = rect.size.height;
+    CGFloat radius = MIN(w, h) * 0.42f;
+    CGRect hole = CGRectMake(w/2 - radius, h/2 - radius, radius * 2, radius * 2);
+    
+    CGMutablePathRef path = CGPathCreateMutable();
+    CGPathAddRect(path, NULL, rect);
+    CGPathAddEllipseInRect(path, NULL, hole);
+    
+    CGContextSetFillColorWithColor(ctx, [UIColor colorWithWhite:0.0 alpha:0.88].CGColor);
+    CGContextAddPath(ctx, path);
+    CGContextEOFillPath(ctx);
+    CGPathRelease(path);
+    
+    CGContextSetStrokeColorWithColor(ctx, [UIColor colorWithWhite:0.0 alpha:0.95].CGColor);
+    CGContextSetLineWidth(ctx, 2.0);
+    CGContextStrokeEllipseInRect(ctx, hole);
+}
+
+- (void)drawRadar:(CGContextRef)ctx rect:(CGRect)rect {
+    if (!gRadarEnabled) {
+        return;
+    }
+    
+    CGFloat size = Math::Clamp(gRadarSize.load(), 70.0f, 220.0f);
+    CGFloat margin = 24.0f;
+    CGFloat cx = rect.size.width - margin - size / 2.0f;
+    CGFloat cy = rect.size.height - margin - size / 2.0f;
+    CGFloat radius = size / 2.0f;
+    
+    CGContextSetFillColorWithColor(ctx, [UIColor colorWithWhite:0.0 alpha:0.38].CGColor);
+    CGContextFillEllipseInRect(ctx, CGRectMake(cx - radius, cy - radius, size, size));
+    
+    CGContextSetStrokeColorWithColor(ctx, (gRadarColor ?: [UIColor greenColor]).CGColor);
+    CGContextSetLineWidth(ctx, 1.0);
+    CGContextStrokeEllipseInRect(ctx, CGRectMake(cx - radius, cy - radius, size, size));
+    CGContextStrokeEllipseInRect(ctx, CGRectMake(cx - radius * 0.66f, cy - radius * 0.66f, radius * 1.32f, radius * 1.32f));
+    CGContextStrokeEllipseInRect(ctx, CGRectMake(cx - radius * 0.33f, cy - radius * 0.33f, radius * 0.66f, radius * 0.66f));
+    
+    CGContextMoveToPoint(ctx, cx - radius, cy);
+    CGContextAddLineToPoint(ctx, cx + radius, cy);
+    CGContextMoveToPoint(ctx, cx, cy - radius);
+    CGContextAddLineToPoint(ctx, cx, cy + radius);
+    CGContextStrokePath(ctx);
+    
+    float range = (float)Math::Clamp((float)gRadarRange.load(), 20.0f, 150.0f);
+    float scale = radius / range;
+    
+    for (const HudRadarBlip& b : gHudRadar) {
+        float px = cx + b.x * scale;
+        float py = cy + b.y * scale;
+        float dx = px - cx;
+        float dy = py - cy;
+        float len = sqrtf(dx * dx + dy * dy);
+        if (len > radius) {
+            px = cx + dx / len * radius;
+            py = cy + dy / len * radius;
+        }
+        
+        UIColor* color = (b.team == gTeam && gTeam >= 0) ? [UIColor cyanColor] : [UIColor redColor];
+        if (b.dead) {
+            color = [UIColor grayColor];
+        }
+        
+        CGContextSetFillColorWithColor(ctx, color.CGColor);
+        CGContextFillEllipseInRect(ctx, CGRectMake(px - 2.5f, py - 2.5f, 5.0f, 5.0f));
+    }
+    
+    CGContextSetFillColorWithColor(ctx, [UIColor whiteColor].CGColor);
+    CGContextFillEllipseInRect(ctx, CGRectMake(cx - 2.0f, cy - 2.0f, 4.0f, 4.0f));
+}
+
+- (void)drawCrosshair:(CGContextRef)ctx rect:(CGRect)rect {
+    if (!gHudCrosshairVisible || !gCrosshairEnabled) {
+        return;
+    }
+    
+    CGFloat cx = rect.size.width / 2.0f;
+    CGFloat cy = rect.size.height / 2.0f;
+    CGFloat gap = gHudCrosshairGap;
+    CGFloat len = 9.0f;
+    
+    CGContextSetStrokeColorWithColor(ctx, (gCrosshairColor ?: [UIColor whiteColor]).CGColor);
+    CGContextSetLineWidth(ctx, 1.4);
+    
+    CGContextMoveToPoint(ctx, cx - gap - len, cy);
+    CGContextAddLineToPoint(ctx, cx - gap, cy);
+    CGContextMoveToPoint(ctx, cx + gap, cy);
+    CGContextAddLineToPoint(ctx, cx + gap + len, cy);
+    CGContextMoveToPoint(ctx, cx, cy - gap - len);
+    CGContextAddLineToPoint(ctx, cx, cy - gap);
+    CGContextMoveToPoint(ctx, cx, cy + gap);
+    CGContextAddLineToPoint(ctx, cx, cy + gap + len);
+    CGContextStrokePath(ctx);
+    
+    CGContextSetFillColorWithColor(ctx, (gCrosshairColor ?: [UIColor whiteColor]).CGColor);
+    CGContextFillEllipseInRect(ctx, CGRectMake(cx - 1.5f, cy - 1.5f, 3.0f, 3.0f));
+}
+
+- (void)drawHitMarker:(CGContextRef)ctx rect:(CGRect)rect {
+    if (!gHitMarkerEnabled) {
+        return;
+    }
+    
+    uint64_t now = NowMs();
+    if (now >= gHudHitMarkerUntil) {
+        return;
+    }
+    
+    float remain = (float)(gHudHitMarkerUntil - now) / 220.0f;
+    remain = Math::Clamp(remain, 0.0f, 1.0f);
+    
+    CGFloat cx = rect.size.width / 2.0f;
+    CGFloat cy = rect.size.height / 2.0f;
+    CGFloat s = 9.0f + (1.0f - remain) * 5.0f;
+    
+    UIColor* color = gHitMarkerColor ?: [UIColor whiteColor];
+    CGContextSetStrokeColorWithColor(ctx, [color colorWithAlphaComponent:remain].CGColor);
+    CGContextSetLineWidth(ctx, 2.0);
+    
+    CGContextMoveToPoint(ctx, cx - s, cy - s);
+    CGContextAddLineToPoint(ctx, cx - 3, cy - 3);
+    CGContextMoveToPoint(ctx, cx + s, cy - s);
+    CGContextAddLineToPoint(ctx, cx + 3, cy - 3);
+    CGContextMoveToPoint(ctx, cx - s, cy + s);
+    CGContextAddLineToPoint(ctx, cx - 3, cy + 3);
+    CGContextMoveToPoint(ctx, cx + s, cy + s);
+    CGContextAddLineToPoint(ctx, cx + 3, cy + 3);
+    CGContextStrokePath(ctx);
+}
+
+- (void)drawDamageNumbers:(CGContextRef)ctx rect:(CGRect)rect {
+    if (!gDamageNumbersEnabled) {
+        return;
+    }
+    
+    static UIFont* dmgFont = nil;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        dmgFont = [UIFont boldSystemFontOfSize:13];
+    });
+    
+    uint64_t now = NowMs();
+    for (const HudDamageInfo& d : gHudDamage) {
+        if (d.until <= now) {
+            continue;
+        }
+        float remain = (float)(d.until - now) / 900.0f;
+        remain = Math::Clamp(remain, 0.0f, 1.0f);
+        NSString* text = SafeFmt(@"-%d", d.amount);
+        NSDictionary* attrs = @{
+            NSFontAttributeName: dmgFont ?: [UIFont boldSystemFontOfSize:13],
+            NSForegroundColorAttributeName: [[UIColor colorWithRed:1.0 green:0.75 blue:0.1 alpha:remain] copy]
+        };
+        CGSize sz = [text sizeWithAttributes:attrs];
+        [text drawAtPoint:CGPointMake(d.pos.x - sz.width/2, d.pos.y - (1.0f - remain) * 24.0f) withAttributes:attrs];
+    }
+}
+
+- (void)drawKillFeed:(CGContextRef)ctx rect:(CGRect)rect {
+    if (!gKillFeedEnabled) {
+        return;
+    }
+    
+    static UIFont* kfFont = nil;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        kfFont = [UIFont boldSystemFontOfSize:11];
+    });
+    
+    CGFloat x = rect.size.width - 12.0f;
+    CGFloat y = 90.0f;
+    uint64_t now = NowMs();
+    
+    for (const HudKillInfo& k : gHudKills) {
+        if (k.until <= now) {
+            continue;
+        }
+        float remain = (float)(k.until - now) / 6000.0f;
+        remain = Math::Clamp(remain, 0.0f, 1.0f);
+        NSString* text = SafeFmt(@"[FlopDLC] %s", k.name);
+        NSDictionary* attrs = @{
+            NSFontAttributeName: kfFont ?: [UIFont boldSystemFontOfSize:11],
+            NSForegroundColorAttributeName: [[UIColor colorWithRed:1.0 green:0.35 blue:0.35 alpha:remain] copy]
+        };
+        CGSize sz = [text sizeWithAttributes:attrs];
+        [text drawAtPoint:CGPointMake(x - sz.width, y) withAttributes:attrs];
+        y += sz.height + 3.0f;
+    }
+}
+
+- (void)drawAimLine:(CGContextRef)ctx rect:(CGRect)rect {
+    if (!gAimLineEnabled || !gHudAimLineActive) {
+        return;
+    }
+    
+    CGFloat cx = rect.size.width / 2.0f;
+    CGFloat cy = rect.size.height / 2.0f;
+    
+    CGContextSetStrokeColorWithColor(ctx, [UIColor colorWithRed:0.9 green:0.2 blue:0.9 alpha:0.8].CGColor);
+    CGContextSetLineWidth(ctx, 1.2);
+    CGFloat dash[] = {5.0, 4.0};
+    CGContextSetLineDash(ctx, 0.0, dash, 2);
+    CGContextMoveToPoint(ctx, cx, cy);
+    CGContextAddLineToPoint(ctx, gHudAimLineTarget.x, gHudAimLineTarget.y);
+    CGContextStrokePath(ctx);
+    CGContextSetLineDash(ctx, 0.0, NULL, 0);
+}
+
+- (void)drawFpsGraph:(CGContextRef)ctx rect:(CGRect)rect {
+    if (!gFpsEnabled) {
+        return;
+    }
+    
+    static UIFont* fpsFont = nil;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        fpsFont = [UIFont boldSystemFontOfSize:10];
+    });
+    
+    CGFloat w = 132.0f;
+    CGFloat h = 46.0f;
+    CGFloat x = 10.0f;
+    CGFloat y = 10.0f;
+    
+    CGContextSetFillColorWithColor(ctx, [UIColor colorWithWhite:0.0 alpha:0.45].CGColor);
+    CGContextFillRect(ctx, CGRectMake(x, y, w, h));
+    CGContextSetStrokeColorWithColor(ctx, [UIColor colorWithWhite:0.5 alpha:0.6].CGColor);
+    CGContextSetLineWidth(ctx, 0.8);
+    CGContextStrokeRect(ctx, CGRectMake(x, y, w, h));
+    
+    int fps = gFpsValue.load();
+    float ms = gFrameMs.load();
+    UIColor* fpsColor = [UIColor greenColor];
+    if (fps < 50) {
+        fpsColor = [UIColor yellowColor];
+    }
+    if (fps < 30) {
+        fpsColor = [UIColor redColor];
+    }
+    
+    NSString* line = SafeFmt(@"%d FPS  %.1f ms", fps, ms);
+    NSDictionary* attrs = @{
+        NSFontAttributeName: fpsFont ?: [UIFont boldSystemFontOfSize:10],
+        NSForegroundColorAttributeName: fpsColor
+    };
+    [line drawAtPoint:CGPointMake(x + 6.0f, y + 3.0f) withAttributes:attrs];
+    
+    CGFloat graphY = y + 18.0f;
+    CGFloat graphH = h - 22.0f;
+    CGFloat graphW = w - 12.0f;
+    CGFloat stepX = graphW / 119.0f;
+    
+    CGContextSetStrokeColorWithColor(ctx, [UIColor colorWithWhite:0.25 alpha:0.7].CGColor);
+    CGContextSetLineWidth(ctx, 0.5);
+    CGContextMoveToPoint(ctx, x + 6.0f, graphY + graphH / 2.0f);
+    CGContextAddLineToPoint(ctx, x + 6.0f + graphW, graphY + graphH / 2.0f);
+    CGContextStrokePath(ctx);
+    
+    if (gFpsHistory.size() >= 2) {
+        CGContextSetStrokeColorWithColor(ctx, fpsColor.CGColor);
+        CGContextSetLineWidth(ctx, 1.2);
+        
+        CGFloat baseX = x + 6.0f + graphW - ((CGFloat)(gFpsHistory.size() - 1) * stepX);
+        bool started = false;
+        for (NSUInteger i = 0; i < gFpsHistory.size(); i++) {
+            float v = gFpsHistory[i];
+            v = Math::Clamp(v, 0.0f, 120.0f);
+            CGFloat px = baseX + (CGFloat)i * stepX;
+            CGFloat py = graphY + graphH - (v / 120.0f) * graphH;
+            if (!started) {
+                CGContextMoveToPoint(ctx, px, py);
+                started = true;
+            } else {
+                CGContextAddLineToPoint(ctx, px, py);
+            }
+        }
+        CGContextStrokePath(ctx);
+    }
+}
+
+- (void)drawRect:(CGRect)rect {
+    CGContextRef ctx = UIGraphicsGetCurrentContext();
+    if (!ctx) {
+        return;
+    }
+    
+    [self drawFpsGraph:ctx rect:rect];
+    [self drawScopeOverlay:ctx rect:rect];
+    [self drawRadar:ctx rect:rect];
+    [self drawAimLine:ctx rect:rect];
+    [self drawCrosshair:ctx rect:rect];
+    [self drawHitMarker:ctx rect:rect];
+    [self drawDamageNumbers:ctx rect:rect];
+    [self drawKillFeed:ctx rect:rect];
+}
+
+@end
+
+static void SetupHudView(void) {
+    if (gHudView || !gEspView) {
+        return;
+    }
+    gHudView = [[HudView alloc] initWithFrame:gEspView.bounds];
+    gHudView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    [gEspView addSubview:gHudView];
+}
+
