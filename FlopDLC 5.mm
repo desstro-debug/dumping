@@ -157,6 +157,16 @@ static void LOG(NSString* format, ...) {
     }
 }
 
+// Any non-finite float that reaches a %f/%d format string is rendered by UIKit as the
+// literal text "nan" or "inf". A single bad value (weapon data, velocity, config) then
+// paints "nan" over the HUD/ESP. Clamp at the source and scrub the formatted result.
+static inline float ClampFinite(float v, float lo, float hi, float fallback) {
+    if (!std::isfinite(v)) {
+        return fallback;
+    }
+    return Math::Clamp(v, lo, hi);
+}
+
 static NSString* SafeFmt(NSString* fmt, ...) {
     @try {
         va_list args;
@@ -165,6 +175,17 @@ static NSString* SafeFmt(NSString* fmt, ...) {
         va_end(args);
         
         if (s) {
+            // Only scrub numeric formats so a nickname like "Nan" is never touched.
+            if (fmt && ([fmt rangeOfString:@"%f"].location != NSNotFound ||
+                        [fmt rangeOfString:@"%."].location != NSNotFound ||
+                        [fmt rangeOfString:@"%d"].location != NSNotFound ||
+                        [fmt rangeOfString:@"%l"].location != NSNotFound)) {
+                NSString* low = [s lowercaseString];
+                if ([low rangeOfString:@"nan"].location != NSNotFound ||
+                    [low rangeOfString:@"inf"].location != NSNotFound) {
+                    return @"0";
+                }
+            }
             return s;
         }
         return @"";
@@ -1105,7 +1126,7 @@ static NSString* getIL2CPPString(void* strObj) {
         gAimBone = 10;
     }
     
-    gSilentAimEnabled = false; // Hardcoded disabled
+    gSilentAimEnabled = [d boolForKey:@"a_s"];
     gHotAimbotEnabled = [d boolForKey:@"h_ab"];
     gHotAimOnFireEnabled = [d boolForKey:@"h_af"];
     gHotEspEnabled = [d boolForKey:@"h_es"];
@@ -1115,19 +1136,19 @@ static NSString* getIL2CPPString(void* strObj) {
     }
     
     gPredictionEnabled = [d boolForKey:@"a_p"];
-    gAimbotSmooth = [d floatForKey:@"a_sm"];
-    gAimOnFireSmooth = Math::Clamp([d floatForKey:@"a_of_sm"], 0.0f, 1.0f);
+    gAimbotSmooth = ClampFinite([d floatForKey:@"a_sm"], 0.0f, 1.0f, 0.0f);
+    gAimOnFireSmooth = ClampFinite([d floatForKey:@"a_of_sm"], 0.0f, 1.0f, 0.0f);
     gAimbotVisibleOnly = [d boolForKey:@"a_vo"];
     gAimbotNoTeam = [d boolForKey:@"a_nt"];
     
     gSpeedHackEnabled = [d boolForKey:@"m_sh"];
-    gSpeedHackVal = [d floatForKey:@"m_shv"];
+    gSpeedHackVal = ClampFinite([d floatForKey:@"m_shv"], 0.1f, 10.0f, 1.0f);
     if (gSpeedHackVal <= 0) {
         gSpeedHackVal = 1.0f;
     }
     
     gJumpHackEnabled = [d boolForKey:@"m_jh"];
-    gJumpHackVal = [d floatForKey:@"m_jhv"];
+    gJumpHackVal = ClampFinite([d floatForKey:@"m_jhv"], 0.1f, 10.0f, 1.0f);
     if (gJumpHackVal <= 0) {
         gJumpHackVal = 1.0f;
     }
@@ -1166,7 +1187,7 @@ static NSString* getIL2CPPString(void* strObj) {
     gAutoNoRecoil = [d objectForKey:@"b_anr"] ? [d boolForKey:@"b_anr"] : true;
     gBallisticsDebug = [d boolForKey:@"b_dbg"];
     gSpreadFloorEnabled = [d boolForKey:@"b_sfe"];
-    gSpreadFloor = Math::Clamp([d floatForKey:@"b_sf"], 0.0f, 0.05f);
+    gSpreadFloor = ClampFinite([d floatForKey:@"b_sf"], 0.0f, 0.05f, 0.0f);
     gHeadDotEnabled = [d objectForKey:@"h_hd"] ? [d boolForKey:@"h_hd"] : true;
     gDistanceEnabled = [d objectForKey:@"h_dst"] ? [d boolForKey:@"h_dst"] : true;
     gHealthTextEnabled = [d boolForKey:@"h_hp"];
@@ -1181,12 +1202,12 @@ static NSString* getIL2CPPString(void* strObj) {
     gSnapBottomEnabled = [d boolForKey:@"h_sb"];
     gKillFeedEnabled = [d objectForKey:@"h_kf"] ? [d boolForKey:@"h_kf"] : true;
     gBoxStyle = (int)[d integerForKey:@"h_bs"];
-    gSkelThickness = Math::Clamp([d floatForKey:@"h_st"], 0.5f, 4.0f);
+    gSkelThickness = ClampFinite([d floatForKey:@"h_st"], 0.5f, 4.0f, 1.5f);
     gRadarRange = (int)[d integerForKey:@"h_rr"];
     if (gRadarRange < 20) {
         gRadarRange = 60;
     }
-    gRadarSize = Math::Clamp([d floatForKey:@"h_rs"], 70.0f, 220.0f);
+    gRadarSize = ClampFinite([d floatForKey:@"h_rs"], 70.0f, 220.0f, 120.0f);
     gRadarRotate = [d objectForKey:@"h_rrot"] ? [d boolForKey:@"h_rrot"] : true;
     gFpsEnabled = [d objectForKey:@"h_fps"] ? [d boolForKey:@"h_fps"] : true;
     
@@ -1199,21 +1220,18 @@ static NSString* getIL2CPPString(void* strObj) {
     gSkyboxDirty = true;
     
     gFullbrightEnabled = [d boolForKey:@"wv_fb"];
-    gFullbrightMul = [d floatForKey:@"wv_fbm"];
-    if (gFullbrightMul < 1.0f) {
-        gFullbrightMul = 3.0f;
-    }
+    gFullbrightMul = ClampFinite([d floatForKey:@"wv_fbm"], 1.0f, 20.0f, 3.0f);
     gNoFogEnabled = [d boolForKey:@"wv_nf"];
     gAmbientTintEnabled = [d boolForKey:@"wv_amb_e"];
     gAmbientColorHex = (uint32_t)[d integerForKey:@"wv_amb_c"];
     if (gAmbientColorHex == 0) {
         gAmbientColorHex = 0xFFFFFFFF;
     }
-    gSaturationVal = [d floatForKey:@"wv_sat"];
-    gContrastVal = [d floatForKey:@"wv_con"];
-    gGammaVal = [d floatForKey:@"wv_gam"];
-    gBloomVal = [d floatForKey:@"wv_bloom"];
-    gSharpenVal = [d floatForKey:@"wv_sharp"];
+    gSaturationVal = ClampFinite([d floatForKey:@"wv_sat"], -1.0f, 1.0f, 0.0f);
+    gContrastVal = ClampFinite([d floatForKey:@"wv_con"], -1.0f, 1.0f, 0.0f);
+    gGammaVal = ClampFinite([d floatForKey:@"wv_gam"], -1.0f, 1.0f, 0.0f);
+    gBloomVal = ClampFinite([d floatForKey:@"wv_bloom"], 0.0f, 5.0f, 0.0f);
+    gSharpenVal = ClampFinite([d floatForKey:@"wv_sharp"], 0.0f, 5.0f, 0.0f);
     gGradingDirty = true;
     
     gChamsPlayerEnabled = [d boolForKey:@"v_chams_pl_e"];
@@ -1436,13 +1454,23 @@ static void hook_CamLateUpdate(void* self, void* mi) {
     
     if (p_lookAtTarget) {
         Vec3 aimPoint = g_targetHead;
+        if (!Math::Finite(aimPoint)) {
+            g_haveTarget = false;
+            g_smoothTarget = Vec3(0.0f, 0.0f, 0.0f);
+            return;
+        }
         const float s = aimbotActive ? gAimbotSmooth.load() : gAimOnFireSmooth.load();
         if (s > 0.0f) {
+            if (!Math::Finite(g_smoothTarget)) {
+                g_smoothTarget = aimPoint;
+            }
             Vec3 diff = aimPoint - g_smoothTarget;
             g_smoothTarget = g_smoothTarget + diff * s;
             aimPoint = g_smoothTarget;
         }
-        p_lookAtTarget(self, aimPoint, p_lookAtTargetMI);
+        if (Math::Finite(aimPoint)) {
+            p_lookAtTarget(self, aimPoint, p_lookAtTargetMI);
+        }
     }
 }
 
@@ -3269,6 +3297,12 @@ static UIImage* CreateKeyIcon(CGSize size, UIColor *color) {
             if (gHealthBarEnabled && i < self.hps.count) {
                 float h = [self.hps[i] floatValue];
                 float aa = (i < self.armors.count) ? [self.armors[i] floatValue] : 0.0f;
+                if (!std::isfinite(h)) {
+                    h = 0.0f;
+                }
+                if (!std::isfinite(aa)) {
+                    aa = 0.0f;
+                }
                 float ht = r.size.height;
                 float pct = Math::Clamp(h / 100.0f, 0.0f, 1.0f);
                 
@@ -3843,8 +3877,11 @@ static void UpdateStreamMode(void) {
             
             NLCheckbox *cbSA = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
             cbSA.isOn = gSilentAimEnabled;
-            cbSA.isDisabled = YES;
-            [gAuto addSubview:[[NLRow alloc] initWithTitle:@"Silent Aim (Not Work)" y:y control:cbSA swatch:nil]];
+            cbSA.onToggle = ^(BOOL v) {
+                gSilentAimEnabled = v;
+                [ConfigManager save];
+            };
+            [gAuto addSubview:[[NLRow alloc] initWithTitle:@"Silent Aim (Experimental)" y:y control:cbSA swatch:nil]];
             y += 30;
             
             NLCheckbox *cbVO = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
@@ -5143,12 +5180,18 @@ static void espTick(void) {
         if (gLastFrameTime > 0) {
             uint64_t delta = curTime - gLastFrameTime;
             float dt = (float)delta / 1000000000.0f;
-            if (dt > 0.0f) {
+            if (std::isfinite(dt) && dt > 0.0f && dt < 1.0f) {
                 float instantFps = 1.0f / dt;
-                gCurrentFps = gCurrentFps * 0.9f + instantFps * 0.1f;
+                if (std::isfinite(instantFps) && instantFps > 0.0f && instantFps < 1000.0f) {
+                    gCurrentFps = gCurrentFps * 0.9f + instantFps * 0.1f;
+                }
             }
         }
         gLastFrameTime = curTime;
+        
+        if (!std::isfinite(gCurrentFps) || gCurrentFps <= 0.0f || gCurrentFps > 1000.0f) {
+            gCurrentFps = 60.0f;
+        }
         
         if (gWatermark) {
             [gWatermark updateFps:gCurrentFps];
@@ -6347,7 +6390,8 @@ static bool NoSpreadActive(void) {
         return false;
     }
     return gAimbotEnabled.load() || gHotAimbotEnabled.load() ||
-           gAimOnFireEnabled.load() || gHotAimOnFireEnabled.load();
+           gAimOnFireEnabled.load() || gHotAimOnFireEnabled.load() ||
+           gSilentAimEnabled.load();
 }
 
 static bool NoRecoilActive(void) {
@@ -6358,7 +6402,8 @@ static bool NoRecoilActive(void) {
         return false;
     }
     return gAimbotEnabled.load() || gHotAimbotEnabled.load() ||
-           gAimOnFireEnabled.load() || gHotAimOnFireEnabled.load();
+           gAimOnFireEnabled.load() || gHotAimOnFireEnabled.load() ||
+           gSilentAimEnabled.load();
 }
 
 // ItemEquipWeaponRange and ItemEquipWeaponRangeShotgun are the only classes that own the
@@ -6455,12 +6500,15 @@ static void ApplyRangeData(void* data) {
     
     *(Vec2*)((uintptr_t)data + off::kRangeShootOffset) = offset;
     *(Vec2*)((uintptr_t)data + off::kRangeSpreadMove) = Vec2(0.0f, 0.0f);
-    *(float*)((uintptr_t)data + off::kRangeOffsetCool) = 0.0f;
-    *(float*)((uintptr_t)data + off::kRangeStandingBallisticMul) = 0.0f;
+    
+    // Never zero fields the game may use as a divisor: 1/x with x == 0 produces inf/nan,
+    // and that NaN propagates into the shot ray, the viewmodel and the game HUD.
+    // OffsetCool and _fireBackOffsetTime are left at their authored values on purpose.
+    // StandingBallisticMul uses 1.0 as its neutral "as is" value (see the tooltip).
+    *(float*)((uintptr_t)data + off::kRangeStandingBallisticMul) = 1.0f;
     *(float*)((uintptr_t)data + off::kRangeRecoilPatternScale) = 0.0f;
     *(float*)((uintptr_t)data + off::kRangeUnscopedRecoilMul) = 0.0f;
     *(Vec3*)((uintptr_t)data + off::kDataFireBackOffset) = Vec3(0.0f, 0.0f, 0.0f);
-    *(float*)((uintptr_t)data + off::kDataFireBackTime) = 0.0f;
     *(Vec3*)((uintptr_t)data + off::kDataShootMultiOffset) = Vec3(0.0f, 0.0f, 0.0f);
 }
 
@@ -6483,12 +6531,10 @@ static void RestoreRangeData(void) {
         
         *(Vec2*)((uintptr_t)data + off::kRangeShootOffset) = snap.shootOffset;
         *(Vec2*)((uintptr_t)data + off::kRangeSpreadMove) = snap.spreadMove;
-        *(float*)((uintptr_t)data + off::kRangeOffsetCool) = snap.offsetCool;
         *(float*)((uintptr_t)data + off::kRangeStandingBallisticMul) = snap.standingMul;
         *(float*)((uintptr_t)data + off::kRangeRecoilPatternScale) = snap.patternScale;
         *(float*)((uintptr_t)data + off::kRangeUnscopedRecoilMul) = snap.unscopedMul;
         *(Vec3*)((uintptr_t)data + off::kDataFireBackOffset) = snap.fireBackOffset;
-        *(float*)((uintptr_t)data + off::kDataFireBackTime) = snap.fireBackTime;
         *(Vec3*)((uintptr_t)data + off::kDataShootMultiOffset) = snap.shootMultiOffset;
     }
     
@@ -6546,9 +6592,25 @@ static void BallisticsWeaponTick(void* weapon) {
     }
 }
 
+static Vec2 gLastGoodCamRot{};
+static Vec2 gLastGoodCamAddRot{};
+static bool gHaveGoodCamRot = false;
+
 static void BallisticsCameraPre(void* camera) {
     if (!SANE_PTR(camera)) {
         return;
+    }
+    
+    // Cache the last finite orientation. If a NaN ever reaches the camera (bad velocity,
+    // bad prediction, bad shot math) every later frame would stay NaN and the game HUD
+    // starts printing NaN. Restoring the last good orientation breaks that feedback loop.
+    Vec2 rot = *(Vec2*)((uintptr_t)camera + off::kCamRot);
+    Vec2 add = *(Vec2*)((uintptr_t)camera + off::kCamAdditionalRot);
+    if (std::isfinite(rot.x) && std::isfinite(rot.y) &&
+        std::isfinite(add.x) && std::isfinite(add.y)) {
+        gLastGoodCamRot = rot;
+        gLastGoodCamAddRot = add;
+        gHaveGoodCamRot = true;
     }
     
     if (NoRecoilActive()) {
@@ -6562,6 +6624,23 @@ static void BallisticsCameraPre(void* camera) {
 static void BallisticsCameraPost(void* camera) {
     if (!SANE_PTR(camera)) {
         return;
+    }
+    
+    Vec2 rot = *(Vec2*)((uintptr_t)camera + off::kCamRot);
+    Vec2 add = *(Vec2*)((uintptr_t)camera + off::kCamAdditionalRot);
+    if (!std::isfinite(rot.x) || !std::isfinite(rot.y)) {
+        if (gHaveGoodCamRot) {
+            *(Vec2*)((uintptr_t)camera + off::kCamRot) = gLastGoodCamRot;
+        } else {
+            *(Vec2*)((uintptr_t)camera + off::kCamRot) = Vec2(0.0f, 0.0f);
+        }
+    }
+    if (!std::isfinite(add.x) || !std::isfinite(add.y)) {
+        if (gHaveGoodCamRot) {
+            *(Vec2*)((uintptr_t)camera + off::kCamAdditionalRot) = gLastGoodCamAddRot;
+        } else {
+            *(Vec2*)((uintptr_t)camera + off::kCamAdditionalRot) = Vec2(0.0f, 0.0f);
+        }
     }
     
     if (NoRecoilActive()) {
@@ -6723,6 +6802,86 @@ static bool hook_TryUse(void* self, void* info, void* mi) {
     return result;
 }
 
+// ---------------------------------------------------------------------------------------
+// SILENT AIM (best effort)
+//
+// ItemEquipWeaponRange.fke(from, to, hitsLocal, grounded) is the generated Command that
+// ships the shot to the server. fka(from, to) is the local raycast that produces the hit
+// list for a direction. When silent aim is on we rebuild the shot toward the selected
+// target, recompute the hit list for that direction and only then call the original
+// command, so the server receives a self-consistent (from, to, hits) triple instead of a
+// direction that contradicts the hit list.
+// ---------------------------------------------------------------------------------------
+
+typedef void (*fn_FireBulletCommand)(void*, Vec3, Vec3, void*, bool, void*);
+static fn_FireBulletCommand orig_FireBulletCommand = nullptr;
+
+typedef void* (*fn_CalcShotHits)(void*, Vec3, Vec3, void*);
+static fn_CalcShotHits p_CalcShotHits = nullptr;
+static void* p_CalcShotHitsMI = nullptr;
+
+static inline float Vec3Len(const Vec3& v) {
+    return sqrtf(v.x * v.x + v.y * v.y + v.z * v.z);
+}
+
+static bool BuildSilentAimShot(Vec3 from, Vec3 originalTo, Vec3* outTo, void** outHits, void* weapon) {
+    if (!outTo || !gSilentAimEnabled.load() || !g_silentAimActive.load() || !g_haveTarget.load()) {
+        return false;
+    }
+    
+    Vec3 target = g_silentAimTarget;
+    if (!Math::Finite(target) || !Math::Finite(from) || !Math::Finite(originalTo)) {
+        return false;
+    }
+    
+    Vec3 dir = target - from;
+    float targetLen = Vec3Len(dir);
+    float originalLen = Vec3Len(originalTo - from);
+    if (targetLen < 0.05f || targetLen > 400.0f) {
+        return false;
+    }
+    if (originalLen < 0.05f || originalLen > 400.0f) {
+        originalLen = targetLen;
+    }
+    
+    // Keep the original travel distance so range/falloff checks still see a plausible shot.
+    Vec3 newTo = from + dir * (originalLen / targetLen);
+    if (!Math::Finite(newTo)) {
+        return false;
+    }
+    
+    *outTo = newTo;
+    
+    if (outHits) {
+        *outHits = nullptr;
+        if (p_CalcShotHits && p_CalcShotHitsMI && SANE_PTR(weapon)) {
+            void* forged = p_CalcShotHits(weapon, from, newTo, p_CalcShotHitsMI);
+            if (forged) {
+                *outHits = forged;
+            }
+        }
+    }
+    return true;
+}
+
+static void hook_FireBulletCommand(void* self, Vec3 from, Vec3 to, void* hits, bool grounded, void* mi) {
+    Vec3 newTo;
+    void* newHits = nullptr;
+    if (BuildSilentAimShot(from, to, &newTo, &newHits, self)) {
+        if (gBallisticsDebug.load()) {
+            LOG(@"[SA] forged shot to=(%.2f,%.2f,%.2f) hits=%p", newTo.x, newTo.y, newTo.z, newHits);
+        }
+        if (orig_FireBulletCommand) {
+            orig_FireBulletCommand(self, from, newTo, newHits ? newHits : hits, grounded, mi);
+        }
+        return;
+    }
+    
+    if (orig_FireBulletCommand) {
+        orig_FireBulletCommand(self, from, to, hits, grounded, mi);
+    }
+}
+
 typedef Vec2 (*fn_GetInsideUnitCircle)(void*);
 static fn_GetInsideUnitCircle orig_GetInsideUnitCircle = nullptr;
 
@@ -6774,6 +6933,24 @@ static void InstallBallisticsHooks(void) {
             if (miTry) {
                 hook_install(miTry, (void*)hook_TryUse, (void**)&orig_TryUse);
                 LOG(@"[BALL] TryUse hook installed");
+            }
+            
+            // Silent aim: the generated Command that ships (from, to, hits) to the server.
+            void* miCmd = p_class_get_method_from_name(rangeCls, "fke", 4);
+            if (miCmd) {
+                if (hook_install(miCmd, (void*)hook_FireBulletCommand, (void**)&orig_FireBulletCommand)) {
+                    LOG(@"[BALL] FireBullet command hook installed");
+                }
+            } else {
+                LOG(@"[BALL] fke not found, silent aim disabled");
+            }
+            
+            // Local raycast used to rebuild the hit list for the silent-aim direction.
+            void* miCalc = p_class_get_method_from_name(rangeCls, "fka", 2);
+            if (miCalc) {
+                p_CalcShotHitsMI = miCalc;
+                p_CalcShotHits = (fn_CalcShotHits)methodPtr(miCalc);
+                LOG(@"[BALL] shot hit-calc resolved");
             }
         }
         
@@ -6878,6 +7055,9 @@ static void HudSetAimLine(bool active, CGPoint target) {
 }
 
 static void HudSetCrosshair(float gap, bool visible) {
+    if (!std::isfinite(gap)) {
+        gap = 6.0f;
+    }
     gHudCrosshairGap = Math::Clamp(gap, 2.0f, 80.0f);
     gHudCrosshairVisible = visible;
 }
@@ -6910,15 +7090,16 @@ static void HudSampleFrame(void) {
     }
     
     float fps = (float)gFpsFrames * 1000.0f / (float)elapsed;
-    if (fps < 0.0f) {
+    if (!std::isfinite(fps) || fps < 0.0f) {
         fps = 0.0f;
     }
     if (fps > 999.0f) {
         fps = 999.0f;
     }
     
+    float frameMs = (float)elapsed / (float)gFpsFrames;
     gFpsValue = (int)(fps + 0.5f);
-    gFrameMs = (float)elapsed / (float)gFpsFrames;
+    gFrameMs = std::isfinite(frameMs) ? frameMs : 0.0f;
     
     if (gFpsHistory.size() >= 120) {
         gFpsHistory.erase(gFpsHistory.begin());
@@ -7004,6 +7185,9 @@ static void HudTick(void) {
     float scale = radius / range;
     
     for (const HudRadarBlip& b : gHudRadar) {
+        if (!std::isfinite(b.x) || !std::isfinite(b.y)) {
+            continue;
+        }
         float px = cx + b.x * scale;
         float py = cy + b.y * scale;
         float dx = px - cx;
@@ -7104,6 +7288,9 @@ static void HudTick(void) {
         }
         float remain = (float)(d.until - now) / 900.0f;
         remain = Math::Clamp(remain, 0.0f, 1.0f);
+        if (!std::isfinite(d.pos.x) || !std::isfinite(d.pos.y)) {
+            continue;
+        }
         NSString* text = SafeFmt(@"-%d", d.amount);
         NSDictionary* attrs = @{
             NSFontAttributeName: dmgFont ?: [UIFont boldSystemFontOfSize:13],
