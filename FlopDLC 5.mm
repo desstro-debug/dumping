@@ -749,6 +749,8 @@ static bool s_nfWas = false;
 
 static void* p_renderSetAmbientLightMI = nullptr;
 static void* p_renderGetAmbientLightMI = nullptr;
+static fn_renderSetAmbientLight p_renderSetAmbientLight = nullptr;
+static fn_renderGetAmbientLight p_renderGetAmbientLight = nullptr;
 static UnityColor s_origAmbient{0.5f, 0.5f, 0.5f, 1.0f};
 static bool s_origAmbientInit = false;
 
@@ -3283,7 +3285,13 @@ static UIImage* CreateKeyIcon(CGSize size, UIColor *color) {
 @interface HotZoneView : UIView
 @end
 
-@class HotkeyView;
+@interface HotkeyView : UIView
+@property (nonatomic, strong) UIButton *hkbAimbot;
+@property (nonatomic, strong) UIButton *hkbAimFire;
+@property (nonatomic, strong) UIButton *hkbEsp;
+@property (nonatomic, strong) UILabel *dragHandle;
+- (void)updateTitles;
+@end
 
 static ESPView* gEspView = nil;
 static MenuView* gMenuView = nil;
@@ -5628,14 +5636,6 @@ static void espTick(void) {
 static ESPDriver* gDriver = nil;
 static CADisplayLink* gLink = nil;
 
-@interface HotkeyView : UIView
-@property (nonatomic, strong) UIButton *hkbAimbot;
-@property (nonatomic, strong) UIButton *hkbAimFire;
-@property (nonatomic, strong) UIButton *hkbEsp;
-@property (nonatomic, strong) UILabel *dragHandle;
-- (void)updateTitles;
-@end
-
 @implementation HotkeyView {
     CGPoint _panStartOrigin;
 }
@@ -6752,7 +6752,8 @@ static void HudSetScope(bool active) {
 // HUD VIEW
 // =========================================================================================
 
-@class HudView;
+@interface HudView : UIView
+@end
 
 static HudView* gHudView = nil;
 
@@ -6796,9 +6797,6 @@ static void HudTick(void) {
         [gHudView setNeedsDisplay];
     }
 }
-
-@interface HudView : UIView
-@end
 
 @implementation HudView
 
