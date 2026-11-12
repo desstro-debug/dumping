@@ -267,10 +267,23 @@ static void InstallCrashHandler(void) {
     }
 }
 
+static inline uint64_t MachTicksToNanoseconds(uint64_t ticks) {
+    static mach_timebase_info_data_t timebase = [] {
+        mach_timebase_info_data_t value{};
+        if (mach_timebase_info(&value) != KERN_SUCCESS || value.denom == 0) {
+            value.numer = 1;
+            value.denom = 1;
+        }
+        return value;
+    }();
+
+    uint64_t whole = ticks / timebase.denom;
+    uint64_t remainder = ticks % timebase.denom;
+    return whole * timebase.numer + remainder * timebase.numer / timebase.denom;
+}
+
 static inline uint64_t NowMs(void) {
-    uint64_t abs_time = mach_absolute_time();
-    uint64_t ms_time = abs_time / 1000000ULL;
-    return ms_time;
+    return MachTicksToNanoseconds(mach_absolute_time()) / 1000000ULL;
 }
 
 // AUDIO
@@ -1599,7 +1612,7 @@ static NSString* getIL2CPPString(void* strObj) {
     [d setFloat:gRadarOpacity forKey:@"h_rop"];
     [d setFloat:gBoxCornerLen forKey:@"es_bcl"];
     [d setInteger:gNameMaxLen forKey:@"es_nml"];
-    [d setBool:gDamageStack forKey:@"h_dst"];
+    [d setBool:gDamageStack forKey:@"h_dstack"];
     [d setBool:gSkeletonUpperOnly forKey:@"h_skuo"];
     [d setBool:gPlayerListEnabled forKey:@"pl_e"];
     [d setFloat:gPlayerListX forKey:@"pl_x"];
@@ -1728,6 +1741,28 @@ static NSString* getIL2CPPString(void* strObj) {
 
 + (void)load {
     NSUserDefaults* d = [NSUserDefaults standardUserDefaults];
+    [d registerDefaults:@{
+        @"rg_dmg": @1, @"rg_bc": @3, @"rg_bp": @140, @"rg_logn": @24,
+        @"rg_fov": @600.0, @"rg_sm": @0.35, @"rg_swd": @120.0, @"rg_fd": @60.0,
+        @"rg_mr": @300.0, @"rg_hbxp": @4.0, @"rg_tpd": @2.0,
+        @"rg_aay": @180.0, @"rg_aap": @(-89.0), @"rg_aas": @720.0,
+        @"m_shv": @1.0, @"m_jhv": @1.0,
+        @"h_hm_sz": @10.0, @"h_hm_du": @260, @"h_dn_sz": @13.0,
+        @"h_dn_du": @650, @"h_dn_ri": @32.0, @"h_st": @1.5,
+        @"h_rr": @60, @"h_rs": @120.0, @"tb_d": @90, @"tb_f": @14, @"tb_h": @35,
+        @"ch_g": @6.0, @"ch_l": @9.0, @"ch_t": @1.4, @"ch_d": @1.5,
+        @"fc_t": @1.0, @"es_bt": @1.0, @"es_hbw": @2.0,
+        @"es_fs": @40.0, @"es_fend": @140.0, @"es_oofs": @12.0, @"es_oofw": @2.0,
+        @"es_hds": @2.5, @"es_wepw": @1.0, @"es_bfa": @0.12, @"es_om": @40.0,
+        @"el_x": @12.0, @"el_y": @300.0, @"st_x": @12.0, @"st_y": @420.0,
+        @"h_rbs": @2.5, @"h_rop": @0.38, @"es_bcl": @0.28, @"es_nml": @16,
+        @"pl_x": @12.0, @"pl_y": @220.0, @"pl_s": @1.0, @"pl_m": @8,
+        @"ip_x": @12.0, @"ip_y": @120.0, @"el_m": @6, @"el_d": @5000.0,
+        @"wm_s": @1.0, @"wm_a": @0.95, @"kf_d": @6000.0, @"kf_m": @8,
+        @"s_hp": @3000.0, @"s_hv": @0.8, @"s_kp": @1500.0, @"s_kv": @1.0,
+        @"c_f_v": @80.0, @"c_a_v": @1.777, @"c_vm_v": @70.0,
+        @"wv_fbm": @3.0, @"v_tpd": @2.6, @"v_tph": @0.55
+    }];
     gEspEnabled = [d boolForKey:@"e_e"];
     gSkeletonEnabled = [d boolForKey:@"e_s"];
     gHealthBarEnabled = [d boolForKey:@"e_h"];
@@ -1737,7 +1772,7 @@ static NSString* getIL2CPPString(void* strObj) {
     
     gAimbotEnabled = [d boolForKey:@"a_e"];
     gAimOnFireEnabled = [d boolForKey:@"a_of"];
-    gAimBone = (int)[d integerForKey:@"a_b"];
+    gAimBone = [d objectForKey:@"a_b"] ? (int)[d integerForKey:@"a_b"] : 10;
     if (gAimBone != 10 && gAimBone != 8 && gAimBone != 0) {
         gAimBone = 10;
     }
@@ -1755,7 +1790,7 @@ static NSString* getIL2CPPString(void* strObj) {
     gAimbotSmooth = ClampFinite([d floatForKey:@"a_sm"], 0.0f, 1.0f, 0.0f);
     gAimOnFireSmooth = ClampFinite([d floatForKey:@"a_of_sm"], 0.0f, 1.0f, 0.0f);
     gAimbotVisibleOnly = [d boolForKey:@"a_vo"];
-    gAimbotNoTeam = [d boolForKey:@"a_nt"];
+    gAimbotNoTeam = [d objectForKey:@"a_nt"] ? [d boolForKey:@"a_nt"] : true;
     
     gSpeedHackEnabled = [d boolForKey:@"m_sh"];
     gSpeedHackVal = ClampFinite([d floatForKey:@"m_shv"], 0.1f, 10.0f, 1.0f);
@@ -1807,7 +1842,7 @@ static NSString* getIL2CPPString(void* strObj) {
     if (!std::isfinite(gTpShoulder)) {
         gTpShoulder = 0.0f;
     }
-    gTpShowBody = [d boolForKey:@"v_tpb"];
+    gTpShowBody = [d objectForKey:@"v_tpb"] ? [d boolForKey:@"v_tpb"] : true;
     gTpFov = [d floatForKey:@"v_tpf"];
     if (!std::isfinite(gTpFov) || gTpFov < 0.0f) {
         gTpFov = 0.0f;
@@ -1938,7 +1973,8 @@ static NSString* getIL2CPPString(void* strObj) {
     gRadarOpacity = ClampFinite([d floatForKey:@"h_rop"], 0.05f, 0.9f, 0.38f);
     gBoxCornerLen = ClampFinite([d floatForKey:@"es_bcl"], 0.1f, 0.5f, 0.28f);
     gNameMaxLen = (int)ClampFinite([d floatForKey:@"es_nml"], 4.0f, 32.0f, 16.0f);
-    gDamageStack = [d objectForKey:@"h_dst"] ? [d boolForKey:@"h_dst"] : true;
+    gDamageStack = [d objectForKey:@"h_dstack"] ? [d boolForKey:@"h_dstack"] :
+                   ([d objectForKey:@"h_dst"] ? [d boolForKey:@"h_dst"] : true);
     gSkeletonUpperOnly = [d boolForKey:@"h_skuo"];
     gPlayerListEnabled = [d boolForKey:@"pl_e"];
     gPlayerListX = ClampFinite([d floatForKey:@"pl_x"], 0.0f, 1000.0f, 12.0f);
@@ -3622,7 +3658,7 @@ static UIImage* CreateKeyIcon(CGSize size, UIColor *color) {
     fmt.dateFormat = @"HH:mm";
     _timeLabel.text = [fmt stringFromDate:[NSDate date]];
     
-    struct mach_task_basic_info info;
+    struct mach_task_basic_info info{};
     mach_msg_type_number_t size = MACH_TASK_BASIC_INFO_COUNT;
     kern_return_t kerr = task_info(mach_task_self(), MACH_TASK_BASIC_INFO, (task_info_t)&info, &size);
     
@@ -3637,7 +3673,8 @@ static UIImage* CreateKeyIcon(CGSize size, UIColor *color) {
     
     if (p_avail) {
         uint64_t available = p_avail();
-        max_mb = (info.resident_size + available) / (1024 * 1024);
+        uint64_t resident = kerr == KERN_SUCCESS ? info.resident_size : 0;
+        max_mb = (resident + available) / (1024 * 1024);
     } else {
         max_mb = [NSProcessInfo processInfo].physicalMemory / (1024 * 1024);
     }
@@ -7976,7 +8013,7 @@ static void ApplyNightMode(void) {
 
 static void espTick(void) {
     @autoreleasepool {
-        uint64_t curTime = mach_absolute_time();
+        uint64_t curTime = MachTicksToNanoseconds(mach_absolute_time());
         if (gLastFrameTime > 0) {
             uint64_t delta = curTime - gLastFrameTime;
             float dt = (float)delta / 1000000000.0f;
