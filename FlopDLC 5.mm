@@ -501,7 +501,7 @@ static std::atomic<float> gRageSmooth{0.35f};              // rg_sm  0 = instant
 static std::atomic<float> gRageSwitchDelay{120.0f};        // rg_swd ms to hold a target before switching
 static std::atomic<float> gRageFireDelay{60.0f};           // rg_fd  ms between auto-fire pulls
 static std::atomic<float> gRageSlowAim{0.0f};              // rg_sla extra ms added to the fire delay
-static std::atomic<float> gRageMaxRange{300.0f};           // rg_mr  metres, mirrors gEspMaxDist
+static std::atomic<float> gRageMaxRange{300.0f};           // rg_mr  maximum target-selection range in metres
 static std::atomic<float> gRageAimStep{0.0f};              // rg_stp 0 = LookAtTarget, >0 = N steps per frame
 static std::atomic<bool>  gRageBypassSmoke{false};         // rg_smoke ignore smoke volumes
 static std::atomic<bool>  gRageIgnoreTeammatesInFov{true}; // rg_itf do not let a mate block the shot
@@ -1022,7 +1022,7 @@ static std::atomic<float> gBoxCornerLen{0.28f};
 static std::atomic<int> gNameMaxLen{16};
 static std::atomic<bool> gDamageStack{true};
 static std::atomic<bool> gSkeletonUpperOnly{false};
-static std::atomic<float> gEspMaxDist{300.0f};
+static constexpr float kEspMaxDistanceMeters = 5000.0f;
 
 // Target tracking used by prediction and the switch-delay gate.
 static void* g_aimTargetObj = nullptr;
@@ -1601,7 +1601,6 @@ static NSString* getIL2CPPString(void* strObj) {
     [d setInteger:gNameMaxLen forKey:@"es_nml"];
     [d setBool:gDamageStack forKey:@"h_dst"];
     [d setBool:gSkeletonUpperOnly forKey:@"h_skuo"];
-    [d setFloat:gEspMaxDist forKey:@"es_mxd"];
     [d setBool:gPlayerListEnabled forKey:@"pl_e"];
     [d setFloat:gPlayerListX forKey:@"pl_x"];
     [d setFloat:gPlayerListY forKey:@"pl_y"];
@@ -1941,7 +1940,6 @@ static NSString* getIL2CPPString(void* strObj) {
     gNameMaxLen = (int)ClampFinite([d floatForKey:@"es_nml"], 4.0f, 32.0f, 16.0f);
     gDamageStack = [d objectForKey:@"h_dst"] ? [d boolForKey:@"h_dst"] : true;
     gSkeletonUpperOnly = [d boolForKey:@"h_skuo"];
-    gEspMaxDist = ClampFinite([d floatForKey:@"es_mxd"], 50.0f, 500.0f, 300.0f);
     gPlayerListEnabled = [d boolForKey:@"pl_e"];
     gPlayerListX = ClampFinite([d floatForKey:@"pl_x"], 0.0f, 1000.0f, 12.0f);
     gPlayerListY = ClampFinite([d floatForKey:@"pl_y"], 0.0f, 1000.0f, 220.0f);
@@ -6288,15 +6286,6 @@ static NLButton* RageMakeCycle(NSString* initial, NSArray<NSString*>* labels, NS
             [gEspStyle addSubview:[[NLRow alloc] initWithTitle:@"Skeleton Upper" y:ey control:cbSkelUp swatch:nil]];
             ey += 30;
             
-            NLSlider *sMaxDist = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@"m"];
-            sMaxDist.min = 50.0f;
-            sMaxDist.max = 500.0f;
-            sMaxDist.value = gEspMaxDist;
-            sMaxDist.onChange = ^(float v) { gEspMaxDist = v; };
-            sMaxDist.onRelease = ^(float v) { [ConfigManager save]; };
-            [gEspStyle addSubview:[[NLRow alloc] initWithTitle:@"Max Distance" y:ey control:sMaxDist swatch:nil]];
-            ey += 30;
-            
             NLGroupBox *gCross = [[NLGroupBox alloc] initWithTitle:@"Crosshair & FOV" frame:CGRectMake(0, 1260, colW, 400)];
             [c1 addSubview:gCross];
             CGFloat cy2 = 30;
@@ -8352,7 +8341,7 @@ static void espTick(void) {
             float dz = fp.z - g_localEye.z;
             float realDist = sqrtf(dx*dx + dy*dy + dz*dz);
             
-            if (!std::isfinite(realDist) || realDist > gEspMaxDist.load()) {
+            if (!std::isfinite(realDist) || realDist > kEspMaxDistanceMeters) {
                 continue;
             }
             
