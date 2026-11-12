@@ -17,6 +17,7 @@
 #include <execinfo.h>
 #include <stdint.h>
 #include <string.h>
+#include <stdlib.h>
 #include <atomic>
 #include <cmath>
 #include <vector>
@@ -639,8 +640,8 @@ static std::atomic<bool> gNoSpreadEnabled{false};
 static std::atomic<bool> gNoRecoilEnabled{false};
 
 // BALLISTICS
-static std::atomic<bool> gAutoNoSpread{true};
-static std::atomic<bool> gAutoNoRecoil{true};
+// No Spread / No Recoil are implicit while any aim mode is active. The manual
+// PLAYER-tab toggles are the only way to run them without aiming.
 static std::atomic<bool> gBallisticsDebug{false};
 static std::atomic<bool> gSpreadFloorEnabled{false};
 static std::atomic<float> gSpreadFloor{0.0f};
@@ -651,6 +652,14 @@ static std::atomic<bool> gDistanceEnabled{true};
 static std::atomic<bool> gHealthTextEnabled{false};
 static std::atomic<bool> gHitMarkerEnabled{true};
 static std::atomic<bool> gDamageNumbersEnabled{true};
+static std::atomic<int> gHitMarkerStyle{0};
+static std::atomic<float> gHitMarkerSize{10.0f};
+static std::atomic<int> gHitMarkerDuration{260};
+static std::atomic<bool> gHitMarkerShowDamage{false};
+static std::atomic<float> gDamageNumberSize{13.0f};
+static std::atomic<int> gDamageNumberDuration{650};
+static std::atomic<float> gDamageNumberRise{32.0f};
+static std::atomic<bool> gDamageNumberOutline{true};
 static std::atomic<bool> gRadarEnabled{false};
 static std::atomic<bool> gCrosshairEnabled{false};
 static std::atomic<bool> gScopeOverlayEnabled{false};
@@ -669,6 +678,7 @@ static UIColor* gTeamColor = [UIColor cyanColor];
 static UIColor* gVisibleColor = [UIColor greenColor];
 static UIColor* gHiddenColor = [UIColor redColor];
 static UIColor* gHitMarkerColor = [UIColor whiteColor];
+static UIColor* gDamageNumberColor = [UIColor colorWithRed:1.0 green:0.75 blue:0.1 alpha:1.0];
 static UIColor* gRadarColor = [UIColor greenColor];
 static UIColor* gCrosshairColor = [UIColor whiteColor];
 
@@ -721,6 +731,227 @@ static std::vector<float> gFpsHistory;
 static uint64_t gFpsLastSample = 0;
 static int gFpsFrames = 0;
 
+// =========================================================================================
+// TRIGGERBOT
+// Fires the real mobile-input fire path when the crosshair is inside a small
+// pixel radius around an enemy bone. The instance/method pointers are captured
+// from the OnClickFire* hooks, so no extra offsets are required.
+// =========================================================================================
+static std::atomic<bool> gTriggerbotEnabled{false};
+static std::atomic<int> gTriggerbotDelay{90};          // ms between shots
+static std::atomic<int> gTriggerbotFovPx{14};          // crosshair radius in px
+static std::atomic<int> gTriggerbotHold{35};           // how long the fire call is held
+static std::atomic<bool> gTriggerbotVisibleOnly{true};
+static std::atomic<bool> gTriggerbotTeamCheck{true};
+static std::atomic<bool> gTriggerbotScopeOnly{false};
+static std::atomic<bool> gTriggerbotHeadOnly{false};
+
+static void* gMobileInputsInst = nullptr;
+static void* gMobileInputsFireMI = nullptr;
+static void* gMobileInputsFireDownMI = nullptr;
+static void* gMobileInputsFireUpMI = nullptr;
+static uint64_t gTriggerLastFireMs = 0;
+static uint64_t gTriggerReleaseMs = 0;
+static bool gTriggerHolding = false;
+
+static bool gTriggerHasTarget = false;
+static float gTriggerBestDist = 99999.0f;
+static Vec3 gTriggerBestPos{};
+static bool gTriggerBestVisible = false;
+
+// =========================================================================================
+// CROSSHAIR / FOV CIRCLE / ESP STYLE
+// =========================================================================================
+static std::atomic<int> gCrosshairStyle{0};            // 0 cross, 1 dot, 2 circle, 3 T, 4 X
+static std::atomic<float> gCrosshairGap{6.0f};
+static std::atomic<float> gCrosshairLength{9.0f};
+static std::atomic<float> gCrosshairThickness{1.4f};
+static std::atomic<float> gCrosshairDot{1.5f};
+static std::atomic<bool> gCrosshairOutline{true};
+
+static std::atomic<bool> gFovCircleEnabled{true};
+static std::atomic<int> gFovCircleStyle{0};            // 0 circle, 1 square, 2 corners
+static std::atomic<float> gFovCircleThickness{1.0f};
+static std::atomic<bool> gFovCircleFilled{false};
+
+static std::atomic<float> gBoxThickness{1.0f};
+static std::atomic<int> gHealthBarStyle{0};            // 0 left, 1 right, 2 top
+static std::atomic<float> gHealthBarWidth{2.0f};
+static std::atomic<int> gDistanceFormat{0};            // 0 m, 1 units
+static std::atomic<bool> gDistanceAbove{false};
+static std::atomic<bool> gEspFadeEnabled{false};
+static std::atomic<float> gEspFadeStart{40.0f};
+static std::atomic<float> gEspFadeEnd{140.0f};
+static std::atomic<float> gOofSize{12.0f};
+static std::atomic<float> gOofThickness{2.0f};
+
+// =========================================================================================
+// EXTENDED VISUALS / COMBAT / INFO PANELS
+// =========================================================================================
+static std::atomic<bool> gNameBgEnabled{true};
+static std::atomic<float> gHeadDotSize{2.5f};
+static std::atomic<bool> gWeaponEspEnabled{false};
+static std::atomic<float> gWeaponEspThickness{1.0f};
+static std::atomic<bool> gBoxFilled{false};
+static std::atomic<float> gBoxFillAlpha{0.12f};
+static std::atomic<bool> gEspHealthGradient{true};
+static std::atomic<bool> gEspArmorBar{true};
+static std::atomic<bool> gEspOffscreenArrows{true};
+static std::atomic<float> gEspOffscreenMargin{40.0f};
+static std::atomic<bool> gEspTeamFilter{false};
+static std::atomic<bool> gEspDeadFilter{false};
+static std::atomic<bool> gEspDistanceShadow{true};
+
+static std::atomic<bool> gAimInfoEnabled{false};
+static std::atomic<bool> gKeybindListEnabled{false};
+static std::atomic<bool> gStatsPanelEnabled{false};
+static std::atomic<bool> gDamageLogEnabled{false};
+static std::atomic<bool> gAimDrawTarget{true};
+static std::atomic<bool> gAimDrawFov{true};
+
+static std::atomic<float> gPredictionAmount{0.0f};
+static std::atomic<bool> gAimJitterEnabled{false};
+static std::atomic<bool> gAimSwitchDelayEnabled{false};
+
+static std::atomic<int> gStatKills{0};
+static std::atomic<int> gStatHits{0};
+static std::atomic<int> gStatDamage{0};
+static std::atomic<int> gStatHeadshots{0};
+static std::atomic<uint64_t> gStatSessionStart{0};
+
+static std::atomic<int> gLocalHealthVal{100};
+static std::atomic<int> gLocalArmorVal{0};
+static std::atomic<int> gLocalAmmoVal{0};
+static std::atomic<int> gLocalAmmoTotalVal{0};
+static std::atomic<float> gLocalSpeedVal{0.0f};
+static std::atomic<bool> gLocalScoped{false};
+
+static std::atomic<float> gEventLogX{12.0f};
+static std::atomic<float> gEventLogY{300.0f};
+static std::atomic<float> gStatsPanelX{12.0f};
+static std::atomic<float> gStatsPanelY{420.0f};
+static std::atomic<bool> gPanelBackground{true};
+
+static UIColor* gWeaponEspColor = [UIColor colorWithRed:1.0 green:0.6 blue:0.2 alpha:1.0];
+static UIColor* gStatsColor = [UIColor whiteColor];
+static UIColor* gAimInfoColor = [UIColor colorWithRed:0.9 green:0.3 blue:0.9 alpha:1.0];
+static UIColor* gDamageLogColor = [UIColor colorWithRed:1.0 green:0.5 blue:0.5 alpha:1.0];
+
+static std::atomic<int> gTargetPriority{0};          // 0 nearest, 1 lowest hp, 2 crosshair
+static std::atomic<bool> gVelocityGraphEnabled{false};
+static std::atomic<bool> gSessionInfoEnabled{false};
+static std::atomic<bool> gDamageLogPanelEnabled{false};
+static std::atomic<bool> gTargetListEnabled{false};
+static std::atomic<bool> gCrosshairDebugEnabled{false};
+static std::atomic<bool> gAmmoBarEnabled{false};
+static std::vector<float> gSpeedHistory;
+
+static std::atomic<float> gRadarBlipSize{2.5f};
+static std::atomic<float> gRadarOpacity{0.38f};
+static std::atomic<float> gBoxCornerLen{0.28f};
+static std::atomic<int> gNameMaxLen{16};
+static std::atomic<bool> gDamageStack{true};
+static std::atomic<bool> gSkeletonUpperOnly{false};
+static std::atomic<float> gEspMaxDist{300.0f};
+
+// Target tracking used by prediction and the switch-delay gate.
+static void* g_aimTargetObj = nullptr;
+static std::unordered_map<void*, Vec3> gLastTargetPos;
+static std::unordered_map<void*, uint64_t> gLastTargetMs;
+
+// =========================================================================================
+// PLAYER LIST / INFO PANEL / EVENT LOG
+// =========================================================================================
+static std::atomic<bool> gPlayerListEnabled{false};
+static std::atomic<float> gPlayerListX{12.0f};
+static std::atomic<float> gPlayerListY{220.0f};
+static std::atomic<float> gPlayerListScale{1.0f};
+static std::atomic<int> gPlayerListMax{8};
+static std::atomic<bool> gPlayerListHealth{true};
+static std::atomic<bool> gPlayerListDistance{true};
+static std::atomic<bool> gPlayerListTeam{true};
+static std::atomic<bool> gPlayerListWeapon{true};
+static std::atomic<bool> gPlayerListDead{false};
+
+static std::atomic<bool> gInfoPanelEnabled{false};
+static std::atomic<float> gInfoPanelX{12.0f};
+static std::atomic<float> gInfoPanelY{120.0f};
+static std::atomic<bool> gInfoPanelHealth{true};
+static std::atomic<bool> gInfoPanelAmmo{true};
+static std::atomic<bool> gInfoPanelFps{true};
+static std::atomic<bool> gInfoPanelSpeed{true};
+
+static std::atomic<bool> gEventLogEnabled{false};
+static std::atomic<int> gEventLogMax{6};
+static std::atomic<float> gEventLogDuration{5000.0f};
+
+// =========================================================================================
+// WATERMARK / KILL FEED / HIT SOUND / AIM HUMANIZATION
+// =========================================================================================
+static std::atomic<bool> gWatermarkShowFps{true};
+static std::atomic<bool> gWatermarkShowTime{true};
+static std::atomic<bool> gWatermarkShowPlayers{true};
+static std::atomic<float> gWatermarkScale{1.0f};
+static std::atomic<float> gWatermarkAlpha{0.95f};
+
+static std::atomic<float> gKillFeedDuration{6000.0f};
+static std::atomic<int> gKillFeedMax{8};
+static std::atomic<bool> gKillFeedShowKiller{true};
+
+static std::atomic<float> gHitSoundPitch{3000.0f};
+static std::atomic<float> gHitSoundVolume{0.8f};
+static std::atomic<float> gKillSoundPitch{1500.0f};
+static std::atomic<float> gKillSoundVolume{1.0f};
+
+static std::atomic<float> gAimJitter{0.0f};
+static std::atomic<int> gAimSwitchDelay{0};            // ms before switching target
+static uint64_t gAimLastTargetMs = 0;
+static void* gAimLastTarget = nullptr;
+
+static UIColor* gFovCircleColor = [UIColor whiteColor];
+static UIColor* gPlayerListColor = [UIColor whiteColor];
+static UIColor* gEventLogColor = [UIColor colorWithRed:0.7 green:0.85 blue:1.0 alpha:1.0];
+static UIColor* gKillFeedColor = [UIColor colorWithRed:1.0 green:0.35 blue:0.35 alpha:1.0];
+static UIColor* gOofColor = [UIColor whiteColor];
+static UIColor* gWatermarkAccent = [UIColor colorWithRed:0.45 green:0.35 blue:0.95 alpha:1.0];
+static UIColor* gInfoPanelColor = [UIColor whiteColor];
+
+struct HudEventInfo {
+    char text[64];
+    uint64_t until;
+    int kind; // 0 info, 1 hit, 2 kill
+};
+
+static std::vector<HudEventInfo> gHudEvents;
+
+static void RebuildSoundPlayers(void) {
+    float hp = gHitSoundPitch.load();
+    float hv = gHitSoundVolume.load();
+    float kp = gKillSoundPitch.load();
+    float kv = gKillSoundVolume.load();
+    if (!std::isfinite(hp) || hp < 100.0f) {
+        hp = 3000.0f;
+    }
+    if (!std::isfinite(hv) || hv < 0.0f) {
+        hv = 0.8f;
+    }
+    if (!std::isfinite(kp) || kp < 100.0f) {
+        kp = 1500.0f;
+    }
+    if (!std::isfinite(kv) || kv < 0.0f) {
+        kv = 1.0f;
+    }
+    
+    AVAudioPlayer* hit = MakeTonePlayer(hp, 0.08f, Math::Clamp(hv, 0.0f, 1.0f));
+    if (hit) {
+        gHitPlayer = hit;
+    }
+    AVAudioPlayer* kill = MakeTonePlayer(kp, 0.2f, Math::Clamp(kv, 0.0f, 1.0f));
+    if (kill) {
+        gKillPlayer = kill;
+    }
+}
+
 // BALLISTICS / HUD FORWARD DECLS
 static bool NoSpreadActive(void);
 static bool NoRecoilActive(void);
@@ -738,6 +969,7 @@ static void HudBeginFrame(void);
 static void HudAddPlayer(const HudPlayerInfo& info);
 static void HudAddDamage(CGPoint pos, int amount, uint64_t until);
 static void HudAddKill(const char* name, uint64_t until);
+static void HudAddEvent(const char* text, int kind, uint64_t until);
 static void HudAddRadar(float x, float y, int team, bool dead);
 static void HudSetAimLine(bool active, CGPoint target);
 static void HudSetCrosshair(float gap, bool visible);
@@ -796,6 +1028,8 @@ static bool s_origAmbientInit = false;
 
 static std::atomic<bool> gChamsPlayerEnabled{false};
 static std::atomic<bool> gChamsWeaponEnabled{false};
+static std::atomic<bool> gChamsPlayerXray{false};
+static std::atomic<bool> gChamsWeaponXray{false};
 static std::atomic<uint32_t> gChamsPlayerColor{0xFF0000FF};
 static std::atomic<uint32_t> gChamsWeaponColor{0xFF0000FF};
 static std::atomic<int> gChamsPlayerMatType{0};
@@ -838,8 +1072,8 @@ static uint64_t gLastFrameTime = 0;
 
 static void* gSampleMat = nullptr;
 static uint32_t gSampleMatHandle = 0;
-static void* gChamsMatsPlayer[4] = {nullptr, nullptr, nullptr, nullptr};
-static void* gChamsMatsWeapon[4] = {nullptr, nullptr, nullptr, nullptr};
+static void* gChamsMatsPlayer[6] = {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr};
+static void* gChamsMatsWeapon[6] = {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr};
 
 struct SavedMat {
     void* array;
@@ -1054,8 +1288,6 @@ static NSString* getIL2CPPString(void* strObj) {
     [d setBool:gUnlimAmmoEnabled forKey:@"w_ua"];
     [d setBool:gNoSpreadEnabled forKey:@"w_ns"];
     [d setBool:gNoRecoilEnabled forKey:@"w_nr"];
-    [d setBool:gAutoNoSpread forKey:@"b_ans"];
-    [d setBool:gAutoNoRecoil forKey:@"b_anr"];
     [d setBool:gBallisticsDebug forKey:@"b_dbg"];
     [d setBool:gSpreadFloorEnabled forKey:@"b_sfe"];
     [d setFloat:gSpreadFloor forKey:@"b_sf"];
@@ -1064,6 +1296,14 @@ static NSString* getIL2CPPString(void* strObj) {
     [d setBool:gHealthTextEnabled forKey:@"h_hp"];
     [d setBool:gHitMarkerEnabled forKey:@"h_hm"];
     [d setBool:gDamageNumbersEnabled forKey:@"h_dn"];
+    [d setInteger:gHitMarkerStyle forKey:@"h_hm_st"];
+    [d setFloat:gHitMarkerSize forKey:@"h_hm_sz"];
+    [d setInteger:gHitMarkerDuration forKey:@"h_hm_du"];
+    [d setBool:gHitMarkerShowDamage forKey:@"h_hm_dm"];
+    [d setFloat:gDamageNumberSize forKey:@"h_dn_sz"];
+    [d setInteger:gDamageNumberDuration forKey:@"h_dn_du"];
+    [d setFloat:gDamageNumberRise forKey:@"h_dn_ri"];
+    [d setBool:gDamageNumberOutline forKey:@"h_dn_ol"];
     [d setBool:gRadarEnabled forKey:@"h_rad"];
     [d setBool:gCrosshairEnabled forKey:@"h_ch"];
     [d setBool:gScopeOverlayEnabled forKey:@"h_scope"];
@@ -1078,6 +1318,109 @@ static NSString* getIL2CPPString(void* strObj) {
     [d setFloat:gRadarSize forKey:@"h_rs"];
     [d setBool:gRadarRotate forKey:@"h_rrot"];
     [d setBool:gFpsEnabled forKey:@"h_fps"];
+    [d setBool:gTriggerbotEnabled forKey:@"tb_e"];
+    [d setInteger:gTriggerbotDelay forKey:@"tb_d"];
+    [d setInteger:gTriggerbotFovPx forKey:@"tb_f"];
+    [d setInteger:gTriggerbotHold forKey:@"tb_h"];
+    [d setBool:gTriggerbotVisibleOnly forKey:@"tb_vo"];
+    [d setBool:gTriggerbotTeamCheck forKey:@"tb_tc"];
+    [d setBool:gTriggerbotScopeOnly forKey:@"tb_so"];
+    [d setBool:gTriggerbotHeadOnly forKey:@"tb_ho"];
+    [d setInteger:gCrosshairStyle forKey:@"ch_st"];
+    [d setFloat:gCrosshairGap forKey:@"ch_g"];
+    [d setFloat:gCrosshairLength forKey:@"ch_l"];
+    [d setFloat:gCrosshairThickness forKey:@"ch_t"];
+    [d setFloat:gCrosshairDot forKey:@"ch_d"];
+    [d setBool:gCrosshairOutline forKey:@"ch_o"];
+    [d setBool:gFovCircleEnabled forKey:@"fc_e"];
+    [d setInteger:gFovCircleStyle forKey:@"fc_st"];
+    [d setFloat:gFovCircleThickness forKey:@"fc_t"];
+    [d setBool:gFovCircleFilled forKey:@"fc_f"];
+    [d setFloat:gBoxThickness forKey:@"es_bt"];
+    [d setInteger:gHealthBarStyle forKey:@"es_hbs"];
+    [d setFloat:gHealthBarWidth forKey:@"es_hbw"];
+    [d setInteger:gDistanceFormat forKey:@"es_df"];
+    [d setBool:gDistanceAbove forKey:@"es_da"];
+    [d setBool:gEspFadeEnabled forKey:@"es_fe"];
+    [d setFloat:gEspFadeStart forKey:@"es_fs"];
+    [d setFloat:gEspFadeEnd forKey:@"es_fend"];
+    [d setFloat:gOofSize forKey:@"es_oofs"];
+    [d setFloat:gOofThickness forKey:@"es_oofw"];
+    [d setBool:gNameBgEnabled forKey:@"es_nbg"];
+    [d setFloat:gHeadDotSize forKey:@"es_hds"];
+    [d setBool:gWeaponEspEnabled forKey:@"es_wep"];
+    [d setFloat:gWeaponEspThickness forKey:@"es_wepw"];
+    [d setBool:gBoxFilled forKey:@"es_bf"];
+    [d setFloat:gBoxFillAlpha forKey:@"es_bfa"];
+    [d setBool:gEspHealthGradient forKey:@"es_hg"];
+    [d setBool:gEspArmorBar forKey:@"es_ab"];
+    [d setBool:gEspOffscreenArrows forKey:@"es_oa"];
+    [d setFloat:gEspOffscreenMargin forKey:@"es_om"];
+    [d setBool:gEspTeamFilter forKey:@"es_tf"];
+    [d setBool:gEspDeadFilter forKey:@"es_df2"];
+    [d setBool:gEspDistanceShadow forKey:@"es_ds"];
+    [d setBool:gAimInfoEnabled forKey:@"ai_e"];
+    [d setBool:gKeybindListEnabled forKey:@"kb_e"];
+    [d setBool:gStatsPanelEnabled forKey:@"st_e"];
+    [d setBool:gDamageLogEnabled forKey:@"dl_e"];
+    [d setBool:gAimDrawTarget forKey:@"ai_t"];
+    [d setBool:gAimDrawFov forKey:@"ai_f"];
+    [d setFloat:gPredictionAmount forKey:@"a_pred"];
+    [d setBool:gAimJitterEnabled forKey:@"a_jite"];
+    [d setBool:gAimSwitchDelayEnabled forKey:@"a_swde"];
+    [d setFloat:gEventLogX forKey:@"el_x"];
+    [d setFloat:gEventLogY forKey:@"el_y"];
+    [d setFloat:gStatsPanelX forKey:@"st_x"];
+    [d setFloat:gStatsPanelY forKey:@"st_y"];
+    [d setBool:gPanelBackground forKey:@"pn_bg"];
+    [d setInteger:gTargetPriority forKey:@"cb_prio"];
+    [d setBool:gVelocityGraphEnabled forKey:@"cb_vg"];
+    [d setBool:gSessionInfoEnabled forKey:@"cb_si"];
+    [d setBool:gDamageLogPanelEnabled forKey:@"cb_dlp"];
+    [d setBool:gTargetListEnabled forKey:@"cb_tl"];
+    [d setBool:gCrosshairDebugEnabled forKey:@"cb_cd"];
+    [d setBool:gAmmoBarEnabled forKey:@"cb_ab"];
+    [d setFloat:gRadarBlipSize forKey:@"h_rbs"];
+    [d setFloat:gRadarOpacity forKey:@"h_rop"];
+    [d setFloat:gBoxCornerLen forKey:@"es_bcl"];
+    [d setInteger:gNameMaxLen forKey:@"es_nml"];
+    [d setBool:gDamageStack forKey:@"h_dst"];
+    [d setBool:gSkeletonUpperOnly forKey:@"h_skuo"];
+    [d setFloat:gEspMaxDist forKey:@"es_mxd"];
+    [d setBool:gPlayerListEnabled forKey:@"pl_e"];
+    [d setFloat:gPlayerListX forKey:@"pl_x"];
+    [d setFloat:gPlayerListY forKey:@"pl_y"];
+    [d setFloat:gPlayerListScale forKey:@"pl_s"];
+    [d setInteger:gPlayerListMax forKey:@"pl_m"];
+    [d setBool:gPlayerListHealth forKey:@"pl_h"];
+    [d setBool:gPlayerListDistance forKey:@"pl_d"];
+    [d setBool:gPlayerListTeam forKey:@"pl_t"];
+    [d setBool:gPlayerListWeapon forKey:@"pl_w"];
+    [d setBool:gPlayerListDead forKey:@"pl_dead"];
+    [d setBool:gInfoPanelEnabled forKey:@"ip_e"];
+    [d setFloat:gInfoPanelX forKey:@"ip_x"];
+    [d setFloat:gInfoPanelY forKey:@"ip_y"];
+    [d setBool:gInfoPanelHealth forKey:@"ip_h"];
+    [d setBool:gInfoPanelAmmo forKey:@"ip_a"];
+    [d setBool:gInfoPanelFps forKey:@"ip_f"];
+    [d setBool:gInfoPanelSpeed forKey:@"ip_s"];
+    [d setBool:gEventLogEnabled forKey:@"el_e"];
+    [d setInteger:gEventLogMax forKey:@"el_m"];
+    [d setFloat:gEventLogDuration forKey:@"el_d"];
+    [d setBool:gWatermarkShowFps forKey:@"wm_f"];
+    [d setBool:gWatermarkShowTime forKey:@"wm_t"];
+    [d setBool:gWatermarkShowPlayers forKey:@"wm_p"];
+    [d setFloat:gWatermarkScale forKey:@"wm_s"];
+    [d setFloat:gWatermarkAlpha forKey:@"wm_a"];
+    [d setFloat:gKillFeedDuration forKey:@"kf_d"];
+    [d setInteger:gKillFeedMax forKey:@"kf_m"];
+    [d setBool:gKillFeedShowKiller forKey:@"kf_k"];
+    [d setFloat:gHitSoundPitch forKey:@"s_hp"];
+    [d setFloat:gHitSoundVolume forKey:@"s_hv"];
+    [d setFloat:gKillSoundPitch forKey:@"s_kp"];
+    [d setFloat:gKillSoundVolume forKey:@"s_kv"];
+    [d setFloat:gAimJitter forKey:@"a_jit"];
+    [d setInteger:gAimSwitchDelay forKey:@"a_swd"];
     [d setBool:gNightModeEnabled forKey:@"v_nm"];
     [d setBool:gSkyboxEnabled forKey:@"v_sky_e"];
     [d setInteger:(NSInteger)gSkyboxColorHex.load() forKey:@"v_sky_c"];
@@ -1093,6 +1436,8 @@ static NSString* getIL2CPPString(void* strObj) {
     [d setFloat:gSharpenVal forKey:@"wv_sharp"];
     [d setBool:gChamsPlayerEnabled forKey:@"v_chams_pl_e"];
     [d setBool:gChamsWeaponEnabled forKey:@"v_chams_wep_e"];
+    [d setBool:gChamsPlayerXray forKey:@"v_chams_pl_x"];
+    [d setBool:gChamsWeaponXray forKey:@"v_chams_wep_x"];
     [d setInteger:(NSInteger)gChamsPlayerColor.load() forKey:@"v_chams_pl_c"];
     [d setInteger:(NSInteger)gChamsWeaponColor.load() forKey:@"v_chams_wep_c"];
     [d setInteger:gChamsPlayerMatType forKey:@"v_chams_pl_m"];
@@ -1105,8 +1450,20 @@ static NSString* getIL2CPPString(void* strObj) {
     [ConfigManager saveColor:gVisibleColor forKey:@"c_vis"];
     [ConfigManager saveColor:gHiddenColor forKey:@"c_hid"];
     [ConfigManager saveColor:gHitMarkerColor forKey:@"c_hm"];
+    [ConfigManager saveColor:gDamageNumberColor forKey:@"c_dn"];
     [ConfigManager saveColor:gRadarColor forKey:@"c_radar"];
     [ConfigManager saveColor:gCrosshairColor forKey:@"c_cross"];
+    [ConfigManager saveColor:gFovCircleColor forKey:@"c_fov"];
+    [ConfigManager saveColor:gPlayerListColor forKey:@"c_plist"];
+    [ConfigManager saveColor:gEventLogColor forKey:@"c_elog"];
+    [ConfigManager saveColor:gKillFeedColor forKey:@"c_kf"];
+    [ConfigManager saveColor:gOofColor forKey:@"c_oof"];
+    [ConfigManager saveColor:gWatermarkAccent forKey:@"c_wm"];
+    [ConfigManager saveColor:gInfoPanelColor forKey:@"c_ip"];
+    [ConfigManager saveColor:gWeaponEspColor forKey:@"c_wep"];
+    [ConfigManager saveColor:gStatsColor forKey:@"c_stats"];
+    [ConfigManager saveColor:gAimInfoColor forKey:@"c_ai"];
+    [ConfigManager saveColor:gDamageLogColor forKey:@"c_dl"];
     [d synchronize];
 }
 
@@ -1183,8 +1540,6 @@ static NSString* getIL2CPPString(void* strObj) {
     gUnlimAmmoEnabled = [d boolForKey:@"w_ua"];
     gNoSpreadEnabled = [d boolForKey:@"w_ns"];
     gNoRecoilEnabled = [d boolForKey:@"w_nr"];
-    gAutoNoSpread = [d objectForKey:@"b_ans"] ? [d boolForKey:@"b_ans"] : true;
-    gAutoNoRecoil = [d objectForKey:@"b_anr"] ? [d boolForKey:@"b_anr"] : true;
     gBallisticsDebug = [d boolForKey:@"b_dbg"];
     gSpreadFloorEnabled = [d boolForKey:@"b_sfe"];
     gSpreadFloor = ClampFinite([d floatForKey:@"b_sf"], 0.0f, 0.05f, 0.0f);
@@ -1193,6 +1548,17 @@ static NSString* getIL2CPPString(void* strObj) {
     gHealthTextEnabled = [d boolForKey:@"h_hp"];
     gHitMarkerEnabled = [d objectForKey:@"h_hm"] ? [d boolForKey:@"h_hm"] : true;
     gDamageNumbersEnabled = [d objectForKey:@"h_dn"] ? [d boolForKey:@"h_dn"] : true;
+    gHitMarkerStyle = (int)[d integerForKey:@"h_hm_st"];
+    if (gHitMarkerStyle < 0 || gHitMarkerStyle > 2) {
+        gHitMarkerStyle = 0;
+    }
+    gHitMarkerSize = ClampFinite([d floatForKey:@"h_hm_sz"], 6.0f, 26.0f, 10.0f);
+    gHitMarkerDuration = (int)ClampFinite([d floatForKey:@"h_hm_du"], 100.0f, 800.0f, 260.0f);
+    gHitMarkerShowDamage = [d boolForKey:@"h_hm_dm"];
+    gDamageNumberSize = ClampFinite([d floatForKey:@"h_dn_sz"], 9.0f, 28.0f, 13.0f);
+    gDamageNumberDuration = (int)ClampFinite([d floatForKey:@"h_dn_du"], 250.0f, 2500.0f, 650.0f);
+    gDamageNumberRise = ClampFinite([d floatForKey:@"h_dn_ri"], 0.0f, 80.0f, 32.0f);
+    gDamageNumberOutline = [d objectForKey:@"h_dn_ol"] ? [d boolForKey:@"h_dn_ol"] : true;
     gRadarEnabled = [d boolForKey:@"h_rad"];
     gCrosshairEnabled = [d boolForKey:@"h_ch"];
     gScopeOverlayEnabled = [d boolForKey:@"h_scope"];
@@ -1210,6 +1576,127 @@ static NSString* getIL2CPPString(void* strObj) {
     gRadarSize = ClampFinite([d floatForKey:@"h_rs"], 70.0f, 220.0f, 120.0f);
     gRadarRotate = [d objectForKey:@"h_rrot"] ? [d boolForKey:@"h_rrot"] : true;
     gFpsEnabled = [d objectForKey:@"h_fps"] ? [d boolForKey:@"h_fps"] : true;
+    gTriggerbotEnabled = [d boolForKey:@"tb_e"];
+    gTriggerbotDelay = (int)ClampFinite([d floatForKey:@"tb_d"], 20.0f, 500.0f, 90.0f);
+    gTriggerbotFovPx = (int)ClampFinite([d floatForKey:@"tb_f"], 2.0f, 80.0f, 14.0f);
+    gTriggerbotHold = (int)ClampFinite([d floatForKey:@"tb_h"], 10.0f, 200.0f, 35.0f);
+    gTriggerbotVisibleOnly = [d objectForKey:@"tb_vo"] ? [d boolForKey:@"tb_vo"] : true;
+    gTriggerbotTeamCheck = [d objectForKey:@"tb_tc"] ? [d boolForKey:@"tb_tc"] : true;
+    gTriggerbotScopeOnly = [d boolForKey:@"tb_so"];
+    gTriggerbotHeadOnly = [d boolForKey:@"tb_ho"];
+    gCrosshairStyle = (int)[d integerForKey:@"ch_st"];
+    if (gCrosshairStyle < 0 || gCrosshairStyle > 4) {
+        gCrosshairStyle = 0;
+    }
+    gCrosshairGap = ClampFinite([d floatForKey:@"ch_g"], 0.0f, 60.0f, 6.0f);
+    gCrosshairLength = ClampFinite([d floatForKey:@"ch_l"], 2.0f, 40.0f, 9.0f);
+    gCrosshairThickness = ClampFinite([d floatForKey:@"ch_t"], 0.5f, 5.0f, 1.4f);
+    gCrosshairDot = ClampFinite([d floatForKey:@"ch_d"], 0.0f, 6.0f, 1.5f);
+    gCrosshairOutline = [d objectForKey:@"ch_o"] ? [d boolForKey:@"ch_o"] : true;
+    gFovCircleEnabled = [d objectForKey:@"fc_e"] ? [d boolForKey:@"fc_e"] : true;
+    gFovCircleStyle = (int)[d integerForKey:@"fc_st"];
+    if (gFovCircleStyle < 0 || gFovCircleStyle > 2) {
+        gFovCircleStyle = 0;
+    }
+    gFovCircleThickness = ClampFinite([d floatForKey:@"fc_t"], 0.5f, 5.0f, 1.0f);
+    gFovCircleFilled = [d boolForKey:@"fc_f"];
+    gBoxThickness = ClampFinite([d floatForKey:@"es_bt"], 0.5f, 5.0f, 1.0f);
+    gHealthBarStyle = (int)[d integerForKey:@"es_hbs"];
+    if (gHealthBarStyle < 0 || gHealthBarStyle > 2) {
+        gHealthBarStyle = 0;
+    }
+    gHealthBarWidth = ClampFinite([d floatForKey:@"es_hbw"], 1.0f, 6.0f, 2.0f);
+    gDistanceFormat = (int)[d integerForKey:@"es_df"];
+    if (gDistanceFormat < 0 || gDistanceFormat > 1) {
+        gDistanceFormat = 0;
+    }
+    gDistanceAbove = [d boolForKey:@"es_da"];
+    gEspFadeEnabled = [d boolForKey:@"es_fe"];
+    gEspFadeStart = ClampFinite([d floatForKey:@"es_fs"], 5.0f, 200.0f, 40.0f);
+    gEspFadeEnd = ClampFinite([d floatForKey:@"es_fend"], 10.0f, 400.0f, 140.0f);
+    if (gEspFadeEnd <= gEspFadeStart) {
+        gEspFadeEnd = gEspFadeStart + 20.0f;
+    }
+    gOofSize = ClampFinite([d floatForKey:@"es_oofs"], 4.0f, 30.0f, 12.0f);
+    gOofThickness = ClampFinite([d floatForKey:@"es_oofw"], 0.5f, 6.0f, 2.0f);
+    gNameBgEnabled = [d objectForKey:@"es_nbg"] ? [d boolForKey:@"es_nbg"] : true;
+    gHeadDotSize = ClampFinite([d floatForKey:@"es_hds"], 1.0f, 8.0f, 2.5f);
+    gWeaponEspEnabled = [d boolForKey:@"es_wep"];
+    gWeaponEspThickness = ClampFinite([d floatForKey:@"es_wepw"], 0.5f, 4.0f, 1.0f);
+    gBoxFilled = [d boolForKey:@"es_bf"];
+    gBoxFillAlpha = ClampFinite([d floatForKey:@"es_bfa"], 0.02f, 0.5f, 0.12f);
+    gEspHealthGradient = [d objectForKey:@"es_hg"] ? [d boolForKey:@"es_hg"] : true;
+    gEspArmorBar = [d objectForKey:@"es_ab"] ? [d boolForKey:@"es_ab"] : true;
+    gEspOffscreenArrows = [d objectForKey:@"es_oa"] ? [d boolForKey:@"es_oa"] : true;
+    gEspOffscreenMargin = ClampFinite([d floatForKey:@"es_om"], 10.0f, 120.0f, 40.0f);
+    gEspTeamFilter = [d boolForKey:@"es_tf"];
+    gEspDeadFilter = [d boolForKey:@"es_df2"];
+    gEspDistanceShadow = [d objectForKey:@"es_ds"] ? [d boolForKey:@"es_ds"] : true;
+    gAimInfoEnabled = [d boolForKey:@"ai_e"];
+    gKeybindListEnabled = [d boolForKey:@"kb_e"];
+    gStatsPanelEnabled = [d boolForKey:@"st_e"];
+    gDamageLogEnabled = [d boolForKey:@"dl_e"];
+    gAimDrawTarget = [d objectForKey:@"ai_t"] ? [d boolForKey:@"ai_t"] : true;
+    gAimDrawFov = [d objectForKey:@"ai_f"] ? [d boolForKey:@"ai_f"] : true;
+    gPredictionAmount = ClampFinite([d floatForKey:@"a_pred"], 0.0f, 1.0f, 0.0f);
+    gAimJitterEnabled = [d boolForKey:@"a_jite"];
+    gAimSwitchDelayEnabled = [d boolForKey:@"a_swde"];
+    gEventLogX = ClampFinite([d floatForKey:@"el_x"], 0.0f, 1000.0f, 12.0f);
+    gEventLogY = ClampFinite([d floatForKey:@"el_y"], 0.0f, 1000.0f, 300.0f);
+    gStatsPanelX = ClampFinite([d floatForKey:@"st_x"], 0.0f, 1000.0f, 12.0f);
+    gStatsPanelY = ClampFinite([d floatForKey:@"st_y"], 0.0f, 1000.0f, 420.0f);
+    gPanelBackground = [d objectForKey:@"pn_bg"] ? [d boolForKey:@"pn_bg"] : true;
+    gTargetPriority = (int)[d integerForKey:@"cb_prio"];
+    if (gTargetPriority < 0 || gTargetPriority > 2) {
+        gTargetPriority = 0;
+    }
+    gVelocityGraphEnabled = [d boolForKey:@"cb_vg"];
+    gSessionInfoEnabled = [d boolForKey:@"cb_si"];
+    gDamageLogPanelEnabled = [d boolForKey:@"cb_dlp"];
+    gTargetListEnabled = [d boolForKey:@"cb_tl"];
+    gCrosshairDebugEnabled = [d boolForKey:@"cb_cd"];
+    gAmmoBarEnabled = [d boolForKey:@"cb_ab"];
+    gRadarBlipSize = ClampFinite([d floatForKey:@"h_rbs"], 1.0f, 8.0f, 2.5f);
+    gRadarOpacity = ClampFinite([d floatForKey:@"h_rop"], 0.05f, 0.9f, 0.38f);
+    gBoxCornerLen = ClampFinite([d floatForKey:@"es_bcl"], 0.1f, 0.5f, 0.28f);
+    gNameMaxLen = (int)ClampFinite([d floatForKey:@"es_nml"], 4.0f, 32.0f, 16.0f);
+    gDamageStack = [d objectForKey:@"h_dst"] ? [d boolForKey:@"h_dst"] : true;
+    gSkeletonUpperOnly = [d boolForKey:@"h_skuo"];
+    gEspMaxDist = ClampFinite([d floatForKey:@"es_mxd"], 50.0f, 500.0f, 300.0f);
+    gPlayerListEnabled = [d boolForKey:@"pl_e"];
+    gPlayerListX = ClampFinite([d floatForKey:@"pl_x"], 0.0f, 1000.0f, 12.0f);
+    gPlayerListY = ClampFinite([d floatForKey:@"pl_y"], 0.0f, 1000.0f, 220.0f);
+    gPlayerListScale = ClampFinite([d floatForKey:@"pl_s"], 0.6f, 2.0f, 1.0f);
+    gPlayerListMax = (int)ClampFinite([d floatForKey:@"pl_m"], 1.0f, 16.0f, 8.0f);
+    gPlayerListHealth = [d objectForKey:@"pl_h"] ? [d boolForKey:@"pl_h"] : true;
+    gPlayerListDistance = [d objectForKey:@"pl_d"] ? [d boolForKey:@"pl_d"] : true;
+    gPlayerListTeam = [d objectForKey:@"pl_t"] ? [d boolForKey:@"pl_t"] : true;
+    gPlayerListWeapon = [d objectForKey:@"pl_w"] ? [d boolForKey:@"pl_w"] : true;
+    gPlayerListDead = [d boolForKey:@"pl_dead"];
+    gInfoPanelEnabled = [d boolForKey:@"ip_e"];
+    gInfoPanelX = ClampFinite([d floatForKey:@"ip_x"], 0.0f, 1000.0f, 12.0f);
+    gInfoPanelY = ClampFinite([d floatForKey:@"ip_y"], 0.0f, 1000.0f, 120.0f);
+    gInfoPanelHealth = [d objectForKey:@"ip_h"] ? [d boolForKey:@"ip_h"] : true;
+    gInfoPanelAmmo = [d objectForKey:@"ip_a"] ? [d boolForKey:@"ip_a"] : true;
+    gInfoPanelFps = [d objectForKey:@"ip_f"] ? [d boolForKey:@"ip_f"] : true;
+    gInfoPanelSpeed = [d objectForKey:@"ip_s"] ? [d boolForKey:@"ip_s"] : true;
+    gEventLogEnabled = [d boolForKey:@"el_e"];
+    gEventLogMax = (int)ClampFinite([d floatForKey:@"el_m"], 1.0f, 12.0f, 6.0f);
+    gEventLogDuration = ClampFinite([d floatForKey:@"el_d"], 1000.0f, 15000.0f, 5000.0f);
+    gWatermarkShowFps = [d objectForKey:@"wm_f"] ? [d boolForKey:@"wm_f"] : true;
+    gWatermarkShowTime = [d objectForKey:@"wm_t"] ? [d boolForKey:@"wm_t"] : true;
+    gWatermarkShowPlayers = [d objectForKey:@"wm_p"] ? [d boolForKey:@"wm_p"] : true;
+    gWatermarkScale = ClampFinite([d floatForKey:@"wm_s"], 0.6f, 1.8f, 1.0f);
+    gWatermarkAlpha = ClampFinite([d floatForKey:@"wm_a"], 0.3f, 1.0f, 0.95f);
+    gKillFeedDuration = ClampFinite([d floatForKey:@"kf_d"], 1500.0f, 15000.0f, 6000.0f);
+    gKillFeedMax = (int)ClampFinite([d floatForKey:@"kf_m"], 1.0f, 16.0f, 8.0f);
+    gKillFeedShowKiller = [d objectForKey:@"kf_k"] ? [d boolForKey:@"kf_k"] : true;
+    gHitSoundPitch = ClampFinite([d floatForKey:@"s_hp"], 200.0f, 6000.0f, 3000.0f);
+    gHitSoundVolume = ClampFinite([d floatForKey:@"s_hv"], 0.0f, 1.0f, 0.8f);
+    gKillSoundPitch = ClampFinite([d floatForKey:@"s_kp"], 200.0f, 6000.0f, 1500.0f);
+    gKillSoundVolume = ClampFinite([d floatForKey:@"s_kv"], 0.0f, 1.0f, 1.0f);
+    gAimJitter = ClampFinite([d floatForKey:@"a_jit"], 0.0f, 5.0f, 0.0f);
+    gAimSwitchDelay = (int)ClampFinite([d floatForKey:@"a_swd"], 0.0f, 800.0f, 0.0f);
     
     gNightModeEnabled = [d boolForKey:@"v_nm"];
     gSkyboxEnabled = [d boolForKey:@"v_sky_e"];
@@ -1236,6 +1723,8 @@ static NSString* getIL2CPPString(void* strObj) {
     
     gChamsPlayerEnabled = [d boolForKey:@"v_chams_pl_e"];
     gChamsWeaponEnabled = [d boolForKey:@"v_chams_wep_e"];
+    gChamsPlayerXray = [d boolForKey:@"v_chams_pl_x"];
+    gChamsWeaponXray = [d boolForKey:@"v_chams_wep_x"];
     gChamsPlayerColor = (uint32_t)[d integerForKey:@"v_chams_pl_c"];
     gChamsWeaponColor = (uint32_t)[d integerForKey:@"v_chams_wep_c"];
     
@@ -1263,8 +1752,20 @@ static NSString* getIL2CPPString(void* strObj) {
     gVisibleColor = [ConfigManager loadColorForKey:@"c_vis" defaultColor:[UIColor greenColor]];
     gHiddenColor = [ConfigManager loadColorForKey:@"c_hid" defaultColor:[UIColor redColor]];
     gHitMarkerColor = [ConfigManager loadColorForKey:@"c_hm" defaultColor:[UIColor whiteColor]];
+    gDamageNumberColor = [ConfigManager loadColorForKey:@"c_dn" defaultColor:[UIColor colorWithRed:1.0 green:0.75 blue:0.1 alpha:1.0]];
     gRadarColor = [ConfigManager loadColorForKey:@"c_radar" defaultColor:[UIColor greenColor]];
     gCrosshairColor = [ConfigManager loadColorForKey:@"c_cross" defaultColor:[UIColor whiteColor]];
+    gFovCircleColor = [ConfigManager loadColorForKey:@"c_fov" defaultColor:[UIColor whiteColor]];
+    gPlayerListColor = [ConfigManager loadColorForKey:@"c_plist" defaultColor:[UIColor whiteColor]];
+    gEventLogColor = [ConfigManager loadColorForKey:@"c_elog" defaultColor:[UIColor colorWithRed:0.7 green:0.85 blue:1.0 alpha:1.0]];
+    gKillFeedColor = [ConfigManager loadColorForKey:@"c_kf" defaultColor:[UIColor colorWithRed:1.0 green:0.35 blue:0.35 alpha:1.0]];
+    gOofColor = [ConfigManager loadColorForKey:@"c_oof" defaultColor:[UIColor whiteColor]];
+    gWatermarkAccent = [ConfigManager loadColorForKey:@"c_wm" defaultColor:[UIColor colorWithRed:0.45 green:0.35 blue:0.95 alpha:1.0]];
+    gInfoPanelColor = [ConfigManager loadColorForKey:@"c_ip" defaultColor:[UIColor whiteColor]];
+    gWeaponEspColor = [ConfigManager loadColorForKey:@"c_wep" defaultColor:[UIColor colorWithRed:1.0 green:0.6 blue:0.2 alpha:1.0]];
+    gStatsColor = [ConfigManager loadColorForKey:@"c_stats" defaultColor:[UIColor whiteColor]];
+    gAimInfoColor = [ConfigManager loadColorForKey:@"c_ai" defaultColor:[UIColor colorWithRed:0.9 green:0.3 blue:0.9 alpha:1.0]];
+    gDamageLogColor = [ConfigManager loadColorForKey:@"c_dl" defaultColor:[UIColor colorWithRed:1.0 green:0.5 blue:0.5 alpha:1.0]];
 }
 
 @end
@@ -1418,6 +1919,8 @@ static void ApplyViewmodelFov(void* self) {
     }
 }
 
+static void TriggerbotTick(void);
+
 static void hook_CamLateUpdate(void* self, void* mi) {
     if (SANE_PTR(self) && self == g_localSceneChar) {
         BallisticsCameraPre(self);
@@ -1453,6 +1956,18 @@ static void hook_CamLateUpdate(void* self, void* mi) {
     }
     
     if (p_lookAtTarget) {
+        // Switch-delay gate: hold the previous target for a short window so the crosshair
+        // does not snap between two enemies every frame.
+        if (gAimSwitchDelayEnabled.load() && gAimSwitchDelay.load() > 0) {
+            if (g_aimTargetObj != gAimLastTarget) {
+                if (NowMs() - gAimLastTargetMs < (uint64_t)gAimSwitchDelay.load()) {
+                    return;
+                }
+                gAimLastTarget = g_aimTargetObj;
+                gAimLastTargetMs = NowMs();
+            }
+        }
+        
         Vec3 aimPoint = g_targetHead;
         if (!Math::Finite(aimPoint)) {
             g_haveTarget = false;
@@ -1468,6 +1983,15 @@ static void hook_CamLateUpdate(void* self, void* mi) {
             g_smoothTarget = g_smoothTarget + diff * s;
             aimPoint = g_smoothTarget;
         }
+        if (gAimJitterEnabled.load()) {
+            float j = gAimJitter.load();
+            if (j > 0.0f) {
+                float jx = ((float)arc4random_uniform(2001) / 1000.0f - 1.0f) * j * 0.01f;
+                float jy = ((float)arc4random_uniform(2001) / 1000.0f - 1.0f) * j * 0.01f;
+                aimPoint.x += jx;
+                aimPoint.y += jy;
+            }
+        }
         if (Math::Finite(aimPoint)) {
             p_lookAtTarget(self, aimPoint, p_lookAtTargetMI);
         }
@@ -1476,6 +2000,9 @@ static void hook_CamLateUpdate(void* self, void* mi) {
 
 static void hook_UiOnClickFireDown(void* self, void* mi) {
     gFireHeldUntil = NowMs() + 5000;
+    if (SANE_PTR(self)) {
+        gMobileInputsInst = self;
+    }
     ApplyAimOnFire();
     BallisticsFirePre();
 
@@ -1491,6 +2018,9 @@ static fn_UiOnClickFire orig_UiOnClickFire = nullptr;
 
 static void hook_UiOnClickFire(void* self, void* mi) {
     gFireHeldUntil = NowMs() + 1000;
+    if (SANE_PTR(self)) {
+        gMobileInputsInst = self;
+    }
     ApplyAimOnFire();
     BallisticsFirePre();
 
@@ -1510,6 +2040,123 @@ static void hook_UiOnClickFireUp(void* self, void* mi) {
     if (orig_UiOnClickFireUp) {
         orig_UiOnClickFireUp(self, mi);
     }
+}
+
+// =========================================================================================
+// TRIGGERBOT
+// Fires the real mobile-input fire path when the crosshair sits inside a small pixel
+// radius around an enemy. The instance and method pointers are captured from the
+// OnClickFire* hooks, so no extra offsets are required.
+// =========================================================================================
+static void TriggerbotFireDown(void) {
+    if (!SANE_PTR(gMobileInputsInst)) {
+        return;
+    }
+    if (p_runtime_invoke && gMobileInputsFireDownMI) {
+        void* exc = nullptr;
+        p_runtime_invoke(gMobileInputsFireDownMI, gMobileInputsInst, nullptr, &exc);
+        if (!exc) {
+            return;
+        }
+    }
+    if (orig_UiOnClickFireDown) {
+        orig_UiOnClickFireDown(gMobileInputsInst, gMobileInputsFireDownMI);
+    }
+}
+
+static void TriggerbotFireUp(void) {
+    if (!SANE_PTR(gMobileInputsInst)) {
+        return;
+    }
+    if (p_runtime_invoke && gMobileInputsFireUpMI) {
+        void* exc = nullptr;
+        p_runtime_invoke(gMobileInputsFireUpMI, gMobileInputsInst, nullptr, &exc);
+        if (!exc) {
+            return;
+        }
+    }
+    if (orig_UiOnClickFireUp) {
+        orig_UiOnClickFireUp(gMobileInputsInst, gMobileInputsFireUpMI);
+    }
+}
+
+static void TriggerbotTick(void) {
+    if (!gTriggerbotEnabled.load()) {
+        if (gTriggerHolding) {
+            TriggerbotFireUp();
+            gTriggerHolding = false;
+        }
+        return;
+    }
+    if (!SANE_PTR(gMobileInputsInst)) {
+        return;
+    }
+    
+    uint64_t now = NowMs();
+    if (gTriggerHolding) {
+        uint64_t hold = (uint64_t)gTriggerbotHold.load();
+        if (hold < 10) {
+            hold = 10;
+        }
+        if (now - gTriggerReleaseMs >= hold) {
+            TriggerbotFireUp();
+            gTriggerHolding = false;
+            gTriggerLastFireMs = now;
+        }
+        return;
+    }
+    
+    uint64_t delay = (uint64_t)gTriggerbotDelay.load();
+    if (delay < 20) {
+        delay = 20;
+    }
+    if (now - gTriggerLastFireMs < delay) {
+        return;
+    }
+    
+    if (gTriggerbotScopeOnly.load() && !gLocalScoped.load()) {
+        return;
+    }
+    
+    float fov = (float)gTriggerbotFovPx.load();
+    if (!std::isfinite(fov) || fov <= 0.0f) {
+        return;
+    }
+    CGFloat cx = gScreenPts.width / 2.0f;
+    CGFloat cy = gScreenPts.height / 2.0f;
+    bool found = false;
+    float best = fov;
+    
+    for (const HudPlayerInfo& p : gHudPlayers) {
+        if (p.health <= 0) {
+            continue;
+        }
+        if (gTriggerbotTeamCheck.load() && p.team == gTeam && gTeam >= 0) {
+            continue;
+        }
+        if (gTriggerbotVisibleOnly.load() && !p.visible) {
+            continue;
+        }
+        CGPoint aim = gTriggerbotHeadOnly.load()
+            ? p.head
+            : CGPointMake(p.box.origin.x + p.box.size.width / 2.0f,
+                          p.box.origin.y + p.box.size.height * 0.4f);
+        float dx = (float)(aim.x - cx);
+        float dy = (float)(aim.y - cy);
+        float d = sqrtf(dx * dx + dy * dy);
+        if (d < best) {
+            best = d;
+            found = true;
+        }
+    }
+    
+    if (!found) {
+        return;
+    }
+    
+    TriggerbotFireDown();
+    gTriggerHolding = true;
+    gTriggerReleaseMs = now;
 }
 
 typedef void (*fn_WepUpdate)(void* self, void* mi);
@@ -1626,14 +2273,17 @@ static void InstallAllHooks(void) {
         if (mobileInputsCls) {
             void* mi = p_class_get_method_from_name(mobileInputsCls, "OnClickFireDown", 0);
             if (mi) {
+                gMobileInputsFireDownMI = mi;
                 hook_install(mi, (void*)hook_UiOnClickFireDown, (void**)&orig_UiOnClickFireDown);
             }
             void* miFire = p_class_get_method_from_name(mobileInputsCls, "OnClickFire", 0);
             if (miFire) {
+                gMobileInputsFireMI = miFire;
                 hook_install(miFire, (void*)hook_UiOnClickFire, (void**)&orig_UiOnClickFire);
             }
             void* miFireUp = p_class_get_method_from_name(mobileInputsCls, "OnClickFireUp", 0);
             if (miFireUp) {
+                gMobileInputsFireUpMI = miFireUp;
                 hook_install(miFireUp, (void*)hook_UiOnClickFireUp, (void**)&orig_UiOnClickFireUp);
             }
         }
@@ -1706,7 +2356,7 @@ static void EnsureMaterialCtorMI(void) {
     }
 }
 
-static void* CreateChamsMaterial(void* source, int type, uint32_t hexColor) {
+static void* CreateChamsMaterial(void* source, int type, uint32_t hexColor, bool xray) {
     if (!p_object_new || !gMatCls || !p_runtime_invoke) {
         return nullptr;
     }
@@ -1734,11 +2384,17 @@ static void* CreateChamsMaterial(void* source, int type, uint32_t hexColor) {
     float b = ((hexColor >> 8) & 0xFF) / 255.0f;
     float a = (hexColor & 0xFF) / 255.0f;
     
+    // type: 0 = Normal, 1 = Glass, 2 = Glow. X-Ray is a separate flag so the
+    // selected look is preserved and only the depth test changes.
+    bool glass = (type == 1);
+    bool glow = (type == 2);
+    float outAlpha = glass ? a : 1.0f;
+    
     void* strColor = p_string_new("_Color");
     void* strBaseColor = p_string_new("_BaseColor");
     
     if (p_matSetColor) {
-        UnityColor col(r, g, b, (type == 1 || type == 3) ? a : 1.0f);
+        UnityColor col(r, g, b, outAlpha);
         if (strColor) {
             p_matSetColor(newMat, strColor, col, p_matSetColorMI);
         }
@@ -1747,7 +2403,7 @@ static void* CreateChamsMaterial(void* source, int type, uint32_t hexColor) {
         }
         
         void* strEmission = p_string_new("_EmissionColor");
-        if (type == 2) {
+        if (glow) {
             UnityColor emis(r * 1.5f, g * 1.5f, b * 1.5f, 1.0f);
             if (strEmission) {
                 p_matSetColor(newMat, strEmission, emis, p_matSetColorMI);
@@ -1771,41 +2427,71 @@ static void* CreateChamsMaterial(void* source, int type, uint32_t hexColor) {
         }
     }
     
-    // per-type render state
+    // Per-type render state.
     if (p_matSetFloat) {
-        void* strZWrite = p_string_new("_ZWrite");
-        if (strZWrite && (type == 1 || type == 3)) {
-            p_matSetFloat(newMat, strZWrite, 0.0f, p_matSetFloatMI);
+        if (glass || xray) {
+            void* strZWrite = p_string_new("_ZWrite");
+            if (strZWrite) {
+                p_matSetFloat(newMat, strZWrite, 0.0f, p_matSetFloatMI);
+            }
+        }
+        if (xray) {
+            void* strZTestF = p_string_new("_ZTest");
+            if (strZTestF) {
+                p_matSetFloat(newMat, strZTestF, 8.0f, p_matSetFloatMI);
+            }
         }
     }
     
     if (p_matEnableKeyword) {
-        void* strEmis = p_string_new("_EMISSION");
-        if (strEmis && type == 2) {
-            p_matEnableKeyword(newMat, strEmis, p_matEnableKeywordMI);
+        if (glow) {
+            void* strEmis = p_string_new("_EMISSION");
+            if (strEmis) {
+                p_matEnableKeyword(newMat, strEmis, p_matEnableKeywordMI);
+            }
+        }
+        if (glass || xray) {
+            void* strTransparent = p_string_new("_SURFACE_TYPE_TRANSPARENT");
+            if (strTransparent) {
+                p_matEnableKeyword(newMat, strTransparent, p_matEnableKeywordMI);
+            }
         }
     }
     
     if (p_matSetInt) {
-        // X-Ray: try to force ZTest Always (8) — works on shaders exposing _ZTest,
-        // no-op SetFloat/SetInt on missing props, safe to attempt
-        void* strZTest = p_string_new("_ZTest");
-        void* strStencilComp = p_string_new("_StencilComp");
-        if (type == 3) {
+        if (xray) {
+            // 8 = CompareFunction.Always: draw on top of all geometry.
+            void* strZTest = p_string_new("_ZTest");
+            void* strStencilComp = p_string_new("_StencilComp");
+            void* strCull = p_string_new("_Cull");
             if (strZTest) {
                 p_matSetInt(newMat, strZTest, 8, p_matSetIntMI);
             }
             if (strStencilComp) {
                 p_matSetInt(newMat, strStencilComp, 8, p_matSetIntMI);
             }
+            if (strCull) {
+                p_matSetInt(newMat, strCull, 0, p_matSetIntMI);
+            }
+        }
+        if (glass) {
+            void* strSrc = p_string_new("_SrcBlend");
+            void* strDst = p_string_new("_DstBlend");
+            if (strSrc) {
+                p_matSetInt(newMat, strSrc, 5, p_matSetIntMI);
+            }
+            if (strDst) {
+                p_matSetInt(newMat, strDst, 10, p_matSetIntMI);
+            }
         }
     }
     
     if (p_matSetRQ) {
-        // Glass/X-Ray -> transparent+overlay range so they draw after opaque geometry
-        if (type == 1) {
+        if (xray) {
+            p_matSetRQ(newMat, 4000, p_matSetRQMI);
+        } else if (glass) {
             p_matSetRQ(newMat, 3000, p_matSetRQMI);
-        } else if (type == 2 || type == 3) {
+        } else if (glow) {
             p_matSetRQ(newMat, 4000, p_matSetRQMI);
         }
     }
@@ -1895,8 +2581,16 @@ static void EnsureChamsMaterials(void) {
         return;
     }
     
-    bool needP = !gChamsMatsPlayer[0] || !gChamsMatsPlayer[1] || !gChamsMatsPlayer[2] || !gChamsMatsPlayer[3];
-    bool needW = !gChamsMatsWeapon[0] || !gChamsMatsWeapon[1] || !gChamsMatsWeapon[2] || !gChamsMatsWeapon[3];
+    bool needP = false;
+    bool needW = false;
+    for (int i = 0; i < 6; i++) {
+        if (!gChamsMatsPlayer[i]) {
+            needP = true;
+        }
+        if (!gChamsMatsWeapon[i]) {
+            needW = true;
+        }
+    }
     
     if (!needP && !needW) {
         return;
@@ -1910,12 +2604,14 @@ static void EnsureChamsMaterials(void) {
     uint32_t pc = gChamsPlayerColor.load();
     uint32_t wc = gChamsWeaponColor.load();
     
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 6; i++) {
+        int type = i % 3;
+        bool xray = (i >= 3);
         if (!gChamsMatsPlayer[i]) {
-            gChamsMatsPlayer[i] = CreateChamsMaterial(sample, i, pc);
+            gChamsMatsPlayer[i] = CreateChamsMaterial(sample, type, pc, xray);
         }
         if (!gChamsMatsWeapon[i]) {
-            gChamsMatsWeapon[i] = CreateChamsMaterial(sample, i, wc);
+            gChamsMatsWeapon[i] = CreateChamsMaterial(sample, type, wc, xray);
         }
     }
 }
@@ -2014,14 +2710,21 @@ static void* GetWeaponRenderersCached(void* obj) {
     return nullptr;
 }
 
+static inline int ChamsMatIndex(int type, bool xray) {
+    if (type < 0 || type > 2) {
+        type = 0;
+    }
+    return type + (xray ? 3 : 0);
+}
+
 static void UpdateChamsForPlayer(void* player, void* charCtrl) {
     void* rv = *(void**)((uintptr_t)charCtrl + off::kOtherRemoteVis);
     if (!alive(rv)) {
         return;
     }
     
-    int playerType = gChamsPlayerMatType.load();
-    int weaponType = gChamsWeaponMatType.load();
+    int playerType = ChamsMatIndex(gChamsPlayerMatType.load(), gChamsPlayerXray.load());
+    int weaponType = ChamsMatIndex(gChamsWeaponMatType.load(), gChamsWeaponXray.load());
     bool pEnabled = gChamsPlayerEnabled.load();
     bool wEnabled = gChamsWeaponEnabled.load();
     
@@ -2088,7 +2791,7 @@ static void UpdateLocalChams() {
         return;
     }
     
-    int weaponType = gChamsWeaponMatType.load();
+    int weaponType = ChamsMatIndex(gChamsWeaponMatType.load(), gChamsWeaponXray.load());
     if (!gChamsMatsWeapon[weaponType]) {
         return;
     }
@@ -2197,14 +2900,14 @@ static void ChamsTick() {
         }
         
         if (gChamsPlayerColorDirty) {
-            for (int i = 0; i < 4; i++) {
+            for (int i = 0; i < 6; i++) {
                 gChamsMatsPlayer[i] = nullptr;
             }
             gChamsPlayerColorDirty = false;
         }
         
         if (gChamsWeaponColorDirty) {
-            for (int i = 0; i < 4; i++) {
+            for (int i = 0; i < 6; i++) {
                 gChamsMatsWeapon[i] = nullptr;
             }
             gChamsWeaponColorDirty = false;
@@ -2320,6 +3023,7 @@ static UIImage* CreateKeyIcon(CGSize size, UIColor *color) {
 @property (nonatomic, strong) UILabel* fpsLabel;
 @property (nonatomic, strong) UILabel* ramLabel;
 - (void)updateFps:(float)fps;
+- (void)applyStyle;
 @end
 
 @implementation WatermarkView {
@@ -2468,7 +3172,32 @@ static UIImage* CreateKeyIcon(CGSize size, UIColor *color) {
     if (!std::isfinite(fps)) {
         fps = 60;
     }
-    _fpsLabel.text = SafeFmt(@"%.0f FPS", fps);
+    if (gWatermarkShowPlayers.load()) {
+        int n = (int)gHudPlayers.size();
+        _fpsLabel.text = SafeFmt(@"%.0f FPS  %dP", fps, n);
+    } else {
+        _fpsLabel.text = SafeFmt(@"%.0f FPS", fps);
+    }
+}
+
+- (void)applyStyle {
+    float a = gWatermarkAlpha.load();
+    if (!std::isfinite(a) || a < 0.1f) {
+        a = 0.95f;
+    }
+    self.alpha = a;
+    
+    float s = gWatermarkScale.load();
+    if (!std::isfinite(s) || s < 0.3f) {
+        s = 1.0f;
+    }
+    self.transform = CGAffineTransformMakeScale(s, s);
+    
+    UIColor* accent = gWatermarkAccent ?: [UIColor colorWithWhite:0.3 alpha:1.0];
+    self.layer.borderColor = accent.CGColor;
+    
+    self.timeLabel.hidden = !gWatermarkShowTime.load();
+    self.fpsLabel.hidden = !gWatermarkShowFps.load();
 }
 
 - (void)dealloc {
@@ -3176,6 +3905,7 @@ static UIImage* CreateKeyIcon(CGSize size, UIColor *color) {
 @property (nonatomic, strong) NSMutableArray<NSValue*>* snapLines;
 @property (nonatomic, strong) NSMutableArray<UIColor*>* boxColors;
 @property (nonatomic, strong) NSMutableArray<NSString*>* healthTexts;
+@property (nonatomic, strong) NSMutableArray<NSNumber*>* dists;
 @end
 
 @implementation ESPView
@@ -3203,6 +3933,7 @@ static UIImage* CreateKeyIcon(CGSize size, UIColor *color) {
         _snapLines = [NSMutableArray arrayWithCapacity:32];
         _boxColors = [NSMutableArray arrayWithCapacity:32];
         _healthTexts = [NSMutableArray arrayWithCapacity:32];
+        _dists = [NSMutableArray arrayWithCapacity:32];
     }
     return self;
 }
@@ -3231,13 +3962,12 @@ static UIImage* CreateKeyIcon(CGSize size, UIColor *color) {
         NSForegroundColorAttributeName: [UIColor whiteColor]
     };
     
+    // ---- tracers -------------------------------------------------------
     if (gTracersEnabled && self.tracers.count > 0) {
         CGContextSetLineWidth(ctx, 1.0);
         CGContextSetStrokeColorWithColor(ctx, (gTracerColor ?: [UIColor whiteColor]).CGColor);
-        
         CGFloat cx = rect.size.width / 2.0f;
         CGFloat cy = rect.size.height / 2.0f;
-        
         for (NSValue *v in self.tracers) {
             CGPoint endPt = [v CGPointValue];
             CGContextMoveToPoint(ctx, cx, cy);
@@ -3246,18 +3976,57 @@ static UIImage* CreateKeyIcon(CGSize size, UIColor *color) {
         CGContextStrokePath(ctx);
     }
     
+    // ---- boxes / names / hp -------------------------------------------
     if (gEspEnabled || gHotEspEnabled) {
-        CGContextSetLineWidth(ctx, 1.0);
+        float boxW = gBoxThickness.load();
+        if (!std::isfinite(boxW) || boxW < 0.5f) {
+            boxW = 1.0f;
+        }
+        int hbStyle = gHealthBarStyle.load();
+        float hbWidth = gHealthBarWidth.load();
+        if (!std::isfinite(hbWidth) || hbWidth < 1.0f) {
+            hbWidth = 2.0f;
+        }
+        bool filled = gBoxFilled.load();
+        float fillAlpha = gBoxFillAlpha.load();
+        if (!std::isfinite(fillAlpha)) {
+            fillAlpha = 0.12f;
+        }
+        bool gradient = gEspHealthGradient.load();
+        bool armorBar = gEspArmorBar.load();
+        bool distAbove = gDistanceAbove.load();
+        int distFmt = gDistanceFormat.load();
         
         for (NSUInteger i = 0; i < self.boxes.count; i++) {
             CGRect r = [self.boxes[i] CGRectValue];
             UIColor *bc = (i < self.boxColors.count) ? self.boxColors[i] : gBoxColor;
-            CGContextSetStrokeColorWithColor(ctx, (bc ?: [UIColor redColor]).CGColor);
+            if (!bc) {
+                bc = [UIColor redColor];
+            }
+            
+            float fade = 1.0f;
+            if (gEspFadeEnabled.load() && i < self.dists.count) {
+                float d = [self.dists[i] floatValue];
+                float s = gEspFadeStart.load();
+                float e = gEspFadeEnd.load();
+                if (std::isfinite(d) && std::isfinite(s) && std::isfinite(e) && e > s) {
+                    fade = 1.0f - Math::Clamp((d - s) / (e - s), 0.0f, 1.0f);
+                    fade = Math::Clamp(fade, 0.15f, 1.0f);
+                }
+            }
+            
+            UIColor *stroke = [bc colorWithAlphaComponent:fade];
+            CGContextSetStrokeColorWithColor(ctx, stroke.CGColor);
+            CGContextSetLineWidth(ctx, boxW);
+            
+            if (filled) {
+                CGContextSetFillColorWithColor(ctx, [bc colorWithAlphaComponent:fillAlpha * fade].CGColor);
+                CGContextFillRect(ctx, r);
+            }
             
             int boxStyle = gBoxStyle.load();
             if (boxStyle == 1) {
-                CGFloat cl = MIN(r.size.width, r.size.height) * 0.28f;
-                CGContextSetLineWidth(ctx, 1.5);
+                CGFloat cl = MIN(r.size.width, r.size.height) * gBoxCornerLen.load();
                 CGContextMoveToPoint(ctx, r.origin.x, r.origin.y + cl);
                 CGContextAddLineToPoint(ctx, r.origin.x, r.origin.y);
                 CGContextAddLineToPoint(ctx, r.origin.x + cl, r.origin.y);
@@ -3279,56 +4048,126 @@ static UIImage* CreateKeyIcon(CGSize size, UIColor *color) {
                 NSString *name = SafeStr(self.names[i]);
                 CGPoint pt = [self.nameTexts[i] CGPointValue];
                 CGSize size = [name sizeWithAttributes:a];
-                [name drawAtPoint:CGPointMake(pt.x - size.width/2, pt.y) withAttributes:a];
+                CGFloat nx = pt.x - size.width / 2.0f;
+                if (gNameBgEnabled.load()) {
+                    CGContextSetFillColorWithColor(ctx, [UIColor colorWithWhite:0.0 alpha:0.45 * fade].CGColor);
+                    CGContextFillRect(ctx, CGRectMake(nx - 2.0f, pt.y - 1.0f, size.width + 4.0f, size.height + 2.0f));
+                }
+                NSDictionary *na = @{
+                    NSFontAttributeName: fontBold11 ?: [UIFont boldSystemFontOfSize:11],
+                    NSForegroundColorAttributeName: [(gNameColor ?: [UIColor whiteColor]) colorWithAlphaComponent:fade]
+                };
+                [name drawAtPoint:CGPointMake(nx, pt.y) withAttributes:na];
             }
             
             if (i < self.labels.count) {
                 NSString *lbl = SafeStr(self.labels[i]);
+                if (distFmt == 1 && i < self.dists.count) {
+                    lbl = SafeFmt(@"%.0f", [self.dists[i] floatValue]);
+                }
                 CGSize size = [lbl sizeWithAttributes:fa];
-                [lbl drawAtPoint:CGPointMake(r.origin.x + r.size.width + 2, r.origin.y + r.size.height/2 - size.height/2) withAttributes:fa];
+                CGFloat lx = r.origin.x + r.size.width + 2.0f;
+                CGFloat ly = r.origin.y + r.size.height / 2.0f - size.height / 2.0f;
+                if (distAbove) {
+                    lx = r.origin.x + r.size.width / 2.0f - size.width / 2.0f;
+                    ly = r.origin.y - size.height - 2.0f;
+                }
+                if (gEspDistanceShadow.load()) {
+                    NSDictionary *sa = @{
+                        NSFontAttributeName: fontBold9 ?: [UIFont boldSystemFontOfSize:9],
+                        NSForegroundColorAttributeName: [[UIColor blackColor] colorWithAlphaComponent:0.8 * fade]
+                    };
+                    [lbl drawAtPoint:CGPointMake(lx + 1.0f, ly + 1.0f) withAttributes:sa];
+                }
+                NSDictionary *la = @{
+                    NSFontAttributeName: fontBold9 ?: [UIFont boldSystemFontOfSize:9],
+                    NSForegroundColorAttributeName: [[UIColor whiteColor] colorWithAlphaComponent:fade]
+                };
+                [lbl drawAtPoint:CGPointMake(lx, ly) withAttributes:la];
             }
             
             if (gHealthTextEnabled && i < self.healthTexts.count) {
                 NSString *hp = SafeStr(self.healthTexts[i]);
                 CGSize hsz = [hp sizeWithAttributes:fa];
-                [hp drawAtPoint:CGPointMake(r.origin.x + r.size.width/2 - hsz.width/2, r.origin.y + r.size.height + 2) withAttributes:fa];
+                [hp drawAtPoint:CGPointMake(r.origin.x + r.size.width / 2.0f - hsz.width / 2.0f, r.origin.y + r.size.height + 2.0f) withAttributes:fa];
             }
             
             if (gHealthBarEnabled && i < self.hps.count) {
                 float h = [self.hps[i] floatValue];
                 float aa = (i < self.armors.count) ? [self.armors[i] floatValue] : 0.0f;
-                if (!std::isfinite(h)) {
-                    h = 0.0f;
-                }
-                if (!std::isfinite(aa)) {
-                    aa = 0.0f;
-                }
+                if (!std::isfinite(h)) h = 0.0f;
+                if (!std::isfinite(aa)) aa = 0.0f;
                 float ht = r.size.height;
                 float pct = Math::Clamp(h / 100.0f, 0.0f, 1.0f);
                 
-                CGContextSetFillColorWithColor(ctx, [UIColor colorWithWhite:0.1 alpha:0.8].CGColor);
-                CGContextFillRect(ctx, CGRectMake(r.origin.x - 5, r.origin.y, 2, ht));
+                CGRect bg, fg;
+                if (hbStyle == 2) {
+                    bg = CGRectMake(r.origin.x, r.origin.y - hbWidth - 2.0f, r.size.width, hbWidth);
+                    fg = CGRectMake(r.origin.x, r.origin.y - hbWidth - 2.0f, r.size.width * pct, hbWidth);
+                } else if (hbStyle == 1) {
+                    bg = CGRectMake(r.origin.x + r.size.width + 3.0f, r.origin.y, hbWidth, ht);
+                    fg = CGRectMake(r.origin.x + r.size.width + 3.0f, r.origin.y + ht * (1.0f - pct), hbWidth, ht * pct);
+                } else {
+                    bg = CGRectMake(r.origin.x - hbWidth - 3.0f, r.origin.y, hbWidth, ht);
+                    fg = CGRectMake(r.origin.x - hbWidth - 3.0f, r.origin.y + ht * (1.0f - pct), hbWidth, ht * pct);
+                }
                 
-                CGContextSetFillColorWithColor(ctx, [UIColor colorWithRed:(1-pct) green:pct blue:0 alpha:1].CGColor);
-                CGContextFillRect(ctx, CGRectMake(r.origin.x - 5, r.origin.y + ht*(1-pct), 2, ht*pct));
+                CGContextSetFillColorWithColor(ctx, [UIColor colorWithWhite:0.1 alpha:0.8 * fade].CGColor);
+                CGContextFillRect(ctx, bg);
                 
-                if (aa > 0) {
+                UIColor *hpColor = gradient
+                    ? [UIColor colorWithRed:(1.0f - pct) green:pct blue:0.0f alpha:fade]
+                    : [UIColor colorWithRed:0.2f green:0.9f blue:0.3f alpha:fade];
+                CGContextSetFillColorWithColor(ctx, hpColor.CGColor);
+                CGContextFillRect(ctx, fg);
+                
+                if (armorBar && aa > 0) {
                     float apct = Math::Clamp(aa / 100.0f, 0.0f, 1.0f);
-                    
-                    CGContextSetFillColorWithColor(ctx, [UIColor colorWithRed:0.2 green:0.5 blue:1 alpha:0.5].CGColor);
-                    CGContextFillRect(ctx, CGRectMake(r.origin.x - 8, r.origin.y, 2, ht));
-                    
-                    CGContextSetFillColorWithColor(ctx, [UIColor colorWithRed:0.4 green:0.8 blue:1 alpha:1].CGColor);
-                    CGContextFillRect(ctx, CGRectMake(r.origin.x - 8, r.origin.y + ht*(1-apct), 2, ht*apct));
+                    CGRect abg, afg;
+                    if (hbStyle == 2) {
+                        abg = CGRectMake(r.origin.x, r.origin.y - hbWidth * 2.0f - 4.0f, r.size.width, hbWidth);
+                        afg = CGRectMake(r.origin.x, r.origin.y - hbWidth * 2.0f - 4.0f, r.size.width * apct, hbWidth);
+                    } else if (hbStyle == 1) {
+                        abg = CGRectMake(r.origin.x + r.size.width + 3.0f + hbWidth + 1.0f, r.origin.y, hbWidth, ht);
+                        afg = CGRectMake(r.origin.x + r.size.width + 3.0f + hbWidth + 1.0f, r.origin.y + ht * (1.0f - apct), hbWidth, ht * apct);
+                    } else {
+                        abg = CGRectMake(r.origin.x - hbWidth * 2.0f - 4.0f, r.origin.y, hbWidth, ht);
+                        afg = CGRectMake(r.origin.x - hbWidth * 2.0f - 4.0f, r.origin.y + ht * (1.0f - apct), hbWidth, ht * apct);
+                    }
+                    CGContextSetFillColorWithColor(ctx, [UIColor colorWithRed:0.2 green:0.5 blue:1 alpha:0.5 * fade].CGColor);
+                    CGContextFillRect(ctx, abg);
+                    CGContextSetFillColorWithColor(ctx, [UIColor colorWithRed:0.4 green:0.8 blue:1 alpha:fade].CGColor);
+                    CGContextFillRect(ctx, afg);
                 }
             }
         }
     }
     
+    // ---- weapon esp ----------------------------------------------------
+    if (gWeaponEspEnabled.load() && self.weaponBoxes.count > 0) {
+        float ww = gWeaponEspThickness.load();
+        if (!std::isfinite(ww) || ww < 0.5f) ww = 1.0f;
+        CGContextSetLineWidth(ctx, ww);
+        CGContextSetStrokeColorWithColor(ctx, (gWeaponEspColor ?: [UIColor orangeColor]).CGColor);
+        for (NSValue *v in self.weaponBoxes) {
+            CGContextStrokeRect(ctx, [v CGRectValue]);
+        }
+        NSDictionary *wa = @{
+            NSFontAttributeName: fontBold9 ?: [UIFont boldSystemFontOfSize:9],
+            NSForegroundColorAttributeName: gWeaponEspColor ?: [UIColor orangeColor]
+        };
+        for (NSUInteger i = 0; i < self.weaponLabels.count && i < self.weaponBoxes.count; i++) {
+            CGRect r = [self.weaponBoxes[i] CGRectValue];
+            NSString *lbl = SafeStr(self.weaponLabels[i]);
+            CGSize sz = [lbl sizeWithAttributes:wa];
+            [lbl drawAtPoint:CGPointMake(r.origin.x + r.size.width / 2.0f - sz.width / 2.0f, r.origin.y - sz.height - 1.0f) withAttributes:wa];
+        }
+    }
+    
+    // ---- skeleton ------------------------------------------------------
     if (gSkeletonEnabled && self.skeletonLines.count > 0) {
         CGContextSetStrokeColorWithColor(ctx, (gSkelColor ?: [UIColor greenColor]).CGColor);
         CGContextSetLineWidth(ctx, gSkelThickness.load());
-        
         for (NSValue *v in self.skeletonLines) {
             CGRect r = [v CGRectValue];
             CGContextMoveToPoint(ctx, r.origin.x, r.origin.y);
@@ -3337,15 +4176,19 @@ static UIImage* CreateKeyIcon(CGSize size, UIColor *color) {
         CGContextStrokePath(ctx);
     }
     
+    // ---- head dots -----------------------------------------------------
     if (gHeadDotEnabled && self.headDots.count > 0) {
+        float hd = gHeadDotSize.load();
+        if (!std::isfinite(hd) || hd < 1.0f) hd = 2.5f;
         for (NSUInteger i = 0; i < self.headDots.count; i++) {
             CGPoint p = [self.headDots[i] CGPointValue];
             UIColor *hc = (i < self.boxColors.count) ? self.boxColors[i] : (gBoxColor ?: [UIColor redColor]);
             CGContextSetFillColorWithColor(ctx, (hc ?: [UIColor redColor]).CGColor);
-            CGContextFillEllipseInRect(ctx, CGRectMake(p.x - 2.5, p.y - 2.5, 5.0, 5.0));
+            CGContextFillEllipseInRect(ctx, CGRectMake(p.x - hd, p.y - hd, hd * 2.0f, hd * 2.0f));
         }
     }
     
+    // ---- snap lines ----------------------------------------------------
     if (gSnapBottomEnabled && self.snapLines.count > 0) {
         CGContextSetLineWidth(ctx, 1.0);
         CGContextSetStrokeColorWithColor(ctx, (gTracerColor ?: [UIColor whiteColor]).CGColor);
@@ -3359,38 +4202,34 @@ static UIImage* CreateKeyIcon(CGSize size, UIColor *color) {
         CGContextStrokePath(ctx);
     }
     
-    if (gOofEnabled && self.oofDirs.count > 0) {
-        CGContextSetLineWidth(ctx, 2.0);
-        CGContextSetStrokeColorWithColor(ctx, [UIColor whiteColor].CGColor);
+    // ---- offscreen arrows ---------------------------------------------
+    if (gOofEnabled && gEspOffscreenArrows.load() && self.oofDirs.count > 0) {
+        float oofW = gOofThickness.load();
+        if (!std::isfinite(oofW) || oofW < 0.5f) oofW = 2.0f;
+        float oofS = gOofSize.load();
+        if (!std::isfinite(oofS) || oofS < 4.0f) oofS = 12.0f;
+        CGContextSetLineWidth(ctx, oofW);
+        CGContextSetStrokeColorWithColor(ctx, (gOofColor ?: [UIColor whiteColor]).CGColor);
         
         CGFloat cx = rect.size.width / 2.0f;
         CGFloat cy = rect.size.height / 2.0f;
-        CGFloat R = MIN(rect.size.width, rect.size.height) / 2.0f - 40.0f;
+        CGFloat margin = gEspOffscreenMargin.load();
+        if (!std::isfinite(margin) || margin < 10.0f) margin = 40.0f;
+        CGFloat R = MIN(rect.size.width, rect.size.height) / 2.0f - margin;
         
         for (NSValue *v in self.oofDirs) {
             CGPoint dir = [v CGPointValue];
             CGFloat ex = cx + dir.x * R;
             CGFloat ey = cy + dir.y * R;
             CGFloat ang = atan2(dir.y, dir.x);
-            
-            CGFloat ax1 = ex + cosf(ang + 2.5f) * 12;
-            CGFloat ay1 = ey + sinf(ang + 2.5f) * 12;
-            CGFloat ax2 = ex + cosf(ang - 2.5f) * 12;
-            CGFloat ay2 = ey + sinf(ang - 2.5f) * 12;
-            
+            CGFloat ax1 = ex + cosf(ang + 2.5f) * oofS;
+            CGFloat ay1 = ey + sinf(ang + 2.5f) * oofS;
+            CGFloat ax2 = ex + cosf(ang - 2.5f) * oofS;
+            CGFloat ay2 = ey + sinf(ang - 2.5f) * oofS;
             CGContextMoveToPoint(ctx, ax1, ay1);
             CGContextAddLineToPoint(ctx, ex, ey);
             CGContextAddLineToPoint(ctx, ax2, ay2);
             CGContextStrokePath(ctx);
-        }
-    }
-    
-    if (gAimbotEnabled || gAimOnFireEnabled) {
-        float fov = (float)gAimbotFovPx;
-        if (fov > 0) {
-            CGContextSetStrokeColorWithColor(ctx, [UIColor whiteColor].CGColor);
-            CGContextSetLineWidth(ctx, 1.0);
-            CGContextStrokeEllipseInRect(ctx, CGRectMake(rect.size.width/2 - fov, rect.size.height/2 - fov, fov*2, fov*2));
         }
     }
 }
@@ -3657,7 +4496,7 @@ static void UpdateStreamMode(void) {
         _scrollView = [[UIScrollView alloc] initWithFrame:_content.bounds];
         _scrollView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
         _scrollView.showsVerticalScrollIndicator = NO;
-        _scrollView.contentSize = CGSizeMake(frame.size.width, 1200);
+        _scrollView.contentSize = CGSizeMake(frame.size.width, 2800);
         [_content addSubview:_scrollView];
         
         [self switchToTab:0];
@@ -3739,10 +4578,35 @@ static void UpdateStreamMode(void) {
                 gHiddenColor = newColor;
             } else if ([weakKey isEqualToString:@"c_hm"]) {
                 gHitMarkerColor = newColor;
+            } else if ([weakKey isEqualToString:@"c_dn"]) {
+                gDamageNumberColor = newColor;
             } else if ([weakKey isEqualToString:@"c_radar"]) {
                 gRadarColor = newColor;
             } else if ([weakKey isEqualToString:@"c_cross"]) {
                 gCrosshairColor = newColor;
+            } else if ([weakKey isEqualToString:@"c_fov"]) {
+                gFovCircleColor = newColor;
+            } else if ([weakKey isEqualToString:@"c_plist"]) {
+                gPlayerListColor = newColor;
+            } else if ([weakKey isEqualToString:@"c_elog"]) {
+                gEventLogColor = newColor;
+            } else if ([weakKey isEqualToString:@"c_kf"]) {
+                gKillFeedColor = newColor;
+            } else if ([weakKey isEqualToString:@"c_oof"]) {
+                gOofColor = newColor;
+            } else if ([weakKey isEqualToString:@"c_wm"]) {
+                gWatermarkAccent = newColor;
+                [gWatermark applyStyle];
+            } else if ([weakKey isEqualToString:@"c_ip"]) {
+                gInfoPanelColor = newColor;
+            } else if ([weakKey isEqualToString:@"c_wep"]) {
+                gWeaponEspColor = newColor;
+            } else if ([weakKey isEqualToString:@"c_stats"]) {
+                gStatsColor = newColor;
+            } else if ([weakKey isEqualToString:@"c_ai"]) {
+                gAimInfoColor = newColor;
+            } else if ([weakKey isEqualToString:@"c_dl"]) {
+                gDamageLogColor = newColor;
             }
             
             [ConfigManager saveColor:newColor forKey:weakKey];
@@ -3941,6 +4805,183 @@ static void UpdateStreamMode(void) {
             [gAuto addSubview:[[NLRow alloc] initWithTitle:@"Aim On Fire Smooth" y:y control:s3 swatch:nil]];
             y += 30;
             
+            NLGroupBox *gTrig = [[NLGroupBox alloc] initWithTitle:@"Triggerbot" frame:CGRectMake(0, 0, colW, 300)];
+            [c2 addSubview:gTrig];
+            CGFloat ty = 30;
+            
+            NLCheckbox *cbTB = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbTB.isOn = gTriggerbotEnabled;
+            cbTB.onToggle = ^(BOOL v) {
+                gTriggerbotEnabled = v;
+                [ConfigManager save];
+            };
+            [gTrig addSubview:[[NLRow alloc] initWithTitle:@"Triggerbot" y:ty control:cbTB swatch:nil]];
+            ty += 30;
+            
+            NLSlider *sTBDelay = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@"ms"];
+            sTBDelay.min = 20.0f;
+            sTBDelay.max = 500.0f;
+            sTBDelay.value = (float)gTriggerbotDelay.load();
+            sTBDelay.onChange = ^(float v) { gTriggerbotDelay = (int)v; };
+            sTBDelay.onRelease = ^(float v) { [ConfigManager save]; };
+            [gTrig addSubview:[[NLRow alloc] initWithTitle:@"Delay" y:ty control:sTBDelay swatch:nil]];
+            ty += 30;
+            
+            NLSlider *sTBFov = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@"px"];
+            sTBFov.min = 2.0f;
+            sTBFov.max = 80.0f;
+            sTBFov.value = (float)gTriggerbotFovPx.load();
+            sTBFov.onChange = ^(float v) { gTriggerbotFovPx = (int)v; };
+            sTBFov.onRelease = ^(float v) { [ConfigManager save]; };
+            [gTrig addSubview:[[NLRow alloc] initWithTitle:@"Radius" y:ty control:sTBFov swatch:nil]];
+            ty += 30;
+            
+            NLSlider *sTBHold = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@"ms"];
+            sTBHold.min = 10.0f;
+            sTBHold.max = 200.0f;
+            sTBHold.value = (float)gTriggerbotHold.load();
+            sTBHold.onChange = ^(float v) { gTriggerbotHold = (int)v; };
+            sTBHold.onRelease = ^(float v) { [ConfigManager save]; };
+            [gTrig addSubview:[[NLRow alloc] initWithTitle:@"Hold" y:ty control:sTBHold swatch:nil]];
+            ty += 30;
+            
+            NLCheckbox *cbTBVis = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbTBVis.isOn = gTriggerbotVisibleOnly;
+            cbTBVis.onToggle = ^(BOOL v) { gTriggerbotVisibleOnly = v; [ConfigManager save]; };
+            [gTrig addSubview:[[NLRow alloc] initWithTitle:@"Visible Only" y:ty control:cbTBVis swatch:nil]];
+            ty += 30;
+            
+            NLCheckbox *cbTBTeam = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbTBTeam.isOn = gTriggerbotTeamCheck;
+            cbTBTeam.onToggle = ^(BOOL v) { gTriggerbotTeamCheck = v; [ConfigManager save]; };
+            [gTrig addSubview:[[NLRow alloc] initWithTitle:@"Team Check" y:ty control:cbTBTeam swatch:nil]];
+            ty += 30;
+            
+            NLCheckbox *cbTBScope = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbTBScope.isOn = gTriggerbotScopeOnly;
+            cbTBScope.onToggle = ^(BOOL v) { gTriggerbotScopeOnly = v; [ConfigManager save]; };
+            [gTrig addSubview:[[NLRow alloc] initWithTitle:@"Scope Only" y:ty control:cbTBScope swatch:nil]];
+            ty += 30;
+            
+            NLCheckbox *cbTBHead = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbTBHead.isOn = gTriggerbotHeadOnly;
+            cbTBHead.onToggle = ^(BOOL v) { gTriggerbotHeadOnly = v; [ConfigManager save]; };
+            [gTrig addSubview:[[NLRow alloc] initWithTitle:@"Head Only" y:ty control:cbTBHead swatch:nil]];
+            ty += 30;
+            
+            NLGroupBox *gAimX = [[NLGroupBox alloc] initWithTitle:@"Aim Extras" frame:CGRectMake(0, 310, colW, 270)];
+            [c2 addSubview:gAimX];
+            CGFloat ax = 30;
+            
+            NLCheckbox *cbPred = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbPred.isOn = gPredictionEnabled;
+            cbPred.onToggle = ^(BOOL v) { gPredictionEnabled = v; [ConfigManager save]; };
+            [gAimX addSubview:[[NLRow alloc] initWithTitle:@"Prediction" y:ax control:cbPred swatch:nil]];
+            ax += 30;
+            
+            NLSlider *sPred = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@""];
+            sPred.min = 0.0f;
+            sPred.max = 1.0f;
+            sPred.value = gPredictionAmount;
+            sPred.onChange = ^(float v) { gPredictionAmount = v; };
+            sPred.onRelease = ^(float v) { [ConfigManager save]; };
+            [gAimX addSubview:[[NLRow alloc] initWithTitle:@"Lead" y:ax control:sPred swatch:nil]];
+            ax += 30;
+            
+            NLCheckbox *cbJit = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbJit.isOn = gAimJitterEnabled;
+            cbJit.onToggle = ^(BOOL v) { gAimJitterEnabled = v; [ConfigManager save]; };
+            [gAimX addSubview:[[NLRow alloc] initWithTitle:@"Humanize" y:ax control:cbJit swatch:nil]];
+            ax += 30;
+            
+            NLSlider *sJit = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@""];
+            sJit.min = 0.0f;
+            sJit.max = 5.0f;
+            sJit.value = gAimJitter;
+            sJit.onChange = ^(float v) { gAimJitter = v; };
+            sJit.onRelease = ^(float v) { [ConfigManager save]; };
+            [gAimX addSubview:[[NLRow alloc] initWithTitle:@"Jitter" y:ax control:sJit swatch:nil]];
+            ax += 30;
+            
+            NLCheckbox *cbSwD = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbSwD.isOn = gAimSwitchDelayEnabled;
+            cbSwD.onToggle = ^(BOOL v) { gAimSwitchDelayEnabled = v; [ConfigManager save]; };
+            [gAimX addSubview:[[NLRow alloc] initWithTitle:@"Switch Delay" y:ax control:cbSwD swatch:nil]];
+            ax += 30;
+            
+            NLSlider *sSwD = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@"ms"];
+            sSwD.min = 0.0f;
+            sSwD.max = 800.0f;
+            sSwD.value = (float)gAimSwitchDelay.load();
+            sSwD.onChange = ^(float v) { gAimSwitchDelay = (int)v; };
+            sSwD.onRelease = ^(float v) { [ConfigManager save]; };
+            [gAimX addSubview:[[NLRow alloc] initWithTitle:@"Switch Time" y:ax control:sSwD swatch:nil]];
+            ax += 30;
+            
+            NLCheckbox *cbDrawT = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbDrawT.isOn = gAimDrawTarget;
+            cbDrawT.onToggle = ^(BOOL v) { gAimDrawTarget = v; [ConfigManager save]; };
+            [gAimX addSubview:[[NLRow alloc] initWithTitle:@"Draw Target" y:ax control:cbDrawT swatch:nil]];
+            ax += 30;
+            
+            NLCheckbox *cbDrawF = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbDrawF.isOn = gAimDrawFov;
+            cbDrawF.onToggle = ^(BOOL v) { gAimDrawFov = v; [ConfigManager save]; };
+            [gAimX addSubview:[[NLRow alloc] initWithTitle:@"Draw FOV" y:ax control:cbDrawF swatch:nil]];
+            ax += 30;
+            
+            NLGroupBox *gCombat = [[NLGroupBox alloc] initWithTitle:@"Combat" frame:CGRectMake(0, 590, colW, 300)];
+            [c2 addSubview:gCombat];
+            CGFloat cby = 30;
+            
+            NLButton *bPrio = [[NLButton alloc] initWithTitle:(gTargetPriority == 0 ? @"Nearest" : (gTargetPriority == 1 ? @"Low HP" : @"Crosshair"))];
+            __weak NLButton *weakPrio = bPrio;
+            bPrio.onTap = ^{
+                int s = gTargetPriority.load();
+                s = (s + 1) % 3;
+                gTargetPriority = s;
+                [weakPrio.titleLabel setText:(s == 0 ? @"Nearest" : (s == 1 ? @"Low HP" : @"Crosshair"))];
+                [ConfigManager save];
+            };
+            [gCombat addSubview:[[NLRow alloc] initWithTitle:@"Target Priority" y:cby control:bPrio swatch:nil]];
+            cby += 30;
+            
+            NLCheckbox *cbVG = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbVG.isOn = gVelocityGraphEnabled;
+            cbVG.onToggle = ^(BOOL v) { gVelocityGraphEnabled = v; [ConfigManager save]; };
+            [gCombat addSubview:[[NLRow alloc] initWithTitle:@"Velocity Graph" y:cby control:cbVG swatch:nil]];
+            cby += 30;
+            
+            NLCheckbox *cbSI = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbSI.isOn = gSessionInfoEnabled;
+            cbSI.onToggle = ^(BOOL v) { gSessionInfoEnabled = v; [ConfigManager save]; };
+            [gCombat addSubview:[[NLRow alloc] initWithTitle:@"Session Info" y:cby control:cbSI swatch:nil]];
+            cby += 30;
+            
+            NLCheckbox *cbDLP = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbDLP.isOn = gDamageLogPanelEnabled;
+            cbDLP.onToggle = ^(BOOL v) { gDamageLogPanelEnabled = v; [ConfigManager save]; };
+            [gCombat addSubview:[[NLRow alloc] initWithTitle:@"Damage Log" y:cby control:cbDLP swatch:nil]];
+            cby += 30;
+            
+            NLCheckbox *cbTL = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbTL.isOn = gTargetListEnabled;
+            cbTL.onToggle = ^(BOOL v) { gTargetListEnabled = v; [ConfigManager save]; };
+            [gCombat addSubview:[[NLRow alloc] initWithTitle:@"Target List" y:cby control:cbTL swatch:nil]];
+            cby += 30;
+            
+            NLCheckbox *cbCD = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbCD.isOn = gCrosshairDebugEnabled;
+            cbCD.onToggle = ^(BOOL v) { gCrosshairDebugEnabled = v; [ConfigManager save]; };
+            [gCombat addSubview:[[NLRow alloc] initWithTitle:@"Crosshair Debug" y:cby control:cbCD swatch:nil]];
+            cby += 30;
+            
+            NLCheckbox *cbAB = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbAB.isOn = gAmmoBarEnabled;
+            cbAB.onToggle = ^(BOOL v) { gAmmoBarEnabled = v; [ConfigManager save]; };
+            [gCombat addSubview:[[NLRow alloc] initWithTitle:@"Ammo Bar" y:cby control:cbAB swatch:nil]];
+            cby += 30;
+            
         } else if (_currentTab == 1) {
             NLGroupBox *gEsp = [[NLGroupBox alloc] initWithTitle:@"Players" frame:CGRectMake(0, 0, colW, 340)];
             [c1 addSubview:gEsp];
@@ -4032,7 +5073,7 @@ static void UpdateStreamMode(void) {
             [gWorld addSubview:[[NLRow alloc] initWithTitle:@"Kill Sound" y:y control:cbKS swatch:nil]];
             y += 30;
             
-            NLGroupBox *gChams = [[NLGroupBox alloc] initWithTitle:@"Chams" frame:CGRectMake(0, 140, colW, 280)];
+            NLGroupBox *gChams = [[NLGroupBox alloc] initWithTitle:@"Chams" frame:CGRectMake(0, 140, colW, 360)];
             [c2 addSubview:gChams];
             CGFloat cy = 30;
             
@@ -4067,10 +5108,10 @@ static void UpdateStreamMode(void) {
             matSelPl.tag = 200;
             matSelPl.hidden = YES;
             
-            NSArray *matNames = @[@"Normal", @"Glass", @"Glow", @"X-Ray"];
-            CGFloat bw = (colW - 30 - 9) / 4.0;
+            NSArray *matNames = @[@"Normal", @"Glass", @"Glow"];
+            CGFloat bw = (colW - 30 - 6) / 3.0;
             
-            for (int i = 0; i < 4; i++) {
+            for (int i = 0; i < 3; i++) {
                 UIButton *b = [UIButton buttonWithType:UIButtonTypeSystem];
                 b.frame = CGRectMake(i * (bw + 3), 0, bw, 20);
                 b.backgroundColor = ((int)gChamsPlayerMatType == i) ? [UIColor colorWithWhite:0.4 alpha:1.0] : [UIColor colorWithWhite:0.15 alpha:1.0];
@@ -4084,6 +5125,15 @@ static void UpdateStreamMode(void) {
             }
             
             [gChams addSubview:matSelPl];
+            cy += 30;
+            
+            NLCheckbox *cbChamsPlX = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbChamsPlX.isOn = gChamsPlayerXray;
+            cbChamsPlX.onToggle = ^(BOOL v) {
+                gChamsPlayerXray = v;
+                [ConfigManager save];
+            };
+            [gChams addSubview:[[NLRow alloc] initWithTitle:@"Player X-Ray" y:cy control:cbChamsPlX swatch:nil]];
             cy += 30;
             
             NLCheckbox *cbChamsWep = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
@@ -4117,7 +5167,7 @@ static void UpdateStreamMode(void) {
             matSelWep.tag = 201;
             matSelWep.hidden = YES;
             
-            for (int i = 0; i < 4; i++) {
+            for (int i = 0; i < 3; i++) {
                 UIButton *b = [UIButton buttonWithType:UIButtonTypeSystem];
                 b.frame = CGRectMake(i * (bw + 3), 0, bw, 20);
                 b.backgroundColor = ((int)gChamsWeaponMatType == i) ? [UIColor colorWithWhite:0.4 alpha:1.0] : [UIColor colorWithWhite:0.15 alpha:1.0];
@@ -4133,7 +5183,16 @@ static void UpdateStreamMode(void) {
             [gChams addSubview:matSelWep];
             cy += 30;
             
-            NLGroupBox *gHud = [[NLGroupBox alloc] initWithTitle:@"HUD & Extras" frame:CGRectMake(0, 430, colW, 620)];
+            NLCheckbox *cbChamsWepX = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbChamsWepX.isOn = gChamsWeaponXray;
+            cbChamsWepX.onToggle = ^(BOOL v) {
+                gChamsWeaponXray = v;
+                [ConfigManager save];
+            };
+            [gChams addSubview:[[NLRow alloc] initWithTitle:@"Weapon X-Ray" y:cy control:cbChamsWepX swatch:nil]];
+            cy += 30;
+            
+            NLGroupBox *gHud = [[NLGroupBox alloc] initWithTitle:@"HUD & Extras" frame:CGRectMake(0, 510, colW, 940)];
             [c2 addSubview:gHud];
             CGFloat hy = 30;
             
@@ -4164,14 +5223,75 @@ static void UpdateStreamMode(void) {
             [gHud addSubview:[[NLRow alloc] initWithTitle:@"Health Text" y:hy control:cbHP swatch:nil]];
             hy += 30;
             
+            NLColorSwatch *swHM = [[NLColorSwatch alloc] initWithFrame:CGRectMake(0,0,16,16)];
+            swHM.color = gHitMarkerColor;
+            __weak NLColorSwatch *weakSwHM = swHM;
+            swHM.onTap = ^{
+                [weakSelf showColorPickerForSwatch:weakSwHM currentColor:weakSwHM.color saveKey:@"c_hm"];
+            };
+            
             NLCheckbox *cbHM = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
             cbHM.isOn = gHitMarkerEnabled;
             cbHM.onToggle = ^(BOOL v) {
                 gHitMarkerEnabled = v;
                 [ConfigManager save];
             };
-            [gHud addSubview:[[NLRow alloc] initWithTitle:@"Hit Marker" y:hy control:cbHM swatch:nil]];
+            [gHud addSubview:[[NLRow alloc] initWithTitle:@"Hit Marker" y:hy control:cbHM swatch:swHM]];
             hy += 30;
+            
+            NLButton *bHMStyle = [[NLButton alloc] initWithTitle:(gHitMarkerStyle == 0 ? @"Cross" : (gHitMarkerStyle == 1 ? @"Dot" : @"Both"))];
+            __weak NLButton *weakHMStyle = bHMStyle;
+            bHMStyle.onTap = ^{
+                int s = gHitMarkerStyle.load();
+                s = (s + 1) % 3;
+                gHitMarkerStyle = s;
+                [weakHMStyle.titleLabel setText:(s == 0 ? @"Cross" : (s == 1 ? @"Dot" : @"Both"))];
+                [ConfigManager save];
+            };
+            [gHud addSubview:[[NLRow alloc] initWithTitle:@"Hit Style" y:hy control:bHMStyle swatch:nil]];
+            hy += 30;
+            
+            NLSlider *sHMSize = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@"px"];
+            sHMSize.min = 6.0f;
+            sHMSize.max = 26.0f;
+            sHMSize.value = gHitMarkerSize;
+            sHMSize.onChange = ^(float v) {
+                gHitMarkerSize = v;
+            };
+            sHMSize.onRelease = ^(float v) {
+                [ConfigManager save];
+            };
+            [gHud addSubview:[[NLRow alloc] initWithTitle:@"Hit Size" y:hy control:sHMSize swatch:nil]];
+            hy += 30;
+            
+            NLSlider *sHMSpeed = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@"ms"];
+            sHMSpeed.min = 100.0f;
+            sHMSpeed.max = 800.0f;
+            sHMSpeed.value = (float)gHitMarkerDuration.load();
+            sHMSpeed.onChange = ^(float v) {
+                gHitMarkerDuration = (int)v;
+            };
+            sHMSpeed.onRelease = ^(float v) {
+                [ConfigManager save];
+            };
+            [gHud addSubview:[[NLRow alloc] initWithTitle:@"Hit Speed" y:hy control:sHMSpeed swatch:nil]];
+            hy += 30;
+            
+            NLCheckbox *cbHMDmg = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbHMDmg.isOn = gHitMarkerShowDamage;
+            cbHMDmg.onToggle = ^(BOOL v) {
+                gHitMarkerShowDamage = v;
+                [ConfigManager save];
+            };
+            [gHud addSubview:[[NLRow alloc] initWithTitle:@"Hit Damage" y:hy control:cbHMDmg swatch:nil]];
+            hy += 30;
+            
+            NLColorSwatch *swDN = [[NLColorSwatch alloc] initWithFrame:CGRectMake(0,0,16,16)];
+            swDN.color = gDamageNumberColor;
+            __weak NLColorSwatch *weakSwDN = swDN;
+            swDN.onTap = ^{
+                [weakSelf showColorPickerForSwatch:weakSwDN currentColor:weakSwDN.color saveKey:@"c_dn"];
+            };
             
             NLCheckbox *cbDN = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
             cbDN.isOn = gDamageNumbersEnabled;
@@ -4179,7 +5299,55 @@ static void UpdateStreamMode(void) {
                 gDamageNumbersEnabled = v;
                 [ConfigManager save];
             };
-            [gHud addSubview:[[NLRow alloc] initWithTitle:@"Damage Numbers" y:hy control:cbDN swatch:nil]];
+            [gHud addSubview:[[NLRow alloc] initWithTitle:@"Damage Numbers" y:hy control:cbDN swatch:swDN]];
+            hy += 30;
+            
+            NLSlider *sDNSize = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@"px"];
+            sDNSize.min = 9.0f;
+            sDNSize.max = 28.0f;
+            sDNSize.value = gDamageNumberSize;
+            sDNSize.onChange = ^(float v) {
+                gDamageNumberSize = v;
+            };
+            sDNSize.onRelease = ^(float v) {
+                [ConfigManager save];
+            };
+            [gHud addSubview:[[NLRow alloc] initWithTitle:@"Damage Size" y:hy control:sDNSize swatch:nil]];
+            hy += 30;
+            
+            NLSlider *sDNDur = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@"ms"];
+            sDNDur.min = 250.0f;
+            sDNDur.max = 2500.0f;
+            sDNDur.value = (float)gDamageNumberDuration.load();
+            sDNDur.onChange = ^(float v) {
+                gDamageNumberDuration = (int)v;
+            };
+            sDNDur.onRelease = ^(float v) {
+                [ConfigManager save];
+            };
+            [gHud addSubview:[[NLRow alloc] initWithTitle:@"Damage Speed" y:hy control:sDNDur swatch:nil]];
+            hy += 30;
+            
+            NLSlider *sDNRise = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@"px"];
+            sDNRise.min = 0.0f;
+            sDNRise.max = 80.0f;
+            sDNRise.value = gDamageNumberRise;
+            sDNRise.onChange = ^(float v) {
+                gDamageNumberRise = v;
+            };
+            sDNRise.onRelease = ^(float v) {
+                [ConfigManager save];
+            };
+            [gHud addSubview:[[NLRow alloc] initWithTitle:@"Damage Rise" y:hy control:sDNRise swatch:nil]];
+            hy += 30;
+            
+            NLCheckbox *cbDNOut = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbDNOut.isOn = gDamageNumberOutline;
+            cbDNOut.onToggle = ^(BOOL v) {
+                gDamageNumberOutline = v;
+                [ConfigManager save];
+            };
+            [gHud addSubview:[[NLRow alloc] initWithTitle:@"Damage Outline" y:hy control:cbDNOut swatch:nil]];
             hy += 30;
             
             NLCheckbox *cbRadar = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
@@ -4336,6 +5504,638 @@ static void UpdateStreamMode(void) {
             };
             [gHud addSubview:[[NLRow alloc] initWithTitle:@"FPS Graph" y:hy control:cbFps swatch:nil]];
             hy += 30;
+            
+            NLGroupBox *gEspStyle = [[NLGroupBox alloc] initWithTitle:@"ESP Style" frame:CGRectMake(0, 350, colW, 900)];
+            [c1 addSubview:gEspStyle];
+            CGFloat ey = 30;
+            
+            NLSlider *sBoxW = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@"px"];
+            sBoxW.min = 0.5f;
+            sBoxW.max = 5.0f;
+            sBoxW.value = gBoxThickness;
+            sBoxW.onChange = ^(float v) { gBoxThickness = v; };
+            sBoxW.onRelease = ^(float v) { [ConfigManager save]; };
+            [gEspStyle addSubview:[[NLRow alloc] initWithTitle:@"Box Width" y:ey control:sBoxW swatch:nil]];
+            ey += 30;
+            
+            NLCheckbox *cbBoxFill = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbBoxFill.isOn = gBoxFilled;
+            cbBoxFill.onToggle = ^(BOOL v) { gBoxFilled = v; [ConfigManager save]; };
+            [gEspStyle addSubview:[[NLRow alloc] initWithTitle:@"Box Filled" y:ey control:cbBoxFill swatch:nil]];
+            ey += 30;
+            
+            NLSlider *sBoxFillA = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@""];
+            sBoxFillA.min = 0.02f;
+            sBoxFillA.max = 0.5f;
+            sBoxFillA.value = gBoxFillAlpha;
+            sBoxFillA.onChange = ^(float v) { gBoxFillAlpha = v; };
+            sBoxFillA.onRelease = ^(float v) { [ConfigManager save]; };
+            [gEspStyle addSubview:[[NLRow alloc] initWithTitle:@"Fill Alpha" y:ey control:sBoxFillA swatch:nil]];
+            ey += 30;
+            
+            NLButton *bHBStyle = [[NLButton alloc] initWithTitle:(gHealthBarStyle == 0 ? @"Left" : (gHealthBarStyle == 1 ? @"Right" : @"Top"))];
+            __weak NLButton *weakHBStyle = bHBStyle;
+            bHBStyle.onTap = ^{
+                int s = gHealthBarStyle.load();
+                s = (s + 1) % 3;
+                gHealthBarStyle = s;
+                [weakHBStyle.titleLabel setText:(s == 0 ? @"Left" : (s == 1 ? @"Right" : @"Top"))];
+                [ConfigManager save];
+            };
+            [gEspStyle addSubview:[[NLRow alloc] initWithTitle:@"HP Bar Style" y:ey control:bHBStyle swatch:nil]];
+            ey += 30;
+            
+            NLSlider *sHBW = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@"px"];
+            sHBW.min = 1.0f;
+            sHBW.max = 6.0f;
+            sHBW.value = gHealthBarWidth;
+            sHBW.onChange = ^(float v) { gHealthBarWidth = v; };
+            sHBW.onRelease = ^(float v) { [ConfigManager save]; };
+            [gEspStyle addSubview:[[NLRow alloc] initWithTitle:@"HP Bar Width" y:ey control:sHBW swatch:nil]];
+            ey += 30;
+            
+            NLCheckbox *cbHPGrad = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbHPGrad.isOn = gEspHealthGradient;
+            cbHPGrad.onToggle = ^(BOOL v) { gEspHealthGradient = v; [ConfigManager save]; };
+            [gEspStyle addSubview:[[NLRow alloc] initWithTitle:@"HP Gradient" y:ey control:cbHPGrad swatch:nil]];
+            ey += 30;
+            
+            NLCheckbox *cbArmor = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbArmor.isOn = gEspArmorBar;
+            cbArmor.onToggle = ^(BOOL v) { gEspArmorBar = v; [ConfigManager save]; };
+            [gEspStyle addSubview:[[NLRow alloc] initWithTitle:@"Armor Bar" y:ey control:cbArmor swatch:nil]];
+            ey += 30;
+            
+            NLButton *bDistFmt = [[NLButton alloc] initWithTitle:(gDistanceFormat == 0 ? @"Meters" : @"Units")];
+            __weak NLButton *weakDistFmt = bDistFmt;
+            bDistFmt.onTap = ^{
+                int s = gDistanceFormat.load();
+                s = (s == 0) ? 1 : 0;
+                gDistanceFormat = s;
+                [weakDistFmt.titleLabel setText:(s == 0 ? @"Meters" : @"Units")];
+                [ConfigManager save];
+            };
+            [gEspStyle addSubview:[[NLRow alloc] initWithTitle:@"Distance Fmt" y:ey control:bDistFmt swatch:nil]];
+            ey += 30;
+            
+            NLCheckbox *cbDistAbove = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbDistAbove.isOn = gDistanceAbove;
+            cbDistAbove.onToggle = ^(BOOL v) { gDistanceAbove = v; [ConfigManager save]; };
+            [gEspStyle addSubview:[[NLRow alloc] initWithTitle:@"Distance Above" y:ey control:cbDistAbove swatch:nil]];
+            ey += 30;
+            
+            NLCheckbox *cbFade = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbFade.isOn = gEspFadeEnabled;
+            cbFade.onToggle = ^(BOOL v) { gEspFadeEnabled = v; [ConfigManager save]; };
+            [gEspStyle addSubview:[[NLRow alloc] initWithTitle:@"Distance Fade" y:ey control:cbFade swatch:nil]];
+            ey += 30;
+            
+            NLSlider *sFadeS = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@"m"];
+            sFadeS.min = 5.0f;
+            sFadeS.max = 200.0f;
+            sFadeS.value = gEspFadeStart;
+            sFadeS.onChange = ^(float v) { gEspFadeStart = v; };
+            sFadeS.onRelease = ^(float v) { [ConfigManager save]; };
+            [gEspStyle addSubview:[[NLRow alloc] initWithTitle:@"Fade Start" y:ey control:sFadeS swatch:nil]];
+            ey += 30;
+            
+            NLSlider *sFadeE = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@"m"];
+            sFadeE.min = 10.0f;
+            sFadeE.max = 400.0f;
+            sFadeE.value = gEspFadeEnd;
+            sFadeE.onChange = ^(float v) { gEspFadeEnd = v; };
+            sFadeE.onRelease = ^(float v) { [ConfigManager save]; };
+            [gEspStyle addSubview:[[NLRow alloc] initWithTitle:@"Fade End" y:ey control:sFadeE swatch:nil]];
+            ey += 30;
+            
+            NLSlider *sOofS = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@"px"];
+            sOofS.min = 4.0f;
+            sOofS.max = 30.0f;
+            sOofS.value = gOofSize;
+            sOofS.onChange = ^(float v) { gOofSize = v; };
+            sOofS.onRelease = ^(float v) { [ConfigManager save]; };
+            [gEspStyle addSubview:[[NLRow alloc] initWithTitle:@"OOF Size" y:ey control:sOofS swatch:nil]];
+            ey += 30;
+            
+            NLSlider *sOofW = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@"px"];
+            sOofW.min = 0.5f;
+            sOofW.max = 6.0f;
+            sOofW.value = gOofThickness;
+            sOofW.onChange = ^(float v) { gOofThickness = v; };
+            sOofW.onRelease = ^(float v) { [ConfigManager save]; };
+            [gEspStyle addSubview:[[NLRow alloc] initWithTitle:@"OOF Width" y:ey control:sOofW swatch:nil]];
+            ey += 30;
+            
+            NLColorSwatch *swOof = [[NLColorSwatch alloc] initWithFrame:CGRectMake(0,0,16,16)];
+            swOof.color = gOofColor;
+            __weak NLColorSwatch *weakSwOof = swOof;
+            swOof.onTap = ^{
+                [weakSelf showColorPickerForSwatch:weakSwOof currentColor:weakSwOof.color saveKey:@"c_oof"];
+            };
+            NLCheckbox *cbOof = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbOof.isOn = gOofEnabled;
+            cbOof.onToggle = ^(BOOL v) { gOofEnabled = v; [ConfigManager save]; };
+            [gEspStyle addSubview:[[NLRow alloc] initWithTitle:@"Offscreen" y:ey control:cbOof swatch:swOof]];
+            ey += 30;
+            
+            NLSlider *sHeadDot = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@"px"];
+            sHeadDot.min = 1.0f;
+            sHeadDot.max = 8.0f;
+            sHeadDot.value = gHeadDotSize;
+            sHeadDot.onChange = ^(float v) { gHeadDotSize = v; };
+            sHeadDot.onRelease = ^(float v) { [ConfigManager save]; };
+            [gEspStyle addSubview:[[NLRow alloc] initWithTitle:@"Head Dot Size" y:ey control:sHeadDot swatch:nil]];
+            ey += 30;
+            
+            NLCheckbox *cbNameBg = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbNameBg.isOn = gNameBgEnabled;
+            cbNameBg.onToggle = ^(BOOL v) { gNameBgEnabled = v; [ConfigManager save]; };
+            [gEspStyle addSubview:[[NLRow alloc] initWithTitle:@"Name Background" y:ey control:cbNameBg swatch:nil]];
+            ey += 30;
+            
+            NLColorSwatch *swWep = [[NLColorSwatch alloc] initWithFrame:CGRectMake(0,0,16,16)];
+            swWep.color = gWeaponEspColor;
+            __weak NLColorSwatch *weakSwWep = swWep;
+            swWep.onTap = ^{
+                [weakSelf showColorPickerForSwatch:weakSwWep currentColor:weakSwWep.color saveKey:@"c_wep"];
+            };
+            NLCheckbox *cbWepEsp = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbWepEsp.isOn = gWeaponEspEnabled;
+            cbWepEsp.onToggle = ^(BOOL v) { gWeaponEspEnabled = v; [ConfigManager save]; };
+            [gEspStyle addSubview:[[NLRow alloc] initWithTitle:@"Weapon ESP" y:ey control:cbWepEsp swatch:swWep]];
+            ey += 30;
+            
+            NLSlider *sWepW = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@"px"];
+            sWepW.min = 0.5f;
+            sWepW.max = 4.0f;
+            sWepW.value = gWeaponEspThickness;
+            sWepW.onChange = ^(float v) { gWeaponEspThickness = v; };
+            sWepW.onRelease = ^(float v) { [ConfigManager save]; };
+            [gEspStyle addSubview:[[NLRow alloc] initWithTitle:@"Weapon Width" y:ey control:sWepW swatch:nil]];
+            ey += 30;
+            
+            NLCheckbox *cbOofArrows = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbOofArrows.isOn = gEspOffscreenArrows;
+            cbOofArrows.onToggle = ^(BOOL v) { gEspOffscreenArrows = v; [ConfigManager save]; };
+            [gEspStyle addSubview:[[NLRow alloc] initWithTitle:@"OOF Arrows" y:ey control:cbOofArrows swatch:nil]];
+            ey += 30;
+            
+            NLSlider *sOofMargin = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@"px"];
+            sOofMargin.min = 10.0f;
+            sOofMargin.max = 120.0f;
+            sOofMargin.value = gEspOffscreenMargin;
+            sOofMargin.onChange = ^(float v) { gEspOffscreenMargin = v; };
+            sOofMargin.onRelease = ^(float v) { [ConfigManager save]; };
+            [gEspStyle addSubview:[[NLRow alloc] initWithTitle:@"OOF Margin" y:ey control:sOofMargin swatch:nil]];
+            ey += 30;
+            
+            NLSlider *sRadarBlip = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@"px"];
+            sRadarBlip.min = 1.0f;
+            sRadarBlip.max = 8.0f;
+            sRadarBlip.value = gRadarBlipSize;
+            sRadarBlip.onChange = ^(float v) { gRadarBlipSize = v; };
+            sRadarBlip.onRelease = ^(float v) { [ConfigManager save]; };
+            [gEspStyle addSubview:[[NLRow alloc] initWithTitle:@"Radar Blip" y:ey control:sRadarBlip swatch:nil]];
+            ey += 30;
+            
+            NLSlider *sRadarOp = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@""];
+            sRadarOp.min = 0.05f;
+            sRadarOp.max = 0.9f;
+            sRadarOp.value = gRadarOpacity;
+            sRadarOp.onChange = ^(float v) { gRadarOpacity = v; };
+            sRadarOp.onRelease = ^(float v) { [ConfigManager save]; };
+            [gEspStyle addSubview:[[NLRow alloc] initWithTitle:@"Radar Opacity" y:ey control:sRadarOp swatch:nil]];
+            ey += 30;
+            
+            NLSlider *sCornerLen = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@""];
+            sCornerLen.min = 0.1f;
+            sCornerLen.max = 0.5f;
+            sCornerLen.value = gBoxCornerLen;
+            sCornerLen.onChange = ^(float v) { gBoxCornerLen = v; };
+            sCornerLen.onRelease = ^(float v) { [ConfigManager save]; };
+            [gEspStyle addSubview:[[NLRow alloc] initWithTitle:@"Corner Length" y:ey control:sCornerLen swatch:nil]];
+            ey += 30;
+            
+            NLSlider *sNameLen = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@""];
+            sNameLen.min = 4.0f;
+            sNameLen.max = 32.0f;
+            sNameLen.value = (float)gNameMaxLen.load();
+            sNameLen.onChange = ^(float v) { gNameMaxLen = (int)v; };
+            sNameLen.onRelease = ^(float v) { [ConfigManager save]; };
+            [gEspStyle addSubview:[[NLRow alloc] initWithTitle:@"Name Max Len" y:ey control:sNameLen swatch:nil]];
+            ey += 30;
+            
+            NLCheckbox *cbDmgStack = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbDmgStack.isOn = gDamageStack;
+            cbDmgStack.onToggle = ^(BOOL v) { gDamageStack = v; [ConfigManager save]; };
+            [gEspStyle addSubview:[[NLRow alloc] initWithTitle:@"Damage Stack" y:ey control:cbDmgStack swatch:nil]];
+            ey += 30;
+            
+            NLCheckbox *cbSkelUp = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbSkelUp.isOn = gSkeletonUpperOnly;
+            cbSkelUp.onToggle = ^(BOOL v) { gSkeletonUpperOnly = v; [ConfigManager save]; };
+            [gEspStyle addSubview:[[NLRow alloc] initWithTitle:@"Skeleton Upper" y:ey control:cbSkelUp swatch:nil]];
+            ey += 30;
+            
+            NLSlider *sMaxDist = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@"m"];
+            sMaxDist.min = 50.0f;
+            sMaxDist.max = 500.0f;
+            sMaxDist.value = gEspMaxDist;
+            sMaxDist.onChange = ^(float v) { gEspMaxDist = v; };
+            sMaxDist.onRelease = ^(float v) { [ConfigManager save]; };
+            [gEspStyle addSubview:[[NLRow alloc] initWithTitle:@"Max Distance" y:ey control:sMaxDist swatch:nil]];
+            ey += 30;
+            
+            NLGroupBox *gCross = [[NLGroupBox alloc] initWithTitle:@"Crosshair & FOV" frame:CGRectMake(0, 1260, colW, 400)];
+            [c1 addSubview:gCross];
+            CGFloat cy2 = 30;
+            
+            NLButton *bCHStyle = [[NLButton alloc] initWithTitle:(gCrosshairStyle == 0 ? @"Cross" : (gCrosshairStyle == 1 ? @"Dot" : (gCrosshairStyle == 2 ? @"Circle" : (gCrosshairStyle == 3 ? @"T" : @"X"))))];
+            __weak NLButton *weakCHStyle = bCHStyle;
+            bCHStyle.onTap = ^{
+                int s = gCrosshairStyle.load();
+                s = (s + 1) % 5;
+                gCrosshairStyle = s;
+                NSString *t = (s == 0 ? @"Cross" : (s == 1 ? @"Dot" : (s == 2 ? @"Circle" : (s == 3 ? @"T" : @"X"))));
+                [weakCHStyle.titleLabel setText:t];
+                [ConfigManager save];
+            };
+            [gCross addSubview:[[NLRow alloc] initWithTitle:@"Cross Style" y:cy2 control:bCHStyle swatch:nil]];
+            cy2 += 30;
+            
+            NLSlider *sCHGap = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@"px"];
+            sCHGap.min = 0.0f;
+            sCHGap.max = 60.0f;
+            sCHGap.value = gCrosshairGap;
+            sCHGap.onChange = ^(float v) { gCrosshairGap = v; };
+            sCHGap.onRelease = ^(float v) { [ConfigManager save]; };
+            [gCross addSubview:[[NLRow alloc] initWithTitle:@"Cross Gap" y:cy2 control:sCHGap swatch:nil]];
+            cy2 += 30;
+            
+            NLSlider *sCHLen = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@"px"];
+            sCHLen.min = 2.0f;
+            sCHLen.max = 40.0f;
+            sCHLen.value = gCrosshairLength;
+            sCHLen.onChange = ^(float v) { gCrosshairLength = v; };
+            sCHLen.onRelease = ^(float v) { [ConfigManager save]; };
+            [gCross addSubview:[[NLRow alloc] initWithTitle:@"Cross Length" y:cy2 control:sCHLen swatch:nil]];
+            cy2 += 30;
+            
+            NLSlider *sCHTh = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@"px"];
+            sCHTh.min = 0.5f;
+            sCHTh.max = 5.0f;
+            sCHTh.value = gCrosshairThickness;
+            sCHTh.onChange = ^(float v) { gCrosshairThickness = v; };
+            sCHTh.onRelease = ^(float v) { [ConfigManager save]; };
+            [gCross addSubview:[[NLRow alloc] initWithTitle:@"Cross Width" y:cy2 control:sCHTh swatch:nil]];
+            cy2 += 30;
+            
+            NLSlider *sCHDot = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@"px"];
+            sCHDot.min = 0.0f;
+            sCHDot.max = 6.0f;
+            sCHDot.value = gCrosshairDot;
+            sCHDot.onChange = ^(float v) { gCrosshairDot = v; };
+            sCHDot.onRelease = ^(float v) { [ConfigManager save]; };
+            [gCross addSubview:[[NLRow alloc] initWithTitle:@"Cross Dot" y:cy2 control:sCHDot swatch:nil]];
+            cy2 += 30;
+            
+            NLCheckbox *cbCHOut = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbCHOut.isOn = gCrosshairOutline;
+            cbCHOut.onToggle = ^(BOOL v) { gCrosshairOutline = v; [ConfigManager save]; };
+            [gCross addSubview:[[NLRow alloc] initWithTitle:@"Cross Outline" y:cy2 control:cbCHOut swatch:nil]];
+            cy2 += 30;
+            
+            NLColorSwatch *swCross = [[NLColorSwatch alloc] initWithFrame:CGRectMake(0,0,16,16)];
+            swCross.color = gCrosshairColor;
+            __weak NLColorSwatch *weakSwCross = swCross;
+            swCross.onTap = ^{
+                [weakSelf showColorPickerForSwatch:weakSwCross currentColor:weakSwCross.color saveKey:@"c_cross"];
+            };
+            NLCheckbox *cbCrossE = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbCrossE.isOn = gCrosshairEnabled;
+            cbCrossE.onToggle = ^(BOOL v) { gCrosshairEnabled = v; [ConfigManager save]; };
+            [gCross addSubview:[[NLRow alloc] initWithTitle:@"Crosshair" y:cy2 control:cbCrossE swatch:swCross]];
+            cy2 += 30;
+            
+            NLButton *bFCStyle = [[NLButton alloc] initWithTitle:(gFovCircleStyle == 0 ? @"Circle" : (gFovCircleStyle == 1 ? @"Square" : @"Corners"))];
+            __weak NLButton *weakFCStyle = bFCStyle;
+            bFCStyle.onTap = ^{
+                int s = gFovCircleStyle.load();
+                s = (s + 1) % 3;
+                gFovCircleStyle = s;
+                [weakFCStyle.titleLabel setText:(s == 0 ? @"Circle" : (s == 1 ? @"Square" : @"Corners"))];
+                [ConfigManager save];
+            };
+            [gCross addSubview:[[NLRow alloc] initWithTitle:@"FOV Style" y:cy2 control:bFCStyle swatch:nil]];
+            cy2 += 30;
+            
+            NLSlider *sFCTh = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@"px"];
+            sFCTh.min = 0.5f;
+            sFCTh.max = 5.0f;
+            sFCTh.value = gFovCircleThickness;
+            sFCTh.onChange = ^(float v) { gFovCircleThickness = v; };
+            sFCTh.onRelease = ^(float v) { [ConfigManager save]; };
+            [gCross addSubview:[[NLRow alloc] initWithTitle:@"FOV Width" y:cy2 control:sFCTh swatch:nil]];
+            cy2 += 30;
+            
+            NLCheckbox *cbFCFill = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbFCFill.isOn = gFovCircleFilled;
+            cbFCFill.onToggle = ^(BOOL v) { gFovCircleFilled = v; [ConfigManager save]; };
+            [gCross addSubview:[[NLRow alloc] initWithTitle:@"FOV Filled" y:cy2 control:cbFCFill swatch:nil]];
+            cy2 += 30;
+            
+            NLColorSwatch *swFov = [[NLColorSwatch alloc] initWithFrame:CGRectMake(0,0,16,16)];
+            swFov.color = gFovCircleColor;
+            __weak NLColorSwatch *weakSwFov = swFov;
+            swFov.onTap = ^{
+                [weakSelf showColorPickerForSwatch:weakSwFov currentColor:weakSwFov.color saveKey:@"c_fov"];
+            };
+            NLCheckbox *cbFCE = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbFCE.isOn = gFovCircleEnabled;
+            cbFCE.onToggle = ^(BOOL v) { gFovCircleEnabled = v; [ConfigManager save]; };
+            [gCross addSubview:[[NLRow alloc] initWithTitle:@"FOV Circle" y:cy2 control:cbFCE swatch:swFov]];
+            cy2 += 30;
+            
+            NLGroupBox *gPanels = [[NLGroupBox alloc] initWithTitle:@"Panels" frame:CGRectMake(0, 1460, colW, 830)];
+            [c2 addSubview:gPanels];
+            CGFloat py = 30;
+            
+            NLCheckbox *cbPL = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbPL.isOn = gPlayerListEnabled;
+            cbPL.onToggle = ^(BOOL v) { gPlayerListEnabled = v; [ConfigManager save]; };
+            [gPanels addSubview:[[NLRow alloc] initWithTitle:@"Player List" y:py control:cbPL swatch:nil]];
+            py += 30;
+            
+            NLCheckbox *cbPLH = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbPLH.isOn = gPlayerListHealth;
+            cbPLH.onToggle = ^(BOOL v) { gPlayerListHealth = v; [ConfigManager save]; };
+            [gPanels addSubview:[[NLRow alloc] initWithTitle:@"List Health" y:py control:cbPLH swatch:nil]];
+            py += 30;
+            
+            NLCheckbox *cbPLD = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbPLD.isOn = gPlayerListDistance;
+            cbPLD.onToggle = ^(BOOL v) { gPlayerListDistance = v; [ConfigManager save]; };
+            [gPanels addSubview:[[NLRow alloc] initWithTitle:@"List Distance" y:py control:cbPLD swatch:nil]];
+            py += 30;
+            
+            NLCheckbox *cbPLT = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbPLT.isOn = gPlayerListTeam;
+            cbPLT.onToggle = ^(BOOL v) { gPlayerListTeam = v; [ConfigManager save]; };
+            [gPanels addSubview:[[NLRow alloc] initWithTitle:@"List Team" y:py control:cbPLT swatch:nil]];
+            py += 30;
+            
+            NLSlider *sPLMax = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@""];
+            sPLMax.min = 1.0f;
+            sPLMax.max = 16.0f;
+            sPLMax.value = (float)gPlayerListMax.load();
+            sPLMax.onChange = ^(float v) { gPlayerListMax = (int)v; };
+            sPLMax.onRelease = ^(float v) { [ConfigManager save]; };
+            [gPanels addSubview:[[NLRow alloc] initWithTitle:@"List Max" y:py control:sPLMax swatch:nil]];
+            py += 30;
+            
+            NLSlider *sPLScale = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@"x"];
+            sPLScale.min = 0.6f;
+            sPLScale.max = 2.0f;
+            sPLScale.value = gPlayerListScale;
+            sPLScale.onChange = ^(float v) { gPlayerListScale = v; };
+            sPLScale.onRelease = ^(float v) { [ConfigManager save]; };
+            [gPanels addSubview:[[NLRow alloc] initWithTitle:@"List Scale" y:py control:sPLScale swatch:nil]];
+            py += 30;
+            
+            NLCheckbox *cbIP = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbIP.isOn = gInfoPanelEnabled;
+            cbIP.onToggle = ^(BOOL v) { gInfoPanelEnabled = v; [ConfigManager save]; };
+            [gPanels addSubview:[[NLRow alloc] initWithTitle:@"Info Panel" y:py control:cbIP swatch:nil]];
+            py += 30;
+            
+            NLCheckbox *cbIPH = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbIPH.isOn = gInfoPanelHealth;
+            cbIPH.onToggle = ^(BOOL v) { gInfoPanelHealth = v; [ConfigManager save]; };
+            [gPanels addSubview:[[NLRow alloc] initWithTitle:@"Info Health" y:py control:cbIPH swatch:nil]];
+            py += 30;
+            
+            NLCheckbox *cbIPA = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbIPA.isOn = gInfoPanelAmmo;
+            cbIPA.onToggle = ^(BOOL v) { gInfoPanelAmmo = v; [ConfigManager save]; };
+            [gPanels addSubview:[[NLRow alloc] initWithTitle:@"Info Ammo" y:py control:cbIPA swatch:nil]];
+            py += 30;
+            
+            NLCheckbox *cbIPF = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbIPF.isOn = gInfoPanelFps;
+            cbIPF.onToggle = ^(BOOL v) { gInfoPanelFps = v; [ConfigManager save]; };
+            [gPanels addSubview:[[NLRow alloc] initWithTitle:@"Info FPS" y:py control:cbIPF swatch:nil]];
+            py += 30;
+            
+            NLCheckbox *cbIPS = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbIPS.isOn = gInfoPanelSpeed;
+            cbIPS.onToggle = ^(BOOL v) { gInfoPanelSpeed = v; [ConfigManager save]; };
+            [gPanels addSubview:[[NLRow alloc] initWithTitle:@"Info Speed" y:py control:cbIPS swatch:nil]];
+            py += 30;
+            
+            NLCheckbox *cbEL = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbEL.isOn = gEventLogEnabled;
+            cbEL.onToggle = ^(BOOL v) { gEventLogEnabled = v; [ConfigManager save]; };
+            [gPanels addSubview:[[NLRow alloc] initWithTitle:@"Event Log" y:py control:cbEL swatch:nil]];
+            py += 30;
+            
+            NLSlider *sELMax = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@""];
+            sELMax.min = 1.0f;
+            sELMax.max = 12.0f;
+            sELMax.value = (float)gEventLogMax.load();
+            sELMax.onChange = ^(float v) { gEventLogMax = (int)v; };
+            sELMax.onRelease = ^(float v) { [ConfigManager save]; };
+            [gPanels addSubview:[[NLRow alloc] initWithTitle:@"Log Max" y:py control:sELMax swatch:nil]];
+            py += 30;
+            
+            NLSlider *sELDur = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@"ms"];
+            sELDur.min = 1000.0f;
+            sELDur.max = 15000.0f;
+            sELDur.value = gEventLogDuration;
+            sELDur.onChange = ^(float v) { gEventLogDuration = v; };
+            sELDur.onRelease = ^(float v) { [ConfigManager save]; };
+            [gPanels addSubview:[[NLRow alloc] initWithTitle:@"Log Duration" y:py control:sELDur swatch:nil]];
+            py += 30;
+            
+            NLCheckbox *cbStats = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbStats.isOn = gStatsPanelEnabled;
+            cbStats.onToggle = ^(BOOL v) { gStatsPanelEnabled = v; [ConfigManager save]; };
+            [gPanels addSubview:[[NLRow alloc] initWithTitle:@"Stats Panel" y:py control:cbStats swatch:nil]];
+            py += 30;
+            
+            NLCheckbox *cbAimInfo = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbAimInfo.isOn = gAimInfoEnabled;
+            cbAimInfo.onToggle = ^(BOOL v) { gAimInfoEnabled = v; [ConfigManager save]; };
+            [gPanels addSubview:[[NLRow alloc] initWithTitle:@"Aim Info" y:py control:cbAimInfo swatch:nil]];
+            py += 30;
+            
+            NLCheckbox *cbKB = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbKB.isOn = gKeybindListEnabled;
+            cbKB.onToggle = ^(BOOL v) { gKeybindListEnabled = v; [ConfigManager save]; };
+            [gPanels addSubview:[[NLRow alloc] initWithTitle:@"Keybind List" y:py control:cbKB swatch:nil]];
+            py += 30;
+            
+            NLCheckbox *cbPanelBg = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbPanelBg.isOn = gPanelBackground;
+            cbPanelBg.onToggle = ^(BOOL v) { gPanelBackground = v; [ConfigManager save]; };
+            [gPanels addSubview:[[NLRow alloc] initWithTitle:@"Panel Background" y:py control:cbPanelBg swatch:nil]];
+            py += 30;
+            
+            NLSlider *sPLX = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@"px"];
+            sPLX.min = 0.0f;
+            sPLX.max = 1000.0f;
+            sPLX.value = gPlayerListX;
+            sPLX.onChange = ^(float v) { gPlayerListX = v; };
+            sPLX.onRelease = ^(float v) { [ConfigManager save]; };
+            [gPanels addSubview:[[NLRow alloc] initWithTitle:@"List X" y:py control:sPLX swatch:nil]];
+            py += 30;
+            
+            NLSlider *sPLY = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@"px"];
+            sPLY.min = 0.0f;
+            sPLY.max = 1000.0f;
+            sPLY.value = gPlayerListY;
+            sPLY.onChange = ^(float v) { gPlayerListY = v; };
+            sPLY.onRelease = ^(float v) { [ConfigManager save]; };
+            [gPanels addSubview:[[NLRow alloc] initWithTitle:@"List Y" y:py control:sPLY swatch:nil]];
+            py += 30;
+            
+            NLSlider *sIPX = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@"px"];
+            sIPX.min = 0.0f;
+            sIPX.max = 1000.0f;
+            sIPX.value = gInfoPanelX;
+            sIPX.onChange = ^(float v) { gInfoPanelX = v; };
+            sIPX.onRelease = ^(float v) { [ConfigManager save]; };
+            [gPanels addSubview:[[NLRow alloc] initWithTitle:@"Info X" y:py control:sIPX swatch:nil]];
+            py += 30;
+            
+            NLSlider *sIPY = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@"px"];
+            sIPY.min = 0.0f;
+            sIPY.max = 1000.0f;
+            sIPY.value = gInfoPanelY;
+            sIPY.onChange = ^(float v) { gInfoPanelY = v; };
+            sIPY.onRelease = ^(float v) { [ConfigManager save]; };
+            [gPanels addSubview:[[NLRow alloc] initWithTitle:@"Info Y" y:py control:sIPY swatch:nil]];
+            py += 30;
+            
+            NLSlider *sELX = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@"px"];
+            sELX.min = 0.0f;
+            sELX.max = 1000.0f;
+            sELX.value = gEventLogX;
+            sELX.onChange = ^(float v) { gEventLogX = v; };
+            sELX.onRelease = ^(float v) { [ConfigManager save]; };
+            [gPanels addSubview:[[NLRow alloc] initWithTitle:@"Log X" y:py control:sELX swatch:nil]];
+            py += 30;
+            
+            NLSlider *sELY = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@"px"];
+            sELY.min = 0.0f;
+            sELY.max = 1000.0f;
+            sELY.value = gEventLogY;
+            sELY.onChange = ^(float v) { gEventLogY = v; };
+            sELY.onRelease = ^(float v) { [ConfigManager save]; };
+            [gPanels addSubview:[[NLRow alloc] initWithTitle:@"Log Y" y:py control:sELY swatch:nil]];
+            py += 30;
+            
+            NLSlider *sSTX = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@"px"];
+            sSTX.min = 0.0f;
+            sSTX.max = 1000.0f;
+            sSTX.value = gStatsPanelX;
+            sSTX.onChange = ^(float v) { gStatsPanelX = v; };
+            sSTX.onRelease = ^(float v) { [ConfigManager save]; };
+            [gPanels addSubview:[[NLRow alloc] initWithTitle:@"Stats X" y:py control:sSTX swatch:nil]];
+            py += 30;
+            
+            NLSlider *sSTY = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@"px"];
+            sSTY.min = 0.0f;
+            sSTY.max = 1000.0f;
+            sSTY.value = gStatsPanelY;
+            sSTY.onChange = ^(float v) { gStatsPanelY = v; };
+            sSTY.onRelease = ^(float v) { [ConfigManager save]; };
+            [gPanels addSubview:[[NLRow alloc] initWithTitle:@"Stats Y" y:py control:sSTY swatch:nil]];
+            py += 30;
+            
+            NLGroupBox *gSound = [[NLGroupBox alloc] initWithTitle:@"Sound & Feed" frame:CGRectMake(0, 2300, colW, 340)];
+            [c2 addSubview:gSound];
+            CGFloat sy = 30;
+            
+            NLCheckbox *cbHSnd = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbHSnd.isOn = gHitSoundEnabled;
+            cbHSnd.onToggle = ^(BOOL v) { gHitSoundEnabled = v; [ConfigManager save]; };
+            [gSound addSubview:[[NLRow alloc] initWithTitle:@"Hit Sound" y:sy control:cbHSnd swatch:nil]];
+            sy += 30;
+            
+            NLSlider *sHPitch = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@"Hz"];
+            sHPitch.min = 200.0f;
+            sHPitch.max = 6000.0f;
+            sHPitch.value = gHitSoundPitch;
+            sHPitch.onChange = ^(float v) { gHitSoundPitch = v; };
+            sHPitch.onRelease = ^(float v) { RebuildSoundPlayers(); [ConfigManager save]; };
+            [gSound addSubview:[[NLRow alloc] initWithTitle:@"Hit Pitch" y:sy control:sHPitch swatch:nil]];
+            sy += 30;
+            
+            NLSlider *sHVol = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@""];
+            sHVol.min = 0.0f;
+            sHVol.max = 1.0f;
+            sHVol.value = gHitSoundVolume;
+            sHVol.onChange = ^(float v) { gHitSoundVolume = v; };
+            sHVol.onRelease = ^(float v) { RebuildSoundPlayers(); [ConfigManager save]; };
+            [gSound addSubview:[[NLRow alloc] initWithTitle:@"Hit Volume" y:sy control:sHVol swatch:nil]];
+            sy += 30;
+            
+            NLCheckbox *cbKSnd = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbKSnd.isOn = gKillSoundEnabled;
+            cbKSnd.onToggle = ^(BOOL v) { gKillSoundEnabled = v; [ConfigManager save]; };
+            [gSound addSubview:[[NLRow alloc] initWithTitle:@"Kill Sound" y:sy control:cbKSnd swatch:nil]];
+            sy += 30;
+            
+            NLSlider *sKPitch = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@"Hz"];
+            sKPitch.min = 200.0f;
+            sKPitch.max = 6000.0f;
+            sKPitch.value = gKillSoundPitch;
+            sKPitch.onChange = ^(float v) { gKillSoundPitch = v; };
+            sKPitch.onRelease = ^(float v) { RebuildSoundPlayers(); [ConfigManager save]; };
+            [gSound addSubview:[[NLRow alloc] initWithTitle:@"Kill Pitch" y:sy control:sKPitch swatch:nil]];
+            sy += 30;
+            
+            NLSlider *sKVol = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@""];
+            sKVol.min = 0.0f;
+            sKVol.max = 1.0f;
+            sKVol.value = gKillSoundVolume;
+            sKVol.onChange = ^(float v) { gKillSoundVolume = v; };
+            sKVol.onRelease = ^(float v) { RebuildSoundPlayers(); [ConfigManager save]; };
+            [gSound addSubview:[[NLRow alloc] initWithTitle:@"Kill Volume" y:sy control:sKVol swatch:nil]];
+            sy += 30;
+            
+            NLCheckbox *cbKFSnd = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbKFSnd.isOn = gKillFeedEnabled;
+            cbKFSnd.onToggle = ^(BOOL v) { gKillFeedEnabled = v; [ConfigManager save]; };
+            [gSound addSubview:[[NLRow alloc] initWithTitle:@"Kill Feed" y:sy control:cbKFSnd swatch:nil]];
+            sy += 30;
+            
+            NLSlider *sKFMax = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@""];
+            sKFMax.min = 1.0f;
+            sKFMax.max = 16.0f;
+            sKFMax.value = (float)gKillFeedMax.load();
+            sKFMax.onChange = ^(float v) { gKillFeedMax = (int)v; };
+            sKFMax.onRelease = ^(float v) { [ConfigManager save]; };
+            [gSound addSubview:[[NLRow alloc] initWithTitle:@"Feed Max" y:sy control:sKFMax swatch:nil]];
+            sy += 30;
+            
+            NLSlider *sKFDur = [[NLSlider alloc] initWithFrame:CGRectMake(0,0,120,18) suffix:@"ms"];
+            sKFDur.min = 1500.0f;
+            sKFDur.max = 15000.0f;
+            sKFDur.value = gKillFeedDuration;
+            sKFDur.onChange = ^(float v) { gKillFeedDuration = v; };
+            sKFDur.onRelease = ^(float v) { [ConfigManager save]; };
+            [gSound addSubview:[[NLRow alloc] initWithTitle:@"Feed Duration" y:sy control:sKFDur swatch:nil]];
+            sy += 30;
+            
+            NLColorSwatch *swKF = [[NLColorSwatch alloc] initWithFrame:CGRectMake(0,0,16,16)];
+            swKF.color = gKillFeedColor;
+            __weak NLColorSwatch *weakSwKF = swKF;
+            swKF.onTap = ^{
+                [weakSelf showColorPickerForSwatch:weakSwKF currentColor:weakSwKF.color saveKey:@"c_kf"];
+            };
+            [gSound addSubview:[[NLRow alloc] initWithTitle:@"Feed Color" y:sy control:nil swatch:swKF]];
+            sy += 30;
             
         } else if (_currentTab == 2) {
             NLGroupBox *gWV = [[NLGroupBox alloc] initWithTitle:@"World View" frame:CGRectMake(0, 0, colW, 240)];
@@ -4580,42 +6380,6 @@ static void UpdateStreamMode(void) {
             [gWeapon addSubview:[[NLRow alloc] initWithTitle:@"Unlim Ammo" y:y control:cbUA swatch:nil]];
             y += 30;
             
-            NLCheckbox *cbNS = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
-            cbNS.isOn = gNoSpreadEnabled;
-            cbNS.onToggle = ^(BOOL v) {
-                gNoSpreadEnabled = v;
-                [ConfigManager save];
-            };
-            [gWeapon addSubview:[[NLRow alloc] initWithTitle:@"No Spread" y:y control:cbNS swatch:nil]];
-            y += 30;
-            
-            NLCheckbox *cbNR = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
-            cbNR.isOn = gNoRecoilEnabled;
-            cbNR.onToggle = ^(BOOL v) {
-                gNoRecoilEnabled = v;
-                [ConfigManager save];
-            };
-            [gWeapon addSubview:[[NLRow alloc] initWithTitle:@"No Recoil" y:y control:cbNR swatch:nil]];
-            y += 30;
-            
-            NLCheckbox *cbANS = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
-            cbANS.isOn = gAutoNoSpread;
-            cbANS.onToggle = ^(BOOL v) {
-                gAutoNoSpread = v;
-                [ConfigManager save];
-            };
-            [gWeapon addSubview:[[NLRow alloc] initWithTitle:@"No Spread (Aimbot)" y:y control:cbANS swatch:nil]];
-            y += 30;
-            
-            NLCheckbox *cbANR = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
-            cbANR.isOn = gAutoNoRecoil;
-            cbANR.onToggle = ^(BOOL v) {
-                gAutoNoRecoil = v;
-                [ConfigManager save];
-            };
-            [gWeapon addSubview:[[NLRow alloc] initWithTitle:@"No Recoil (Aimbot)" y:y control:cbANR swatch:nil]];
-            y += 30;
-            
             NLCheckbox *cbSFE = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
             cbSFE.isOn = gSpreadFloorEnabled;
             cbSFE.onToggle = ^(BOOL v) {
@@ -4791,6 +6555,64 @@ static void UpdateStreamMode(void) {
             };
             [gSet addSubview:[[NLRow alloc] initWithTitle:@"Hotkey: ESP" y:y control:cbHES swatch:nil]];
             y += 30;
+            
+            NLGroupBox *gColors = [[NLGroupBox alloc] initWithTitle:@"Panel Colors" frame:CGRectMake(0, 0, colW, 240)];
+            [c2 addSubview:gColors];
+            CGFloat ccy = 30;
+            
+            NLColorSwatch *swStats = [[NLColorSwatch alloc] initWithFrame:CGRectMake(0,0,16,16)];
+            swStats.color = gStatsColor;
+            __weak NLColorSwatch *weakSwStats = swStats;
+            swStats.onTap = ^{
+                [weakSelf showColorPickerForSwatch:weakSwStats currentColor:weakSwStats.color saveKey:@"c_stats"];
+            };
+            [gColors addSubview:[[NLRow alloc] initWithTitle:@"Stats" y:ccy control:nil swatch:swStats]];
+            ccy += 30;
+            
+            NLColorSwatch *swAimInfo = [[NLColorSwatch alloc] initWithFrame:CGRectMake(0,0,16,16)];
+            swAimInfo.color = gAimInfoColor;
+            __weak NLColorSwatch *weakSwAimInfo = swAimInfo;
+            swAimInfo.onTap = ^{
+                [weakSelf showColorPickerForSwatch:weakSwAimInfo currentColor:weakSwAimInfo.color saveKey:@"c_ai"];
+            };
+            [gColors addSubview:[[NLRow alloc] initWithTitle:@"Aim Info" y:ccy control:nil swatch:swAimInfo]];
+            ccy += 30;
+            
+            NLColorSwatch *swDmgLog = [[NLColorSwatch alloc] initWithFrame:CGRectMake(0,0,16,16)];
+            swDmgLog.color = gDamageLogColor;
+            __weak NLColorSwatch *weakSwDmgLog = swDmgLog;
+            swDmgLog.onTap = ^{
+                [weakSelf showColorPickerForSwatch:weakSwDmgLog currentColor:weakSwDmgLog.color saveKey:@"c_dl"];
+            };
+            [gColors addSubview:[[NLRow alloc] initWithTitle:@"Damage Log" y:ccy control:nil swatch:swDmgLog]];
+            ccy += 30;
+            
+            NLColorSwatch *swELog = [[NLColorSwatch alloc] initWithFrame:CGRectMake(0,0,16,16)];
+            swELog.color = gEventLogColor;
+            __weak NLColorSwatch *weakSwELog = swELog;
+            swELog.onTap = ^{
+                [weakSelf showColorPickerForSwatch:weakSwELog currentColor:weakSwELog.color saveKey:@"c_elog"];
+            };
+            [gColors addSubview:[[NLRow alloc] initWithTitle:@"Event Log" y:ccy control:nil swatch:swELog]];
+            ccy += 30;
+            
+            NLColorSwatch *swPList = [[NLColorSwatch alloc] initWithFrame:CGRectMake(0,0,16,16)];
+            swPList.color = gPlayerListColor;
+            __weak NLColorSwatch *weakSwPList = swPList;
+            swPList.onTap = ^{
+                [weakSelf showColorPickerForSwatch:weakSwPList currentColor:weakSwPList.color saveKey:@"c_plist"];
+            };
+            [gColors addSubview:[[NLRow alloc] initWithTitle:@"Player List" y:ccy control:nil swatch:swPList]];
+            ccy += 30;
+            
+            NLColorSwatch *swIPanel = [[NLColorSwatch alloc] initWithFrame:CGRectMake(0,0,16,16)];
+            swIPanel.color = gInfoPanelColor;
+            __weak NLColorSwatch *weakSwIPanel = swIPanel;
+            swIPanel.onTap = ^{
+                [weakSelf showColorPickerForSwatch:weakSwIPanel currentColor:weakSwIPanel.color saveKey:@"c_ip"];
+            };
+            [gColors addSubview:[[NLRow alloc] initWithTitle:@"Info Panel" y:ccy control:nil swatch:swIPanel]];
+            ccy += 30;
         }
     } @catch (NSException* e) {
     }
@@ -4820,7 +6642,7 @@ static void UpdateStreamMode(void) {
 
 - (void)selectPlayerChamsMat:(UIButton*)sender {
     int idx = (int)sender.tag - 1000;
-    if (idx < 0 || idx > 3) {
+    if (idx < 0 || idx > 2) {
         return;
     }
     
@@ -4846,7 +6668,7 @@ static void UpdateStreamMode(void) {
 
 - (void)selectWeaponChamsMat:(UIButton*)sender {
     int idx = (int)sender.tag - 1010;
-    if (idx < 0 || idx > 3) {
+    if (idx < 0 || idx > 2) {
         return;
     }
     
@@ -5352,6 +7174,7 @@ static void espTick(void) {
         [gEspView.snapLines removeAllObjects];
         [gEspView.boxColors removeAllObjects];
         [gEspView.healthTexts removeAllObjects];
+        [gEspView.dists removeAllObjects];
         
         HudBeginFrame();
         
@@ -5378,6 +7201,8 @@ static void espTick(void) {
                 g_lastLocalShotMs = nowMs;
             }
             gLastLocalAmmo = ammo;
+            gLocalAmmoVal = ammo;
+            gLocalAmmoTotalVal = *(int*)((uintptr_t)g_localWeapon + off::kWepAmmoTotal);
         } else {
             gLastLocalAmmo = -1;
         }
@@ -5425,8 +7250,13 @@ static void espTick(void) {
                     
                     if (prevH > 0 && curH < prevH && recentShot) {
                         damageDelta = prevH - curH;
-                        gHudHitMarkerUntil = nowMs + 220;
+                        gHudHitMarkerUntil = nowMs + (uint64_t)gHitMarkerDuration.load();
                         gHudHitMarkerDamage = damageDelta;
+                        gStatHits = gStatHits.load() + 1;
+                        gStatDamage = gStatDamage.load() + damageDelta;
+                        if (gDamageLogEnabled.load()) {
+                            HudAddEvent(SafeFmt(@"HIT %d", damageDelta).UTF8String, 1, nowMs + (uint64_t)gEventLogDuration.load());
+                        }
                         
                         if (curH == 0) {
                             if (gKillSoundEnabled) {
@@ -5437,6 +7267,13 @@ static void espTick(void) {
                             NSString* nick = getIL2CPPString(nickObj);
                             if (nick && nick.length > 0 && gKillFeedEnabled) {
                                 HudAddKill([nick UTF8String], nowMs + 6000);
+                            }
+                            gStatKills = gStatKills.load() + 1;
+                            if (gAimBone.load() == 10) {
+                                gStatHeadshots = gStatHeadshots.load() + 1;
+                            }
+                            if (gEventLogEnabled.load()) {
+                                HudAddEvent(SafeFmt(@"KILL %@", nick ?: @"?").UTF8String, 2, nowMs + (uint64_t)gEventLogDuration.load());
                             }
                         } else if (gHitSoundEnabled) {
                             if (nowMs - g_lastHitSoundTime > 100) {
@@ -5515,8 +7352,29 @@ static void espTick(void) {
             float dz = fp.z - g_localEye.z;
             float realDist = sqrtf(dx*dx + dy*dy + dz*dz);
             
-            if (!std::isfinite(realDist) || realDist > 300.0f) {
+            if (!std::isfinite(realDist) || realDist > gEspMaxDist.load()) {
                 continue;
+            }
+            
+            // Velocity prediction: track the last world position per player and lead the
+            // aim point by a fraction of the travel distance. Purely local math, no writes.
+            if (gPredictionEnabled.load() && gPredictionAmount.load() > 0.0f) {
+                auto pit = gLastTargetPos.find(p);
+                auto tit = gLastTargetMs.find(p);
+                uint64_t pnow = NowMs();
+                if (pit != gLastTargetPos.end() && tit != gLastTargetMs.end() && pnow > tit->second) {
+                    float dt = (float)(pnow - tit->second) / 1000.0f;
+                    if (dt > 0.001f && dt < 0.5f) {
+                        Vec3 vel = (aimPos - pit->second) * (1.0f / dt);
+                        float lead = gPredictionAmount.load() * (realDist / 100.0f);
+                        Vec3 predicted = aimPos + vel * lead;
+                        if (Math::Finite(predicted)) {
+                            aimPos = predicted;
+                        }
+                    }
+                }
+                gLastTargetPos[p] = aimPos;
+                gLastTargetMs[p] = pnow;
             }
             
             bool isVisible = true;
@@ -5528,8 +7386,11 @@ static void espTick(void) {
                 }
             }
             
+            bool espOn = (gEspEnabled || gHotEspEnabled);
+            bool needScreen = espOn || gTriggerbotEnabled.load() || gPlayerListEnabled.load() ||
+                              gInfoPanelEnabled.load() || gStatsPanelEnabled.load();
             bool espVisible = false;
-            if (gEspEnabled || gHotEspEnabled) {
+            if (needScreen) {
                 Vec3 sf, sh;
                 if (w2sFast(cam, fp, sf) && w2sFast(cam, hpv, sh) && sf.z > 0.05f && sh.z > 0.05f) {
                     float xh = (sh.x * sX) / gScreenScale;
@@ -5556,21 +7417,6 @@ static void espTick(void) {
                             boxColor = isVisible ? gVisibleColor : gHiddenColor;
                         }
                         
-                        [gEspView.boxes addObject:[NSValue valueWithCGRect:CGRectMake(xx, yy, bw, bh)]];
-                        [gEspView.labels addObject:SafeFmt(@"%.0fm", realDist)];
-                        [gEspView.hps addObject:@(hh > 0 ? hh : 0)];
-                        [gEspView.armors addObject:@(aa > 0 ? aa : 0)];
-                        [gEspView.boxColors addObject:(boxColor ?: [UIColor redColor])];
-                        [gEspView.headDots addObject:[NSValue valueWithCGPoint:CGPointMake(xh, yh)]];
-                        
-                        if (gSnapBottomEnabled) {
-                            [gEspView.snapLines addObject:[NSValue valueWithCGPoint:CGPointMake(xh, yh)]];
-                        }
-                        
-                        if (gHealthTextEnabled) {
-                            [gEspView.healthTexts addObject:SafeFmt(@"%d", hh > 0 ? hh : 0)];
-                        }
-                        
                         HudPlayerInfo hpi;
                         hpi.box = CGRectMake(xx, yy, bw, bh);
                         hpi.head = CGPointMake(xh, yh);
@@ -5582,21 +7428,59 @@ static void espTick(void) {
                         hpi.distance = realDist;
                         HudAddPlayer(hpi);
                         
-                        if (damageDelta > 0 && gDamageNumbersEnabled) {
-                            HudAddDamage(CGPointMake(xh, yh - 12.0f), damageDelta, nowMs + 900);
-                        }
-                        
-                        if (gNameEnabled) {
-                            void* nickObj = *(void**)((uintptr_t)p + off::kPlayerNickName);
-                            NSString* nick = getIL2CPPString(nickObj);
-                            if (nick && nick.length > 0) {
-                                [gEspView.names addObject:nick];
-                                [gEspView.nameTexts addObject:[NSValue valueWithCGPoint:CGPointMake(xx + bw/2, yy - 14)]];
+                        if (espOn) {
+                            [gEspView.boxes addObject:[NSValue valueWithCGRect:CGRectMake(xx, yy, bw, bh)]];
+                            [gEspView.labels addObject:SafeFmt(@"%.0fm", realDist)];
+                            [gEspView.dists addObject:@(realDist)];
+                            [gEspView.hps addObject:@(hh > 0 ? hh : 0)];
+                            [gEspView.armors addObject:@(aa > 0 ? aa : 0)];
+                            [gEspView.boxColors addObject:(boxColor ?: [UIColor redColor])];
+                            [gEspView.headDots addObject:[NSValue valueWithCGPoint:CGPointMake(xh, yh)]];
+                            
+                            if (gSnapBottomEnabled) {
+                                [gEspView.snapLines addObject:[NSValue valueWithCGPoint:CGPointMake(xh, yh)]];
+                            }
+                            
+                            if (gHealthTextEnabled) {
+                                [gEspView.healthTexts addObject:SafeFmt(@"%d", hh > 0 ? hh : 0)];
+                            }
+                            
+                            if (gNameEnabled) {
+                                void* nickObj = *(void**)((uintptr_t)p + off::kPlayerNickName);
+                                NSString* nick = getIL2CPPString(nickObj);
+                                if (nick && nick.length > 0) {
+                                    int maxLen = gNameMaxLen.load();
+                                    if (maxLen > 0 && (int)nick.length > maxLen) {
+                                        nick = [nick substringToIndex:(NSUInteger)maxLen];
+                                    }
+                                    [gEspView.names addObject:nick];
+                                    [gEspView.nameTexts addObject:[NSValue valueWithCGPoint:CGPointMake(xx + bw/2, yy - 14)]];
+                                }
+                            }
+                            
+                            if (gTracersEnabled) {
+                                [gEspView.tracers addObject:[NSValue valueWithCGPoint:CGPointMake(xh, yh)]];
+                            }
+                            
+                            if (gWeaponEspEnabled.load() && alive(model)) {
+                                void* wtf = *(void**)((uintptr_t)model + off::kModelWeaponTf);
+                                if (alive(wtf)) {
+                                    Vec3 wp;
+                                    if (getPosFast(wtf, wp)) {
+                                        Vec3 sw;
+                                        if (w2sFast(cam, wp, sw) && sw.z > 0.05f) {
+                                            float wx = (sw.x * sX) / gScreenScale;
+                                            float wy = gScreenPts.height - ((sw.y * sY) / gScreenScale);
+                                            [gEspView.weaponBoxes addObject:[NSValue valueWithCGRect:CGRectMake(wx - 8.0f, wy - 8.0f, 16.0f, 16.0f)]];
+                                            [gEspView.weaponLabels addObject:@"WEP"];
+                                        }
+                                    }
+                                }
                             }
                         }
                         
-                        if (gTracersEnabled) {
-                            [gEspView.tracers addObject:[NSValue valueWithCGPoint:CGPointMake(xh, yh)]];
+                        if (damageDelta > 0 && gDamageNumbersEnabled) {
+                            HudAddDamage(CGPointMake(xh, yh - 12.0f), damageDelta, nowMs + (uint64_t)gDamageNumberDuration.load());
                         }
                     }
                 }
@@ -5642,6 +7526,9 @@ static void espTick(void) {
                     for (int i = 0; i < 18; i++) {
                         int a = cn[i][0];
                         int b = cn[i][1];
+                        if (gSkeletonUpperOnly.load() && (a >= 13 || b >= 13)) {
+                            continue;
+                        }
                         if (vb[a] && vb[b]) {
                             [gEspView.skeletonLines addObject:[NSValue valueWithCGRect:CGRectMake(sb[a].x, sb[a].y, sb[b].x, sb[b].y)]];
                         }
@@ -5661,8 +7548,14 @@ static void espTick(void) {
                     float sy = gScreenPts.height - ((sa.y * sY) / gScreenScale);
                     float screenDist = sqrtf((sx - screenCx) * (sx - screenCx) + (sy - screenCy) * (sy - screenCy));
                     
-                    if (screenDist < (float)gAimbotFovPx && screenDist < bestScore) {
-                        bestScore = screenDist;
+                    float score = screenDist;
+                    int prio = gTargetPriority.load();
+                    if (prio == 1) {
+                        int hp = *(int*)((uintptr_t)c + off::kCharHealth);
+                        score = (float)(hp > 0 ? hp : 0);
+                    }
+                    if (screenDist < (float)gAimbotFovPx && score < bestScore) {
+                        bestScore = score;
                         best = c;
                         bestAimPos = aimPos;
                     }
@@ -5675,9 +7568,11 @@ static void espTick(void) {
             g_silentAimActive = true;
             g_targetHead = bestAimPos;
             g_haveTarget = true;
+            g_aimTargetObj = best;
         } else {
             g_silentAimActive = false;
             g_haveTarget = false;
+            g_aimTargetObj = nullptr;
         }
         
         if (gAimLineEnabled && g_haveTarget) {
@@ -5707,6 +7602,24 @@ static void espTick(void) {
         }
         HudSetCrosshair(6.0f + localSpread * 160.0f, gCrosshairEnabled);
         HudSetScope(localAiming && gScopeOverlayEnabled);
+        gLocalScoped = localAiming;
+        
+        if (alive(lch)) {
+            gLocalHealthVal = *(int*)((uintptr_t)lch + off::kCharHealth);
+            gLocalArmorVal = *(int*)((uintptr_t)lch + off::kCharArmor);
+        }
+        if (alive(g_localCC)) {
+            Vec3 vel = *(Vec3*)((uintptr_t)g_localCC + off::kMoveVelocity);
+            if (Math::Finite(vel)) {
+                gLocalSpeedVal = sqrtf(vel.x * vel.x + vel.z * vel.z);
+            }
+        }
+        if (gSpeedHistory.size() >= 120) {
+            gSpeedHistory.erase(gSpeedHistory.begin());
+        }
+        gSpeedHistory.push_back(gLocalSpeedVal.load());
+        
+        TriggerbotTick();
         HudTick();
         
         [gEspView setNeedsDisplay];
@@ -5979,8 +7892,8 @@ static void bootstrap(void) {
     @autoreleasepool {
         InstallCrashHandler();
         
-        gHitPlayer = MakeTonePlayer(3000.0f, 0.08f, 0.8f);
-        gKillPlayer = MakeTonePlayer(1500.0f, 0.2f, 1.0f);
+        RebuildSoundPlayers();
+        gStatSessionStart = NowMs();
         
         void *dget = nullptr;
         for (int i = 0; i < 300; i++) {
@@ -6382,28 +8295,22 @@ static inline float SpreadFloorValue(void) {
     return Math::Clamp(v, 0.0f, 0.02f);
 }
 
-static bool NoSpreadActive(void) {
-    if (gNoSpreadEnabled.load()) {
-        return true;
-    }
-    if (!gAutoNoSpread.load()) {
-        return false;
-    }
+// Aimbot, Aim On Fire, Silent Aim and Triggerbot all imply "weapon is being
+// used through the aim pipeline", so ballistics stay neutralised for the whole
+// time any of them is enabled. Turning every aim mode off restores vanilla
+// spread/recoil unless the PLAYER-tab manual toggle is on.
+static inline bool AnyAimModeActive(void) {
     return gAimbotEnabled.load() || gHotAimbotEnabled.load() ||
            gAimOnFireEnabled.load() || gHotAimOnFireEnabled.load() ||
-           gSilentAimEnabled.load();
+           gSilentAimEnabled.load() || gTriggerbotEnabled.load();
+}
+
+static bool NoSpreadActive(void) {
+    return gNoSpreadEnabled.load() || AnyAimModeActive();
 }
 
 static bool NoRecoilActive(void) {
-    if (gNoRecoilEnabled.load()) {
-        return true;
-    }
-    if (!gAutoNoRecoil.load()) {
-        return false;
-    }
-    return gAimbotEnabled.load() || gHotAimbotEnabled.load() ||
-           gAimOnFireEnabled.load() || gHotAimOnFireEnabled.load() ||
-           gSilentAimEnabled.load();
+    return gNoRecoilEnabled.load() || AnyAimModeActive();
 }
 
 // ItemEquipWeaponRange and ItemEquipWeaponRangeShotgun are the only classes that own the
@@ -6998,6 +8905,13 @@ static void HudBeginFrame(void) {
             ++it;
         }
     }
+    for (auto it = gHudEvents.begin(); it != gHudEvents.end(); ) {
+        if (it->until <= now) {
+            it = gHudEvents.erase(it);
+        } else {
+            ++it;
+        }
+    }
 }
 
 static void HudAddPlayer(const HudPlayerInfo& info) {
@@ -7009,6 +8923,18 @@ static void HudAddPlayer(const HudPlayerInfo& info) {
 static void HudAddDamage(CGPoint pos, int amount, uint64_t until) {
     if (!gDamageNumbersEnabled.load()) {
         return;
+    }
+    if (gDamageStack.load()) {
+        uint64_t now = NowMs();
+        for (auto& d : gHudDamage) {
+            float dx = d.pos.x - pos.x;
+            float dy = d.pos.y - pos.y;
+            if (dx * dx + dy * dy < 900.0f && d.until > now) {
+                d.amount += amount;
+                d.until = until;
+                return;
+            }
+        }
     }
     if (gHudDamage.size() >= 48) {
         gHudDamage.erase(gHudDamage.begin());
@@ -7024,7 +8950,14 @@ static void HudAddKill(const char* name, uint64_t until) {
     if (!gKillFeedEnabled.load() || !name) {
         return;
     }
-    if (gHudKills.size() >= 8) {
+    int maxEntries = gKillFeedMax.load();
+    if (maxEntries < 1) {
+        maxEntries = 1;
+    }
+    if (maxEntries > 16) {
+        maxEntries = 16;
+    }
+    if ((int)gHudKills.size() >= maxEntries) {
         gHudKills.erase(gHudKills.begin());
     }
     HudKillInfo k;
@@ -7032,6 +8965,28 @@ static void HudAddKill(const char* name, uint64_t until) {
     strncpy(k.name, name, sizeof(k.name) - 1);
     k.until = until;
     gHudKills.push_back(k);
+}
+
+static void HudAddEvent(const char* text, int kind, uint64_t until) {
+    if (!gEventLogEnabled.load() || !text) {
+        return;
+    }
+    int maxEntries = gEventLogMax.load();
+    if (maxEntries < 1) {
+        maxEntries = 1;
+    }
+    if (maxEntries > 12) {
+        maxEntries = 12;
+    }
+    if ((int)gHudEvents.size() >= maxEntries) {
+        gHudEvents.erase(gHudEvents.begin());
+    }
+    HudEventInfo e;
+    memset(e.text, 0, sizeof(e.text));
+    strncpy(e.text, text, sizeof(e.text) - 1);
+    e.until = until;
+    e.kind = kind;
+    gHudEvents.push_back(e);
 }
 
 static void HudAddRadar(float x, float y, int team, bool dead) {
@@ -7166,7 +9121,11 @@ static void HudTick(void) {
     CGFloat cy = rect.size.height - margin - size / 2.0f;
     CGFloat radius = size / 2.0f;
     
-    CGContextSetFillColorWithColor(ctx, [UIColor colorWithWhite:0.0 alpha:0.38].CGColor);
+    float radarAlpha = gRadarOpacity.load();
+    if (!std::isfinite(radarAlpha) || radarAlpha < 0.05f) {
+        radarAlpha = 0.38f;
+    }
+    CGContextSetFillColorWithColor(ctx, [UIColor colorWithWhite:0.0 alpha:radarAlpha].CGColor);
     CGContextFillEllipseInRect(ctx, CGRectMake(cx - radius, cy - radius, size, size));
     
     CGContextSetStrokeColorWithColor(ctx, (gRadarColor ?: [UIColor greenColor]).CGColor);
@@ -7203,12 +9162,57 @@ static void HudTick(void) {
             color = [UIColor grayColor];
         }
         
+        float blip = gRadarBlipSize.load();
+        if (!std::isfinite(blip) || blip < 1.0f) {
+            blip = 2.5f;
+        }
         CGContextSetFillColorWithColor(ctx, color.CGColor);
-        CGContextFillEllipseInRect(ctx, CGRectMake(px - 2.5f, py - 2.5f, 5.0f, 5.0f));
+        CGContextFillEllipseInRect(ctx, CGRectMake(px - blip, py - blip, blip * 2.0f, blip * 2.0f));
     }
     
     CGContextSetFillColorWithColor(ctx, [UIColor whiteColor].CGColor);
     CGContextFillEllipseInRect(ctx, CGRectMake(cx - 2.0f, cy - 2.0f, 4.0f, 4.0f));
+}
+
+- (void)strokeCrosshairShape:(CGContextRef)ctx cx:(CGFloat)cx cy:(CGFloat)cy gap:(CGFloat)gap len:(CGFloat)len style:(int)style {
+    if (style == 1) {
+        return;
+    }
+    if (style == 2) {
+        CGContextStrokeEllipseInRect(ctx, CGRectMake(cx - gap - len, cy - gap - len, (gap + len) * 2.0f, (gap + len) * 2.0f));
+        return;
+    }
+    if (style == 3) {
+        CGContextMoveToPoint(ctx, cx - gap - len, cy);
+        CGContextAddLineToPoint(ctx, cx - gap, cy);
+        CGContextMoveToPoint(ctx, cx + gap, cy);
+        CGContextAddLineToPoint(ctx, cx + gap + len, cy);
+        CGContextMoveToPoint(ctx, cx, cy + gap);
+        CGContextAddLineToPoint(ctx, cx, cy + gap + len);
+        CGContextStrokePath(ctx);
+        return;
+    }
+    if (style == 4) {
+        CGContextMoveToPoint(ctx, cx - gap - len, cy - gap - len);
+        CGContextAddLineToPoint(ctx, cx - gap, cy - gap);
+        CGContextMoveToPoint(ctx, cx + gap, cy - gap);
+        CGContextAddLineToPoint(ctx, cx + gap + len, cy - gap - len);
+        CGContextMoveToPoint(ctx, cx - gap - len, cy + gap + len);
+        CGContextAddLineToPoint(ctx, cx - gap, cy + gap);
+        CGContextMoveToPoint(ctx, cx + gap, cy + gap);
+        CGContextAddLineToPoint(ctx, cx + gap + len, cy + gap + len);
+        CGContextStrokePath(ctx);
+        return;
+    }
+    CGContextMoveToPoint(ctx, cx - gap - len, cy);
+    CGContextAddLineToPoint(ctx, cx - gap, cy);
+    CGContextMoveToPoint(ctx, cx + gap, cy);
+    CGContextAddLineToPoint(ctx, cx + gap + len, cy);
+    CGContextMoveToPoint(ctx, cx, cy - gap - len);
+    CGContextAddLineToPoint(ctx, cx, cy - gap);
+    CGContextMoveToPoint(ctx, cx, cy + gap);
+    CGContextAddLineToPoint(ctx, cx, cy + gap + len);
+    CGContextStrokePath(ctx);
 }
 
 - (void)drawCrosshair:(CGContextRef)ctx rect:(CGRect)rect {
@@ -7219,23 +9223,30 @@ static void HudTick(void) {
     CGFloat cx = rect.size.width / 2.0f;
     CGFloat cy = rect.size.height / 2.0f;
     CGFloat gap = gHudCrosshairGap;
-    CGFloat len = 9.0f;
+    CGFloat len = gCrosshairLength.load();
+    CGFloat th = gCrosshairThickness.load();
+    CGFloat dot = gCrosshairDot.load();
+    int style = gCrosshairStyle.load();
+    if (!std::isfinite(len) || len < 1.0f) len = 9.0f;
+    if (!std::isfinite(th) || th < 0.5f) th = 1.4f;
+    if (!std::isfinite(dot) || dot < 0.0f) dot = 1.5f;
     
-    CGContextSetStrokeColorWithColor(ctx, (gCrosshairColor ?: [UIColor whiteColor]).CGColor);
-    CGContextSetLineWidth(ctx, 1.4);
+    UIColor* col = gCrosshairColor ?: [UIColor whiteColor];
     
-    CGContextMoveToPoint(ctx, cx - gap - len, cy);
-    CGContextAddLineToPoint(ctx, cx - gap, cy);
-    CGContextMoveToPoint(ctx, cx + gap, cy);
-    CGContextAddLineToPoint(ctx, cx + gap + len, cy);
-    CGContextMoveToPoint(ctx, cx, cy - gap - len);
-    CGContextAddLineToPoint(ctx, cx, cy - gap);
-    CGContextMoveToPoint(ctx, cx, cy + gap);
-    CGContextAddLineToPoint(ctx, cx, cy + gap + len);
-    CGContextStrokePath(ctx);
+    if (gCrosshairOutline.load()) {
+        CGContextSetStrokeColorWithColor(ctx, [[UIColor blackColor] colorWithAlphaComponent:0.65].CGColor);
+        CGContextSetLineWidth(ctx, th + 2.0f);
+        [self strokeCrosshairShape:ctx cx:cx cy:cy gap:gap len:len style:style];
+    }
     
-    CGContextSetFillColorWithColor(ctx, (gCrosshairColor ?: [UIColor whiteColor]).CGColor);
-    CGContextFillEllipseInRect(ctx, CGRectMake(cx - 1.5f, cy - 1.5f, 3.0f, 3.0f));
+    CGContextSetStrokeColorWithColor(ctx, col.CGColor);
+    CGContextSetLineWidth(ctx, th);
+    [self strokeCrosshairShape:ctx cx:cx cy:cy gap:gap len:len style:style];
+    
+    if (style == 1 || style == 2 || dot > 0.0f) {
+        CGContextSetFillColorWithColor(ctx, col.CGColor);
+        CGContextFillEllipseInRect(ctx, CGRectMake(cx - dot, cy - dot, dot * 2.0f, dot * 2.0f));
+    }
 }
 
 - (void)drawHitMarker:(CGContextRef)ctx rect:(CGRect)rect {
@@ -7248,26 +9259,58 @@ static void HudTick(void) {
         return;
     }
     
-    float remain = (float)(gHudHitMarkerUntil - now) / 220.0f;
+    int duration = gHitMarkerDuration.load();
+    if (duration < 50) {
+        duration = 260;
+    }
+    float remain = (float)(gHudHitMarkerUntil - now) / (float)duration;
     remain = Math::Clamp(remain, 0.0f, 1.0f);
     
     CGFloat cx = rect.size.width / 2.0f;
     CGFloat cy = rect.size.height / 2.0f;
-    CGFloat s = 9.0f + (1.0f - remain) * 5.0f;
+    CGFloat base = gHitMarkerSize.load();
+    if (!std::isfinite(base) || base < 4.0f) {
+        base = 10.0f;
+    }
+    CGFloat s = base + (1.0f - remain) * 4.0f;
+    int style = gHitMarkerStyle.load();
     
     UIColor* color = gHitMarkerColor ?: [UIColor whiteColor];
     CGContextSetStrokeColorWithColor(ctx, [color colorWithAlphaComponent:remain].CGColor);
+    CGContextSetFillColorWithColor(ctx, [color colorWithAlphaComponent:remain].CGColor);
     CGContextSetLineWidth(ctx, 2.0);
     
-    CGContextMoveToPoint(ctx, cx - s, cy - s);
-    CGContextAddLineToPoint(ctx, cx - 3, cy - 3);
-    CGContextMoveToPoint(ctx, cx + s, cy - s);
-    CGContextAddLineToPoint(ctx, cx + 3, cy - 3);
-    CGContextMoveToPoint(ctx, cx - s, cy + s);
-    CGContextAddLineToPoint(ctx, cx - 3, cy + 3);
-    CGContextMoveToPoint(ctx, cx + s, cy + s);
-    CGContextAddLineToPoint(ctx, cx + 3, cy + 3);
-    CGContextStrokePath(ctx);
+    if (style == 0 || style == 2) {
+        CGContextMoveToPoint(ctx, cx - s, cy - s);
+        CGContextAddLineToPoint(ctx, cx - 3, cy - 3);
+        CGContextMoveToPoint(ctx, cx + s, cy - s);
+        CGContextAddLineToPoint(ctx, cx + 3, cy - 3);
+        CGContextMoveToPoint(ctx, cx - s, cy + s);
+        CGContextAddLineToPoint(ctx, cx - 3, cy + 3);
+        CGContextMoveToPoint(ctx, cx + s, cy + s);
+        CGContextAddLineToPoint(ctx, cx + 3, cy + 3);
+        CGContextStrokePath(ctx);
+    }
+    
+    if (style == 1 || style == 2) {
+        CGFloat dot = 2.2f;
+        CGContextFillEllipseInRect(ctx, CGRectMake(cx - dot, cy - dot, dot * 2.0f, dot * 2.0f));
+    }
+    
+    if (gHitMarkerShowDamage.load() && gHudHitMarkerDamage > 0) {
+        static UIFont* hmFont = nil;
+        static dispatch_once_t once;
+        dispatch_once(&once, ^{
+            hmFont = [UIFont boldSystemFontOfSize:12];
+        });
+        NSString* dmg = SafeFmt(@"-%d", gHudHitMarkerDamage);
+        NSDictionary* attrs = @{
+            NSFontAttributeName: hmFont ?: [UIFont boldSystemFontOfSize:12],
+            NSForegroundColorAttributeName: [color colorWithAlphaComponent:remain]
+        };
+        CGSize sz = [dmg sizeWithAttributes:attrs];
+        [dmg drawAtPoint:CGPointMake(cx - sz.width / 2.0f, cy + s + 2.0f) withAttributes:attrs];
+    }
 }
 
 - (void)drawDamageNumbers:(CGContextRef)ctx rect:(CGRect)rect {
@@ -7275,29 +9318,60 @@ static void HudTick(void) {
         return;
     }
     
-    static UIFont* dmgFont = nil;
-    static dispatch_once_t once;
-    dispatch_once(&once, ^{
+    float fontSize = gDamageNumberSize.load();
+    if (!std::isfinite(fontSize) || fontSize < 6.0f) {
+        fontSize = 13.0f;
+    }
+    UIFont* dmgFont = [UIFont boldSystemFontOfSize:fontSize];
+    if (!dmgFont) {
         dmgFont = [UIFont boldSystemFontOfSize:13];
-    });
+    }
     
+    int duration = gDamageNumberDuration.load();
+    if (duration < 100) {
+        duration = 650;
+    }
+    float rise = gDamageNumberRise.load();
+    if (!std::isfinite(rise) || rise < 0.0f) {
+        rise = 32.0f;
+    }
+    
+    UIColor* baseColor = gDamageNumberColor ?: [UIColor colorWithRed:1.0 green:0.75 blue:0.1 alpha:1.0];
+    bool outline = gDamageNumberOutline.load();
     uint64_t now = NowMs();
+    
     for (const HudDamageInfo& d : gHudDamage) {
         if (d.until <= now) {
             continue;
         }
-        float remain = (float)(d.until - now) / 900.0f;
+        float remain = (float)(d.until - now) / (float)duration;
         remain = Math::Clamp(remain, 0.0f, 1.0f);
         if (!std::isfinite(d.pos.x) || !std::isfinite(d.pos.y)) {
             continue;
         }
+        
         NSString* text = SafeFmt(@"-%d", d.amount);
+        UIColor* color = [baseColor colorWithAlphaComponent:remain];
         NSDictionary* attrs = @{
-            NSFontAttributeName: dmgFont ?: [UIFont boldSystemFontOfSize:13],
-            NSForegroundColorAttributeName: [[UIColor colorWithRed:1.0 green:0.75 blue:0.1 alpha:remain] copy]
+            NSFontAttributeName: dmgFont,
+            NSForegroundColorAttributeName: color
         };
         CGSize sz = [text sizeWithAttributes:attrs];
-        [text drawAtPoint:CGPointMake(d.pos.x - sz.width/2, d.pos.y - (1.0f - remain) * 24.0f) withAttributes:attrs];
+        CGFloat tx = d.pos.x - sz.width / 2.0f;
+        CGFloat ty = d.pos.y - (1.0f - remain) * rise;
+        
+        if (outline) {
+            NSDictionary* outlineAttrs = @{
+                NSFontAttributeName: dmgFont,
+                NSForegroundColorAttributeName: [[UIColor blackColor] colorWithAlphaComponent:remain * 0.9f]
+            };
+            [text drawAtPoint:CGPointMake(tx - 1.0f, ty) withAttributes:outlineAttrs];
+            [text drawAtPoint:CGPointMake(tx + 1.0f, ty) withAttributes:outlineAttrs];
+            [text drawAtPoint:CGPointMake(tx, ty - 1.0f) withAttributes:outlineAttrs];
+            [text drawAtPoint:CGPointMake(tx, ty + 1.0f) withAttributes:outlineAttrs];
+        }
+        
+        [text drawAtPoint:CGPointMake(tx, ty) withAttributes:attrs];
     }
 }
 
@@ -7315,17 +9389,22 @@ static void HudTick(void) {
     CGFloat x = rect.size.width - 12.0f;
     CGFloat y = 90.0f;
     uint64_t now = NowMs();
+    float dur = gKillFeedDuration.load();
+    if (!std::isfinite(dur) || dur < 500.0f) {
+        dur = 6000.0f;
+    }
+    UIColor* kc = gKillFeedColor ?: [UIColor colorWithRed:1.0 green:0.35 blue:0.35 alpha:1.0];
     
     for (const HudKillInfo& k : gHudKills) {
         if (k.until <= now) {
             continue;
         }
-        float remain = (float)(k.until - now) / 6000.0f;
+        float remain = (float)(k.until - now) / dur;
         remain = Math::Clamp(remain, 0.0f, 1.0f);
         NSString* text = SafeFmt(@"[FlopDLC] %s", k.name);
         NSDictionary* attrs = @{
             NSFontAttributeName: kfFont ?: [UIFont boldSystemFontOfSize:11],
-            NSForegroundColorAttributeName: [[UIColor colorWithRed:1.0 green:0.35 blue:0.35 alpha:remain] copy]
+            NSForegroundColorAttributeName: [kc colorWithAlphaComponent:remain]
         };
         CGSize sz = [text sizeWithAttributes:attrs];
         [text drawAtPoint:CGPointMake(x - sz.width, y) withAttributes:attrs];
@@ -7423,6 +9502,467 @@ static void HudTick(void) {
     }
 }
 
+- (void)drawFovCircle:(CGContextRef)ctx rect:(CGRect)rect {
+    if (!gFovCircleEnabled.load() || !gAimDrawFov.load()) {
+        return;
+    }
+    if (!(gAimbotEnabled || gAimOnFireEnabled || gSilentAimEnabled || gHotAimbotEnabled || gHotAimOnFireEnabled)) {
+        return;
+    }
+    float fov = (float)gAimbotFovPx.load();
+    if (!std::isfinite(fov) || fov <= 0.0f) {
+        return;
+    }
+    CGFloat cx = rect.size.width / 2.0f;
+    CGFloat cy = rect.size.height / 2.0f;
+    UIColor* col = gFovCircleColor ?: [UIColor whiteColor];
+    float th = gFovCircleThickness.load();
+    if (!std::isfinite(th) || th < 0.5f) th = 1.0f;
+    int style = gFovCircleStyle.load();
+    bool filled = gFovCircleFilled.load();
+    CGRect box = CGRectMake(cx - fov, cy - fov, fov * 2.0f, fov * 2.0f);
+    
+    if (filled) {
+        CGContextSetFillColorWithColor(ctx, [col colorWithAlphaComponent:0.08].CGColor);
+        if (style == 1) {
+            CGContextFillRect(ctx, box);
+        } else {
+            CGContextFillEllipseInRect(ctx, box);
+        }
+    }
+    
+    CGContextSetStrokeColorWithColor(ctx, col.CGColor);
+    CGContextSetLineWidth(ctx, th);
+    
+    if (style == 1) {
+        CGContextStrokeRect(ctx, box);
+    } else if (style == 2) {
+        CGFloat cl = fov * 0.35f;
+        CGContextMoveToPoint(ctx, box.origin.x, box.origin.y + cl);
+        CGContextAddLineToPoint(ctx, box.origin.x, box.origin.y);
+        CGContextAddLineToPoint(ctx, box.origin.x + cl, box.origin.y);
+        CGContextMoveToPoint(ctx, box.origin.x + box.size.width - cl, box.origin.y);
+        CGContextAddLineToPoint(ctx, box.origin.x + box.size.width, box.origin.y);
+        CGContextAddLineToPoint(ctx, box.origin.x + box.size.width, box.origin.y + cl);
+        CGContextMoveToPoint(ctx, box.origin.x + box.size.width, box.origin.y + box.size.height - cl);
+        CGContextAddLineToPoint(ctx, box.origin.x + box.size.width, box.origin.y + box.size.height);
+        CGContextAddLineToPoint(ctx, box.origin.x + box.size.width - cl, box.origin.y + box.size.height);
+        CGContextMoveToPoint(ctx, box.origin.x + cl, box.origin.y + box.size.height);
+        CGContextAddLineToPoint(ctx, box.origin.x, box.origin.y + box.size.height);
+        CGContextAddLineToPoint(ctx, box.origin.x, box.origin.y + box.size.height - cl);
+        CGContextStrokePath(ctx);
+    } else {
+        CGContextStrokeEllipseInRect(ctx, box);
+    }
+}
+
+- (void)drawEventLog:(CGContextRef)ctx rect:(CGRect)rect {
+    if (!gEventLogEnabled.load() || gHudEvents.empty()) {
+        return;
+    }
+    static UIFont* f = nil;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        f = [UIFont systemFontOfSize:10 weight:UIFontWeightMedium];
+    });
+    CGFloat x = gEventLogX.load();
+    CGFloat y = gEventLogY.load();
+    if (!std::isfinite(x)) x = 12.0f;
+    if (!std::isfinite(y)) y = 300.0f;
+    uint64_t now = NowMs();
+    UIColor* base = gEventLogColor ?: [UIColor whiteColor];
+    for (const HudEventInfo& e : gHudEvents) {
+        if (e.until <= now) {
+            continue;
+        }
+        float remain = (float)(e.until - now) / 1000.0f;
+        remain = Math::Clamp(remain, 0.0f, 1.0f);
+        UIColor* c = base;
+        if (e.kind == 1) {
+            c = gDamageLogColor ?: base;
+        } else if (e.kind == 2) {
+            c = gKillFeedColor ?: base;
+        }
+        NSDictionary* attrs = @{
+            NSFontAttributeName: f ?: [UIFont systemFontOfSize:10],
+            NSForegroundColorAttributeName: [c colorWithAlphaComponent:remain]
+        };
+        NSString* text = SafeFmt(@"%s", e.text);
+        [text drawAtPoint:CGPointMake(x, y) withAttributes:attrs];
+        y += 14.0f;
+    }
+}
+
+- (void)drawPlayerList:(CGContextRef)ctx rect:(CGRect)rect {
+    if (!gPlayerListEnabled.load() || gHudPlayers.empty()) {
+        return;
+    }
+    CGFloat x = gPlayerListX.load();
+    CGFloat y = gPlayerListY.load();
+    float scale = gPlayerListScale.load();
+    if (!std::isfinite(x)) x = 12.0f;
+    if (!std::isfinite(y)) y = 220.0f;
+    if (!std::isfinite(scale) || scale < 0.5f) scale = 1.0f;
+    int maxN = gPlayerListMax.load();
+    if (maxN < 1) maxN = 1;
+    if (maxN > 16) maxN = 16;
+    UIColor* base = gPlayerListColor ?: [UIColor whiteColor];
+    UIFont* f = [UIFont systemFontOfSize:10.0f * scale weight:UIFontWeightMedium];
+    int shown = 0;
+    for (const HudPlayerInfo& p : gHudPlayers) {
+        if (shown >= maxN) {
+            break;
+        }
+        if (!gPlayerListDead.load() && p.health <= 0) {
+            continue;
+        }
+        NSMutableString* line = [NSMutableString string];
+        if (gPlayerListTeam.load()) {
+            [line appendFormat:@"[%d] ", p.team];
+        }
+        if (gPlayerListHealth.load()) {
+            [line appendFormat:@"%dHP ", p.health];
+        }
+        if (gPlayerListDistance.load()) {
+            [line appendFormat:@"%.0fm ", p.distance];
+        }
+        if (gPlayerListWeapon.load()) {
+            [line appendString:@"•"];
+        }
+        NSDictionary* attrs = @{
+            NSFontAttributeName: f ?: [UIFont systemFontOfSize:10],
+            NSForegroundColorAttributeName: base
+        };
+        [line drawAtPoint:CGPointMake(x, y) withAttributes:attrs];
+        y += 14.0f * scale;
+        shown++;
+    }
+}
+
+- (void)drawInfoPanel:(CGContextRef)ctx rect:(CGRect)rect {
+    if (!gInfoPanelEnabled.load()) {
+        return;
+    }
+    CGFloat x = gInfoPanelX.load();
+    CGFloat y = gInfoPanelY.load();
+    if (!std::isfinite(x)) x = 12.0f;
+    if (!std::isfinite(y)) y = 120.0f;
+    UIColor* base = gInfoPanelColor ?: [UIColor whiteColor];
+    UIFont* f = [UIFont systemFontOfSize:10 weight:UIFontWeightMedium];
+    NSMutableArray<NSString*>* lines = [NSMutableArray array];
+    if (gInfoPanelHealth.load()) {
+        [lines addObject:SafeFmt(@"HP: %d", gLocalHealthVal.load())];
+    }
+    if (gInfoPanelAmmo.load()) {
+        [lines addObject:SafeFmt(@"AMMO: %d/%d", gLocalAmmoVal.load(), gLocalAmmoTotalVal.load())];
+    }
+    if (gInfoPanelFps.load()) {
+        [lines addObject:SafeFmt(@"FPS: %d", gFpsValue.load())];
+    }
+    if (gInfoPanelSpeed.load()) {
+        [lines addObject:SafeFmt(@"SPD: %.1f", gLocalSpeedVal.load())];
+    }
+    if (lines.count == 0) {
+        return;
+    }
+    if (gPanelBackground.load()) {
+        CGFloat w = 0.0f;
+        for (NSString* s in lines) {
+            CGSize sz = [s sizeWithAttributes:@{NSFontAttributeName: f ?: [UIFont systemFontOfSize:10]}];
+            if (sz.width > w) w = sz.width;
+        }
+        CGContextSetFillColorWithColor(ctx, [UIColor colorWithWhite:0.0 alpha:0.35].CGColor);
+        CGContextFillRect(ctx, CGRectMake(x - 4.0f, y - 3.0f, w + 8.0f, lines.count * 14.0f + 6.0f));
+    }
+    for (NSString* s in lines) {
+        NSDictionary* attrs = @{
+            NSFontAttributeName: f ?: [UIFont systemFontOfSize:10],
+            NSForegroundColorAttributeName: base
+        };
+        [s drawAtPoint:CGPointMake(x, y) withAttributes:attrs];
+        y += 14.0f;
+    }
+}
+
+- (void)drawStatsPanel:(CGContextRef)ctx rect:(CGRect)rect {
+    if (!gStatsPanelEnabled.load()) {
+        return;
+    }
+    CGFloat x = gStatsPanelX.load();
+    CGFloat y = gStatsPanelY.load();
+    if (!std::isfinite(x)) x = 12.0f;
+    if (!std::isfinite(y)) y = 420.0f;
+    UIColor* base = gStatsColor ?: [UIColor whiteColor];
+    UIFont* f = [UIFont systemFontOfSize:10 weight:UIFontWeightMedium];
+    uint64_t start = gStatSessionStart.load();
+    uint64_t now = NowMs();
+    uint64_t secs = (start > 0 && now > start) ? (now - start) / 1000ULL : 0;
+    NSArray<NSString*>* lines = @[
+        SafeFmt(@"KILLS: %d", gStatKills.load()),
+        SafeFmt(@"HITS: %d", gStatHits.load()),
+        SafeFmt(@"DMG: %d", gStatDamage.load()),
+        SafeFmt(@"HS: %d", gStatHeadshots.load()),
+        SafeFmt(@"TIME: %02llu:%02llu", secs / 60ULL, secs % 60ULL)
+    ];
+    if (gPanelBackground.load()) {
+        CGContextSetFillColorWithColor(ctx, [UIColor colorWithWhite:0.0 alpha:0.35].CGColor);
+        CGContextFillRect(ctx, CGRectMake(x - 4.0f, y - 3.0f, 110.0f, lines.count * 14.0f + 6.0f));
+    }
+    for (NSString* s in lines) {
+        NSDictionary* attrs = @{
+            NSFontAttributeName: f ?: [UIFont systemFontOfSize:10],
+            NSForegroundColorAttributeName: base
+        };
+        [s drawAtPoint:CGPointMake(x, y) withAttributes:attrs];
+        y += 14.0f;
+    }
+}
+
+- (void)drawAimInfo:(CGContextRef)ctx rect:(CGRect)rect {
+    if (!gAimInfoEnabled.load() || !g_haveTarget.load()) {
+        return;
+    }
+    UIColor* base = gAimInfoColor ?: [UIColor magentaColor];
+    UIFont* f = [UIFont systemFontOfSize:10 weight:UIFontWeightMedium];
+    CGFloat cx = rect.size.width / 2.0f;
+    CGFloat y = rect.size.height / 2.0f + (CGFloat)gAimbotFovPx.load() + 8.0f;
+    NSString* text = SafeFmt(@"TARGET  FOV %d  BONE %d", gAimbotFovPx.load(), gAimBone.load());
+    NSDictionary* attrs = @{
+        NSFontAttributeName: f ?: [UIFont systemFontOfSize:10],
+        NSForegroundColorAttributeName: base
+    };
+    CGSize sz = [text sizeWithAttributes:attrs];
+    [text drawAtPoint:CGPointMake(cx - sz.width / 2.0f, y) withAttributes:attrs];
+}
+
+- (void)drawKeybindList:(CGContextRef)ctx rect:(CGRect)rect {
+    if (!gKeybindListEnabled.load()) {
+        return;
+    }
+    UIFont* f = [UIFont systemFontOfSize:9 weight:UIFontWeightMedium];
+    CGFloat x = 12.0f;
+    CGFloat y = rect.size.height - 90.0f;
+    NSArray<NSString*>* lines = @[
+        SafeFmt(@"AIMBOT: %@", (gAimbotEnabled || gHotAimbotEnabled) ? @"ON" : @"OFF"),
+        SafeFmt(@"AIM FIRE: %@", (gAimOnFireEnabled || gHotAimOnFireEnabled) ? @"ON" : @"OFF"),
+        SafeFmt(@"ESP: %@", (gEspEnabled || gHotEspEnabled) ? @"ON" : @"OFF"),
+        SafeFmt(@"TRIGGER: %@", gTriggerbotEnabled.load() ? @"ON" : @"OFF")
+    ];
+    for (NSString* s in lines) {
+        NSDictionary* attrs = @{
+            NSFontAttributeName: f ?: [UIFont systemFontOfSize:9],
+            NSForegroundColorAttributeName: [UIColor colorWithWhite:1.0 alpha:0.85]
+        };
+        [s drawAtPoint:CGPointMake(x, y) withAttributes:attrs];
+        y += 12.0f;
+    }
+}
+
+- (void)drawVelocityGraph:(CGContextRef)ctx rect:(CGRect)rect {
+    if (!gVelocityGraphEnabled.load()) {
+        return;
+    }
+    CGFloat w = 132.0f;
+    CGFloat h = 46.0f;
+    CGFloat x = 10.0f;
+    CGFloat y = 60.0f;
+    CGContextSetFillColorWithColor(ctx, [UIColor colorWithWhite:0.0 alpha:0.45].CGColor);
+    CGContextFillRect(ctx, CGRectMake(x, y, w, h));
+    CGContextSetStrokeColorWithColor(ctx, [UIColor colorWithWhite:0.5 alpha:0.6].CGColor);
+    CGContextSetLineWidth(ctx, 0.8);
+    CGContextStrokeRect(ctx, CGRectMake(x, y, w, h));
+    
+    static UIFont* vf = nil;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        vf = [UIFont boldSystemFontOfSize:10];
+    });
+    NSString* line = SafeFmt(@"SPEED %.1f", gLocalSpeedVal.load());
+    NSDictionary* attrs = @{
+        NSFontAttributeName: vf ?: [UIFont boldSystemFontOfSize:10],
+        NSForegroundColorAttributeName: [UIColor cyanColor]
+    };
+    [line drawAtPoint:CGPointMake(x + 6.0f, y + 3.0f) withAttributes:attrs];
+    
+    CGFloat graphY = y + 18.0f;
+    CGFloat graphH = h - 22.0f;
+    CGFloat graphW = w - 12.0f;
+    CGFloat stepX = graphW / 119.0f;
+    
+    if (gSpeedHistory.size() >= 2) {
+        CGContextSetStrokeColorWithColor(ctx, [UIColor cyanColor].CGColor);
+        CGContextSetLineWidth(ctx, 1.2);
+        CGFloat baseX = x + 6.0f + graphW - ((CGFloat)(gSpeedHistory.size() - 1) * stepX);
+        bool started = false;
+        for (NSUInteger i = 0; i < gSpeedHistory.size(); i++) {
+            float v = Math::Clamp(gSpeedHistory[i], 0.0f, 20.0f);
+            CGFloat px = baseX + (CGFloat)i * stepX;
+            CGFloat py = graphY + graphH - (v / 20.0f) * graphH;
+            if (!started) {
+                CGContextMoveToPoint(ctx, px, py);
+                started = true;
+            } else {
+                CGContextAddLineToPoint(ctx, px, py);
+            }
+        }
+        CGContextStrokePath(ctx);
+    }
+}
+
+- (void)drawSessionInfo:(CGContextRef)ctx rect:(CGRect)rect {
+    if (!gSessionInfoEnabled.load()) {
+        return;
+    }
+    static UIFont* f = nil;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        f = [UIFont systemFontOfSize:10 weight:UIFontWeightMedium];
+    });
+    uint64_t start = gStatSessionStart.load();
+    uint64_t now = NowMs();
+    uint64_t secs = (start > 0 && now > start) ? (now - start) / 1000ULL : 0;
+    CGFloat x = rect.size.width - 150.0f;
+    CGFloat y = 10.0f;
+    NSArray<NSString*>* lines = @[
+        SafeFmt(@"SESSION %02llu:%02llu", secs / 60ULL, secs % 60ULL),
+        SafeFmt(@"FPS %d", gFpsValue.load()),
+        SafeFmt(@"HP %d", gLocalHealthVal.load()),
+        SafeFmt(@"AMMO %d", gLocalAmmoVal.load())
+    ];
+    if (gPanelBackground.load()) {
+        CGContextSetFillColorWithColor(ctx, [UIColor colorWithWhite:0.0 alpha:0.35].CGColor);
+        CGContextFillRect(ctx, CGRectMake(x - 4.0f, y - 3.0f, 140.0f, lines.count * 14.0f + 6.0f));
+    }
+    for (NSString* s in lines) {
+        NSDictionary* attrs = @{
+            NSFontAttributeName: f ?: [UIFont systemFontOfSize:10],
+            NSForegroundColorAttributeName: [UIColor whiteColor]
+        };
+        [s drawAtPoint:CGPointMake(x, y) withAttributes:attrs];
+        y += 14.0f;
+    }
+}
+
+- (void)drawDamageLogPanel:(CGContextRef)ctx rect:(CGRect)rect {
+    if (!gDamageLogPanelEnabled.load() || gHudEvents.empty()) {
+        return;
+    }
+    static UIFont* f = nil;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        f = [UIFont systemFontOfSize:10 weight:UIFontWeightMedium];
+    });
+    CGFloat x = rect.size.width - 150.0f;
+    CGFloat y = 90.0f;
+    uint64_t now = NowMs();
+    UIColor* base = gDamageLogColor ?: [UIColor redColor];
+    int shown = 0;
+    for (const HudEventInfo& e : gHudEvents) {
+        if (e.kind != 1 || e.until <= now) {
+            continue;
+        }
+        if (shown >= 6) {
+            break;
+        }
+        float remain = Math::Clamp((float)(e.until - now) / 1000.0f, 0.0f, 1.0f);
+        NSDictionary* attrs = @{
+            NSFontAttributeName: f ?: [UIFont systemFontOfSize:10],
+            NSForegroundColorAttributeName: [base colorWithAlphaComponent:remain]
+        };
+        NSString* text = SafeFmt(@"%s", e.text);
+        [text drawAtPoint:CGPointMake(x, y) withAttributes:attrs];
+        y += 14.0f;
+        shown++;
+    }
+}
+
+- (void)drawTargetList:(CGContextRef)ctx rect:(CGRect)rect {
+    if (!gTargetListEnabled.load() || gHudPlayers.empty()) {
+        return;
+    }
+    static UIFont* f = nil;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        f = [UIFont systemFontOfSize:10 weight:UIFontWeightMedium];
+    });
+    CGFloat x = rect.size.width - 170.0f;
+    CGFloat y = 180.0f;
+    std::vector<HudPlayerInfo> sorted = gHudPlayers;
+    std::sort(sorted.begin(), sorted.end(), [](const HudPlayerInfo& a, const HudPlayerInfo& b) {
+        return a.distance < b.distance;
+    });
+    int shown = 0;
+    for (const HudPlayerInfo& p : sorted) {
+        if (shown >= 8) {
+            break;
+        }
+        if (p.health <= 0) {
+            continue;
+        }
+        NSString* line = SafeFmt(@"%.0fm  %dHP  %@", p.distance, p.health, p.visible ? @"VIS" : @"HID");
+        NSDictionary* attrs = @{
+            NSFontAttributeName: f ?: [UIFont systemFontOfSize:10],
+            NSForegroundColorAttributeName: p.visible ? [UIColor greenColor] : [UIColor redColor]
+        };
+        [line drawAtPoint:CGPointMake(x, y) withAttributes:attrs];
+        y += 14.0f;
+        shown++;
+    }
+}
+
+- (void)drawCrosshairDebug:(CGContextRef)ctx rect:(CGRect)rect {
+    if (!gCrosshairDebugEnabled.load()) {
+        return;
+    }
+    static UIFont* f = nil;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        f = [UIFont systemFontOfSize:9 weight:UIFontWeightMedium];
+    });
+    CGFloat cx = rect.size.width / 2.0f;
+    CGFloat y = rect.size.height / 2.0f + 40.0f;
+    NSString* text = SafeFmt(@"GAP %.1f  SCOPE %@", gHudCrosshairGap, gLocalScoped.load() ? @"ON" : @"OFF");
+    NSDictionary* attrs = @{
+        NSFontAttributeName: f ?: [UIFont systemFontOfSize:9],
+        NSForegroundColorAttributeName: [UIColor yellowColor]
+    };
+    CGSize sz = [text sizeWithAttributes:attrs];
+    [text drawAtPoint:CGPointMake(cx - sz.width / 2.0f, y) withAttributes:attrs];
+}
+
+- (void)drawAmmoBar:(CGContextRef)ctx rect:(CGRect)rect {
+    if (!gAmmoBarEnabled.load()) {
+        return;
+    }
+    int ammo = gLocalAmmoVal.load();
+    int total = gLocalAmmoTotalVal.load();
+    if (total <= 0) {
+        total = 1;
+    }
+    CGFloat w = 180.0f;
+    CGFloat h = 8.0f;
+    CGFloat x = rect.size.width / 2.0f - w / 2.0f;
+    CGFloat y = rect.size.height - 60.0f;
+    float pct = Math::Clamp((float)ammo / (float)total, 0.0f, 1.0f);
+    CGContextSetFillColorWithColor(ctx, [UIColor colorWithWhite:0.1 alpha:0.7].CGColor);
+    CGContextFillRect(ctx, CGRectMake(x, y, w, h));
+    CGContextSetFillColorWithColor(ctx, [UIColor colorWithRed:0.3 green:0.8 blue:1.0 alpha:0.9].CGColor);
+    CGContextFillRect(ctx, CGRectMake(x, y, w * pct, h));
+    
+    static UIFont* f = nil;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        f = [UIFont boldSystemFontOfSize:10];
+    });
+    NSString* text = SafeFmt(@"%d / %d", ammo, total);
+    NSDictionary* attrs = @{
+        NSFontAttributeName: f ?: [UIFont boldSystemFontOfSize:10],
+        NSForegroundColorAttributeName: [UIColor whiteColor]
+    };
+    CGSize sz = [text sizeWithAttributes:attrs];
+    [text drawAtPoint:CGPointMake(rect.size.width / 2.0f - sz.width / 2.0f, y - 14.0f) withAttributes:attrs];
+}
+
 - (void)drawRect:(CGRect)rect {
     CGContextRef ctx = UIGraphicsGetCurrentContext();
     if (!ctx) {
@@ -7433,10 +9973,23 @@ static void HudTick(void) {
     [self drawScopeOverlay:ctx rect:rect];
     [self drawRadar:ctx rect:rect];
     [self drawAimLine:ctx rect:rect];
+    [self drawFovCircle:ctx rect:rect];
     [self drawCrosshair:ctx rect:rect];
     [self drawHitMarker:ctx rect:rect];
     [self drawDamageNumbers:ctx rect:rect];
     [self drawKillFeed:ctx rect:rect];
+    [self drawEventLog:ctx rect:rect];
+    [self drawPlayerList:ctx rect:rect];
+    [self drawInfoPanel:ctx rect:rect];
+    [self drawStatsPanel:ctx rect:rect];
+    [self drawAimInfo:ctx rect:rect];
+    [self drawKeybindList:ctx rect:rect];
+    [self drawVelocityGraph:ctx rect:rect];
+    [self drawSessionInfo:ctx rect:rect];
+    [self drawDamageLogPanel:ctx rect:rect];
+    [self drawTargetList:ctx rect:rect];
+    [self drawCrosshairDebug:ctx rect:rect];
+    [self drawAmmoBar:ctx rect:rect];
 }
 
 @end
