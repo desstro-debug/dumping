@@ -364,6 +364,8 @@ namespace off {
     constexpr uint64_t kWepJzc = 0x204; // Vector3 jzc
     constexpr uint64_t kWepIsAiming = 0x1A1; // bool IsAiming
     constexpr uint64_t kDataAmmo = 0xA8;
+    constexpr uint64_t kDataShootCount = 0xB0; // int ShootCount
+    constexpr uint64_t kDataShootMultiOffset = 0xB4; // Vector3 ShootMultiOffset
     constexpr uint64_t kDataRecoilPattern = 0xA0; // List<Vector2> RecoilPattern
     constexpr uint64_t kDataFireBackOffset = 0x90; // Vector3 _fireBackOffset
     constexpr uint64_t kDataFireBackTime = 0x9C; // float _fireBackOffsetTime
@@ -400,6 +402,11 @@ typedef void* (*fn_method_get_param)(void*, uint32_t);
 typedef char* (*fn_type_get_name)(void*);
 typedef void* (*fn_class_get_type)(void*);
 typedef void* (*fn_type_get_object)(void*);
+typedef const char* (*fn_class_get_name)(void*);
+typedef const char* (*fn_class_get_namespace)(void*);
+typedef void* (*fn_class_get_parent)(void*);
+typedef size_t (*fn_image_get_class_count)(const void*);
+typedef void* (*fn_image_get_class)(const void*, size_t);
 typedef void* (*fn_runtime_invoke)(void*, void*, void**, void**);
 typedef void* (*fn_thread_attach)(void*);
 typedef uint32_t (*fn_gchandle_new)(void*, bool);
@@ -456,6 +463,11 @@ static fn_method_get_param p_method_get_param = nullptr;
 static fn_type_get_name p_type_get_name = nullptr;
 static fn_class_get_type p_class_get_type = nullptr;
 static fn_type_get_object p_type_get_object = nullptr;
+static fn_class_get_name p_class_get_name = nullptr;
+static fn_class_get_namespace p_class_get_namespace = nullptr;
+static fn_class_get_parent p_class_get_parent = nullptr;
+static fn_image_get_class_count p_image_get_class_count = nullptr;
+static fn_image_get_class p_image_get_class = nullptr;
 static fn_runtime_invoke p_runtime_invoke = nullptr;
 static fn_thread_attach p_thread_attach = nullptr;
 static fn_gchandle_new p_gchandle_new = nullptr;
@@ -574,6 +586,15 @@ static std::atomic<bool> gAimOnFireEnabled{false};
 static std::atomic<bool> gSilentAimEnabled{false};
 static std::atomic<bool> gHotAimbotEnabled{false};
 static std::atomic<bool> gHotAimOnFireEnabled{false};
+
+// Fire button state. Aim On Fire must only lock while the trigger is actually held.
+// gFireHeldUntil is a deadline, not a latched flag, so a missed OnClickFireUp (touch
+// cancelled by the OS, hook not installed, etc.) can never leave the aimbot stuck on.
+static std::atomic<uint64_t> gFireHeldUntil{0};
+
+static inline bool IsFireHeld(void) {
+    return NowMs() < gFireHeldUntil.load();
+}
 static std::atomic<bool> gHotEspEnabled{false};
 static std::atomic<bool> gInvertPitch{false};
 static std::atomic<bool> gInvertYaw{false};
@@ -727,8 +748,6 @@ static std::atomic<float> gFullbrightMul{3.0f};
 static std::atomic<bool> gNoFogEnabled{false};
 static std::atomic<bool> gAmbientTintEnabled{false};
 static std::atomic<uint32_t> gAmbientColorHex{0xFFFFFFFF};
-static std::atomic<bool> gWeaponEspEnabled{false};
-static UIColor* gWeaponColor = [UIColor yellowColor];
 static std::atomic<bool> gGradingDirty{true};
 static std::atomic<float> gSaturationVal{0.0f};
 static std::atomic<float> gContrastVal{0.0f};
@@ -835,6 +854,7 @@ static void* findClass(const char* ns, const char* name) {
         return nullptr;
     }
     
+    // 1. Exact namespace first.
     for (size_t i = 0; i < count; ++i) {
         void* image = p_assembly_get_image(assemblies[i]);
         if (image) {
@@ -844,6 +864,52 @@ static void* findClass(const char* ns, const char* name) {
             }
         }
     }
+    
+    // 2. The game keeps most gameplay types under the "Assets" namespace while the
+    //    original mod used "" for everything. Try the common namespaces explicitly.
+    const char* fallbacks[] = {
+        "Assets",
+        "Assets.Game.Scripts.Scenes.Game.Mono.Characters",
+        ""
+    };
+    for (const char* fns : fallbacks) {
+        if (!fns || (ns && strcmp(fns, ns) == 0)) {
+            continue;
+        }
+        for (size_t i = 0; i < count; ++i) {
+            void* image = p_assembly_get_image(assemblies[i]);
+            if (image) {
+                void* k = p_class_from_name(image, fns, name);
+                if (k) {
+                    return k;
+                }
+            }
+        }
+    }
+    
+    // 3. Last resort: walk every type in every image and compare the simple name.
+    //    This ignores the namespace completely, so it works even if the game moves
+    //    a class to another namespace in a future build.
+    if (p_image_get_class_count && p_image_get_class && p_class_get_name) {
+        for (size_t i = 0; i < count; ++i) {
+            void* image = p_assembly_get_image(assemblies[i]);
+            if (!image) {
+                continue;
+            }
+            size_t typeCount = p_image_get_class_count(image);
+            for (size_t t = 0; t < typeCount; ++t) {
+                void* k = p_image_get_class(image, t);
+                if (!k) {
+                    continue;
+                }
+                const char* kn = p_class_get_name(k);
+                if (kn && strcmp(kn, name) == 0) {
+                    return k;
+                }
+            }
+        }
+    }
+    
     return nullptr;
 }
 
@@ -999,7 +1065,6 @@ static NSString* getIL2CPPString(void* strObj) {
     [d setBool:gNoFogEnabled forKey:@"wv_nf"];
     [d setBool:gAmbientTintEnabled forKey:@"wv_amb_e"];
     [d setInteger:(NSInteger)gAmbientColorHex.load() forKey:@"wv_amb_c"];
-    [d setBool:gWeaponEspEnabled forKey:@"wv_we"];
     [d setFloat:gSaturationVal forKey:@"wv_sat"];
     [d setFloat:gContrastVal forKey:@"wv_con"];
     [d setFloat:gGammaVal forKey:@"wv_gam"];
@@ -1144,7 +1209,6 @@ static NSString* getIL2CPPString(void* strObj) {
     if (gAmbientColorHex == 0) {
         gAmbientColorHex = 0xFFFFFFFF;
     }
-    gWeaponEspEnabled = [d boolForKey:@"wv_we"];
     gSaturationVal = [d floatForKey:@"wv_sat"];
     gContrastVal = [d floatForKey:@"wv_con"];
     gGammaVal = [d floatForKey:@"wv_gam"];
@@ -1222,7 +1286,7 @@ typedef void (*fn_UiOnClickFireDown)(void* self, void* mi);
 static fn_UiOnClickFireDown orig_UiOnClickFireDown = nullptr;
 
 static void ApplyAimOnFire(void) {
-    if (!gAimOnFireEnabled && !gHotAimOnFireEnabled || !g_haveTarget || !p_lookAtTarget) {
+    if ((!gAimOnFireEnabled && !gHotAimOnFireEnabled) || !IsFireHeld() || !g_haveTarget || !p_lookAtTarget) {
         return;
     }
 
@@ -1365,7 +1429,7 @@ static void hook_CamLateUpdate(void* self, void* mi) {
     }
     
     const bool aimbotActive = gAimbotEnabled || gHotAimbotEnabled;
-    const bool aimOnFireActive = gAimOnFireEnabled || gHotAimOnFireEnabled;
+    const bool aimOnFireActive = (gAimOnFireEnabled || gHotAimOnFireEnabled) && IsFireHeld();
     if ((!aimbotActive && !aimOnFireActive) || gSilentAimEnabled || !g_haveTarget) {
         return;
     }
@@ -1383,6 +1447,7 @@ static void hook_CamLateUpdate(void* self, void* mi) {
 }
 
 static void hook_UiOnClickFireDown(void* self, void* mi) {
+    gFireHeldUntil = NowMs() + 5000;
     ApplyAimOnFire();
     BallisticsFirePre();
 
@@ -1397,6 +1462,7 @@ typedef void (*fn_UiOnClickFire)(void* self, void* mi);
 static fn_UiOnClickFire orig_UiOnClickFire = nullptr;
 
 static void hook_UiOnClickFire(void* self, void* mi) {
+    gFireHeldUntil = NowMs() + 1000;
     ApplyAimOnFire();
     BallisticsFirePre();
 
@@ -1407,28 +1473,23 @@ static void hook_UiOnClickFire(void* self, void* mi) {
     BallisticsFirePost();
 }
 
+typedef void (*fn_UiOnClickFireUp)(void* self, void* mi);
+static fn_UiOnClickFireUp orig_UiOnClickFireUp = nullptr;
+
+static void hook_UiOnClickFireUp(void* self, void* mi) {
+    gFireHeldUntil = 0;
+    
+    if (orig_UiOnClickFireUp) {
+        orig_UiOnClickFireUp(self, mi);
+    }
+}
+
 typedef void (*fn_WepUpdate)(void* self, void* mi);
 static fn_WepUpdate orig_WepUpdate = nullptr;
 static fn_WepUpdate orig_WepUpdateShotgun = nullptr;
+static fn_WepUpdate orig_WepUpdateRange = nullptr;
 
-static void hook_WepUpdateShotgun(void* self, void* mi) {
-    if (orig_WepUpdateShotgun) {
-        orig_WepUpdateShotgun(self, mi);
-    }
-    if (!SANE_PTR(self)) {
-        return;
-    }
-    BallisticsWeaponTick(self);
-}
-
-static void hook_WepUpdate(void* self, void* mi) {
-    if (orig_WepUpdate) {
-        orig_WepUpdate(self, mi);
-    }
-    if (!SANE_PTR(self)) {
-        return;
-    }
-    
+static void WeaponCommonTick(void* self) {
     if (gRapidFireEnabled) {
         *(float*)((uintptr_t)self + off::kWepLastShotTime) = 0.0f;
         *(float*)((uintptr_t)self + off::kEquipCoolTime) = 0.0f;
@@ -1453,7 +1514,39 @@ static void hook_WepUpdate(void* self, void* mi) {
     if (gUnlimAmmoEnabled) {
         *(int*)((uintptr_t)self + off::kWepAmmoTotal) = 9999;
     }
+}
+
+static void hook_WepUpdateShotgun(void* self, void* mi) {
+    if (orig_WepUpdateShotgun) {
+        orig_WepUpdateShotgun(self, mi);
+    }
+    if (!SANE_PTR(self)) {
+        return;
+    }
+    WeaponCommonTick(self);
+    BallisticsWeaponTick(self);
+}
+
+static void hook_WepUpdateRange(void* self, void* mi) {
+    if (orig_WepUpdateRange) {
+        orig_WepUpdateRange(self, mi);
+    }
+    if (!SANE_PTR(self)) {
+        return;
+    }
+    WeaponCommonTick(self);
+    BallisticsWeaponTick(self);
+}
+
+static void hook_WepUpdate(void* self, void* mi) {
+    if (orig_WepUpdate) {
+        orig_WepUpdate(self, mi);
+    }
+    if (!SANE_PTR(self)) {
+        return;
+    }
     
+    WeaponCommonTick(self);
     BallisticsWeaponTick(self);
 }
 
@@ -1511,10 +1604,22 @@ static void InstallAllHooks(void) {
             if (miFire) {
                 hook_install(miFire, (void*)hook_UiOnClickFire, (void**)&orig_UiOnClickFire);
             }
+            void* miFireUp = p_class_get_method_from_name(mobileInputsCls, "OnClickFireUp", 0);
+            if (miFireUp) {
+                hook_install(miFireUp, (void*)hook_UiOnClickFireUp, (void**)&orig_UiOnClickFireUp);
+            }
         }
 
         if (wepCls) {
             void* mi = p_class_get_method_from_name(wepCls, "Update", 0);
+            if (mi) {
+                hook_install(mi, (void*)hook_WepUpdateRange, (void**)&orig_WepUpdateRange);
+            }
+        }
+        
+        void* baseWepCls = findClass("", "ItemEquipWeapon");
+        if (baseWepCls && baseWepCls != wepCls) {
+            void* mi = p_class_get_method_from_name(baseWepCls, "Update", 0);
             if (mi) {
                 hook_install(mi, (void*)hook_WepUpdate, (void**)&orig_WepUpdate);
             }
@@ -3186,22 +3291,6 @@ static UIImage* CreateKeyIcon(CGSize size, UIColor *color) {
         }
     }
     
-    if (gWeaponEspEnabled && self.weaponBoxes.count > 0) {
-        CGContextSetLineWidth(ctx, 1.0);
-        CGContextSetStrokeColorWithColor(ctx, (gWeaponColor ?: [UIColor yellowColor]).CGColor);
-        
-        for (NSUInteger i = 0; i < self.weaponBoxes.count; i++) {
-            CGRect r = [self.weaponBoxes[i] CGRectValue];
-            CGContextStrokeRect(ctx, r);
-            
-            if (i < self.weaponLabels.count) {
-                NSString *lbl = SafeStr(self.weaponLabels[i]);
-                CGSize size = [lbl sizeWithAttributes:fa];
-                [lbl drawAtPoint:CGPointMake(r.origin.x + r.size.width/2 - size.width/2, r.origin.y - size.height - 2) withAttributes:fa];
-            }
-        }
-    }
-    
     if (gSkeletonEnabled && self.skeletonLines.count > 0) {
         CGContextSetStrokeColorWithColor(ctx, (gSkelColor ?: [UIColor greenColor]).CGColor);
         CGContextSetLineWidth(ctx, gSkelThickness.load());
@@ -4245,15 +4334,6 @@ static void UpdateStreamMode(void) {
                 [ConfigManager save];
             };
             [gWV addSubview:[[NLRow alloc] initWithTitle:@"No Fog" y:y control:cbNF swatch:nil]];
-            y += 30;
-            
-            NLCheckbox *cbWE = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
-            cbWE.isOn = gWeaponEspEnabled;
-            cbWE.onToggle = ^(BOOL v) {
-                gWeaponEspEnabled = v;
-                [ConfigManager save];
-            };
-            [gWV addSubview:[[NLRow alloc] initWithTitle:@"Weapon ESP" y:y control:cbWE swatch:nil]];
             y += 30;
             
             NLCheckbox *cbAmb = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
@@ -5526,39 +5606,8 @@ static void espTick(void) {
                 }
             }
             
-            if (gWeaponEspEnabled && alive(c)) {
-                void* ctrl = *(void**)((uintptr_t)c + off::kCharController);
-                if (alive(ctrl)) {
-                    void* rv = *(void**)((uintptr_t)ctrl + off::kOtherRemoteVis);
-                    if (alive(rv)) {
-                        void* itemView = *(void**)((uintptr_t)rv + off::kRvItemView);
-                        if (alive(itemView)) {
-                            void* itemModel = *(void**)((uintptr_t)itemView + 0x38);
-                            if (alive(itemModel)) {
-                                void* weaponGO = *(void**)((uintptr_t)itemModel + 0x28);
-                                if (alive(weaponGO) && p_getTransform) {
-                                    void* wt = p_getTransform(weaponGO, p_getTransformMI);
-                                    if (alive(wt)) {
-                                        Vec3 wp;
-                                        if (getPosFast(wt, wp)) {
-                                            Vec3 sp;
-                                            if (w2sFast(cam, wp, sp) && sp.z > 0.05f) {
-                                                float sx = (sp.x * sX) / gScreenScale;
-                                                float sy = gScreenPts.height - ((sp.y * sY) / gScreenScale);
-                                                float sz = 10.0f;
-                                                [gEspView.weaponBoxes addObject:[NSValue valueWithCGRect:CGRectMake(sx - sz/2, sy - sz/2, sz, sz)]];
-                                                [gEspView.weaponLabels addObject:@"Weapon"];
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
             
-            if (gAimbotEnabled || gAimOnFireEnabled || gSilentAimEnabled) {
+            if (gAimbotEnabled || gAimOnFireEnabled || gSilentAimEnabled || gHotAimbotEnabled || gHotAimOnFireEnabled) {
                 if (gAimbotVisibleOnly && !isVisible) {
                     continue;
                 }
@@ -5578,7 +5627,7 @@ static void espTick(void) {
             }
         }
         
-        if ((gAimbotEnabled || gAimOnFireEnabled || gSilentAimEnabled) && best && alive(slc) && alive(lcLocal)) {
+        if ((gAimbotEnabled || gAimOnFireEnabled || gSilentAimEnabled || gHotAimbotEnabled || gHotAimOnFireEnabled) && best && alive(slc) && alive(lcLocal)) {
             g_silentAimTarget = bestAimPos;
             g_silentAimActive = true;
             g_targetHead = bestAimPos;
@@ -5604,6 +5653,9 @@ static void espTick(void) {
         bool localAiming = false;
         float localSpread = 0.0f;
         if (alive(g_localWeapon) && IsRangeWeapon(g_localWeapon)) {
+            // Redundant safety net: keep spread/recoil neutralised even if the camera
+            // LateUpdate hook is not installed or runs on a different object.
+            BallisticsTick();
             localAiming = *(bool*)((uintptr_t)g_localWeapon + off::kWepIsAiming);
             Vec2 sp = *(Vec2*)((uintptr_t)g_localWeapon + off::kWepSpread);
             if (Math::Finite(sp.x) && Math::Finite(sp.y)) {
@@ -5915,6 +5967,11 @@ static void bootstrap(void) {
         RES(p_class_get_method_from_name, "il2cpp_class_get_method_from_name");
         RES(p_class_get_type, "il2cpp_class_get_type");
         RES(p_type_get_object, "il2cpp_type_get_object");
+        p_class_get_name = (fn_class_get_name)dlsym(RTLD_DEFAULT, "il2cpp_class_get_name");
+        p_class_get_namespace = (fn_class_get_namespace)dlsym(RTLD_DEFAULT, "il2cpp_class_get_namespace");
+        p_class_get_parent = (fn_class_get_parent)dlsym(RTLD_DEFAULT, "il2cpp_class_get_parent");
+        p_image_get_class_count = (fn_image_get_class_count)dlsym(RTLD_DEFAULT, "il2cpp_image_get_class_count");
+        p_image_get_class = (fn_image_get_class)dlsym(RTLD_DEFAULT, "il2cpp_image_get_class");
         RES(p_runtime_invoke, "il2cpp_runtime_invoke");
         RES(p_gchandle_new, "il2cpp_gchandle_new");
         RES(p_gchandle_get_target, "il2cpp_gchandle_get_target");
@@ -6261,6 +6318,7 @@ struct RangeSnapshot {
     float unscopedMul;
     Vec3 fireBackOffset;
     float fireBackTime;
+    Vec3 shootMultiOffset;
 };
 
 static std::unordered_map<void*, RangeSnapshot> gRangeSnapshots;
@@ -6306,19 +6364,62 @@ static bool NoRecoilActive(void) {
 // ItemEquipWeaponRange and ItemEquipWeaponRangeShotgun are the only classes that own the
 // spread/recoil fields. Grenade and melee items share the ItemEquipWeapon base and are
 // much smaller, so writing range offsets into them would corrupt the heap. Never touch a
-// weapon unless its il2cpp class pointer matches one of the two range classes.
-static bool IsRangeWeapon(void* weapon) {
-    if (!SANE_PTR(weapon)) {
+// weapon unless its il2cpp class is (or derives from) one of the two range classes.
+static bool ClassDerivesFrom(void* klass, void* base) {
+    if (!SANE_PTR(klass) || !SANE_PTR(base)) {
         return false;
     }
-    if (!gRangeClassPtr && !gShotgunClassPtr) {
+    int guard = 0;
+    while (klass && guard++ < 32) {
+        if (klass == base) {
+            return true;
+        }
+        if (!p_class_get_parent) {
+            return false;
+        }
+        klass = p_class_get_parent(klass);
+    }
+    return false;
+}
+
+// Name based fallback for builds where findClass could not resolve the class pointer
+// (for example if the namespace or the il2cpp image API changed).
+static bool ClassNameIsRange(void* klass) {
+    if (!SANE_PTR(klass) || !p_class_get_name) {
+        return false;
+    }
+    int guard = 0;
+    while (klass && guard++ < 32) {
+        const char* name = p_class_get_name(klass);
+        if (name) {
+            if (strcmp(name, "ItemEquipWeaponRange") == 0 ||
+                strcmp(name, "ItemEquipWeaponRangeShotgun") == 0) {
+                return true;
+            }
+        }
+        klass = p_class_get_parent ? p_class_get_parent(klass) : nullptr;
+    }
+    return false;
+}
+
+static bool IsRangeWeapon(void* weapon) {
+    if (!SANE_PTR(weapon)) {
         return false;
     }
     void* klass = *(void**)weapon;
     if (!SANE_PTR(klass)) {
         return false;
     }
-    return klass == gRangeClassPtr || (gShotgunClassPtr && klass == gShotgunClassPtr);
+    if (ClassDerivesFrom(klass, gRangeClassPtr)) {
+        return true;
+    }
+    if (gShotgunClassPtr && ClassDerivesFrom(klass, gShotgunClassPtr)) {
+        return true;
+    }
+    if (ClassNameIsRange(klass)) {
+        return true;
+    }
+    return false;
 }
 
 static void CaptureRangeData(void* data) {
@@ -6339,6 +6440,7 @@ static void CaptureRangeData(void* data) {
     snap.unscopedMul = *(float*)((uintptr_t)data + off::kRangeUnscopedRecoilMul);
     snap.fireBackOffset = *(Vec3*)((uintptr_t)data + off::kDataFireBackOffset);
     snap.fireBackTime = *(float*)((uintptr_t)data + off::kDataFireBackTime);
+    snap.shootMultiOffset = *(Vec3*)((uintptr_t)data + off::kDataShootMultiOffset);
     gRangeSnapshots[data] = snap;
 }
 
@@ -6359,6 +6461,7 @@ static void ApplyRangeData(void* data) {
     *(float*)((uintptr_t)data + off::kRangeUnscopedRecoilMul) = 0.0f;
     *(Vec3*)((uintptr_t)data + off::kDataFireBackOffset) = Vec3(0.0f, 0.0f, 0.0f);
     *(float*)((uintptr_t)data + off::kDataFireBackTime) = 0.0f;
+    *(Vec3*)((uintptr_t)data + off::kDataShootMultiOffset) = Vec3(0.0f, 0.0f, 0.0f);
 }
 
 static void RestoreRangeData(void) {
@@ -6386,6 +6489,7 @@ static void RestoreRangeData(void) {
         *(float*)((uintptr_t)data + off::kRangeUnscopedRecoilMul) = snap.unscopedMul;
         *(Vec3*)((uintptr_t)data + off::kDataFireBackOffset) = snap.fireBackOffset;
         *(float*)((uintptr_t)data + off::kDataFireBackTime) = snap.fireBackTime;
+        *(Vec3*)((uintptr_t)data + off::kDataShootMultiOffset) = snap.shootMultiOffset;
     }
     
     gRangeSnapshots.clear();
@@ -6514,10 +6618,12 @@ static void BallisticsTick(void) {
     bool noSpread = NoSpreadActive();
     bool noRecoil = NoRecoilActive();
     
+    // Restore the source data as soon as No Spread is off, even if No Recoil is still on.
+    if (!noSpread && gRangeApplied.load()) {
+        RestoreRangeData();
+    }
+    
     if (!noSpread && !noRecoil) {
-        if (gRangeApplied.load()) {
-            RestoreRangeData();
-        }
         return;
     }
     
@@ -6592,6 +6698,31 @@ static void hook_UseProcess(void* self, void* info, void* mi) {
     BallisticsFirePost();
 }
 
+typedef bool (*fn_TryUse)(void*, void*, void*);
+static fn_TryUse orig_TryUse = nullptr;
+
+static bool hook_TryUse(void* self, void* info, void* mi) {
+    if (NoSpreadActive()) {
+        gSpreadWindowUntil = NowMs() + 500;
+        BallisticsWeaponTick(self);
+    } else if (NoRecoilActive()) {
+        BallisticsWeaponTick(self);
+    }
+    
+    bool result = false;
+    if (orig_TryUse) {
+        result = orig_TryUse(self, info, mi);
+    }
+    
+    // The weapon may rebuild Spread/Offset inside TryUse before it builds the ray.
+    // Put everything back to zero before the actual shot is processed.
+    if (NoSpreadActive() || NoRecoilActive()) {
+        BallisticsWeaponTick(self);
+    }
+    
+    return result;
+}
+
 typedef Vec2 (*fn_GetInsideUnitCircle)(void*);
 static fn_GetInsideUnitCircle orig_GetInsideUnitCircle = nullptr;
 
@@ -6625,6 +6756,7 @@ static void InstallBallisticsHooks(void) {
         void* rangeCls = findClass("", "ItemEquipWeaponRange");
         gRangeClassPtr = rangeCls;
         gShotgunClassPtr = findClass("", "ItemEquipWeaponRangeShotgun");
+        LOG(@"[BALL] classes range=%p shotgun=%p", gRangeClassPtr, gShotgunClassPtr);
         if (rangeCls) {
             void* miSpread = p_class_get_method_from_name(rangeCls, "GetSpreadMultiplier", 1);
             if (miSpread) {
@@ -6636,6 +6768,12 @@ static void InstallBallisticsHooks(void) {
             if (miUse) {
                 hook_install(miUse, (void*)hook_UseProcess, (void**)&orig_UseProcess);
                 LOG(@"[BALL] UseProcess hook installed");
+            }
+            
+            void* miTry = p_class_get_method_from_name(rangeCls, "TryUse", 1);
+            if (miTry) {
+                hook_install(miTry, (void*)hook_TryUse, (void**)&orig_TryUse);
+                LOG(@"[BALL] TryUse hook installed");
             }
         }
         
