@@ -24,6 +24,7 @@
 #include <unordered_map>
 #include <string>
 #include <algorithm>
+#include <mutex>
 #include <mach/mach_time.h>
 #include <mach/mach.h>
 #include <mach/vm_map.h>
@@ -979,6 +980,10 @@ static void* gSkinSelectedObj = nullptr;
 static std::string gSkinSelectedId;
 static std::string gSkinSelectedTarget;
 static std::string gSkinPendingId;
+// Persistent IDs, never weapon-instance pointers: respawn must not erase the loadout.
+static std::unordered_map<std::string, std::string> gSkinAssignments;
+static std::mutex gSkinAssignmentsMutex;
+static void SkinRestoreBrowser(void);
 static std::atomic<bool> gSkinApplying{false};
 static void* gWeaponClasses[12] = {nullptr};
 static int gWeaponClassCount = 0;
@@ -1667,6 +1672,18 @@ static NSString* getIL2CPPString(void* strObj) {
     [d setBool:gTriggerbotHeadOnly forKey:@"tb_ho"];
     [d setBool:gSkinChangerEnabled forKey:@"sk_e"];
     [d setObject:[NSString stringWithUTF8String:gSkinSelectedId.c_str()] forKey:@"sk_id"];
+    {
+        std::lock_guard<std::mutex> lock(gSkinAssignmentsMutex);
+        NSMutableDictionary *loadout = [NSMutableDictionary dictionary];
+        for (const auto& assignment : gSkinAssignments) {
+            NSString *target = [NSString stringWithUTF8String:assignment.first.c_str()];
+            NSString *skin = [NSString stringWithUTF8String:assignment.second.c_str()];
+            if (target && skin) {
+                loadout[target] = skin;
+            }
+        }
+        [d setObject:loadout forKey:@"sk_loadout"];
+    }
     [d setInteger:gCrosshairStyle forKey:@"ch_st"];
     [d setFloat:gCrosshairGap forKey:@"ch_g"];
     [d setFloat:gCrosshairLength forKey:@"ch_l"];
@@ -2020,6 +2037,30 @@ static NSString* getIL2CPPString(void* strObj) {
     gSkinChangerEnabled = [d boolForKey:@"sk_e"];
     NSString* savedSkinId = [d stringForKey:@"sk_id"];
     gSkinPendingId = savedSkinId ? std::string([savedSkinId UTF8String]) : std::string();
+    {
+        std::lock_guard<std::mutex> lock(gSkinAssignmentsMutex);
+        gSkinAssignments.clear();
+        NSDictionary *loadout = [d dictionaryForKey:@"sk_loadout"];
+        for (id target in loadout) {
+            id skin = loadout[target];
+            if ([target isKindOfClass:[NSString class]] && [skin isKindOfClass:[NSString class]] &&
+                [target length] > 0 && [skin length] > 0) {
+                gSkinAssignments[std::string([target UTF8String])] = std::string([skin UTF8String]);
+            }
+        }
+        // Migrate the old single-skin preference only when no loadout has been saved.
+        if (!loadout && !gSkinPendingId.empty()) {
+            for (const SkinEntry& entry : gSkinCatalog) {
+                if (entry.id == gSkinPendingId) {
+                    gSkinAssignments[entry.target] = entry.id;
+                    break;
+                }
+            }
+        }
+    }
+    if (gSkinCatalogLoaded) {
+        SkinRestoreBrowser();
+    }
     gCrosshairStyle = (int)[d integerForKey:@"ch_st"];
     if (gCrosshairStyle < 0 || gCrosshairStyle > 4) {
         gCrosshairStyle = 0;
@@ -2917,6 +2958,30 @@ static void SkinRebuildFilter(void) {
     }
 }
 
+static std::string SkinAssignedId(const std::string& target) {
+    std::lock_guard<std::mutex> lock(gSkinAssignmentsMutex);
+    auto it = gSkinAssignments.find(target);
+    return it == gSkinAssignments.end() ? std::string() : it->second;
+}
+
+static bool SkinForWeapon(void* weapon, SkinEntry* result) {
+    if (!gSkinChangerEnabled.load() || !SANE_PTR(weapon) || !result) {
+        return false;
+    }
+    std::string target = Il2CppStringToStd(*(void**)((uintptr_t)weapon + 0xB0));
+    std::string id = SkinAssignedId(target);
+    if (id.empty()) {
+        return false;
+    }
+    for (const SkinEntry& entry : gSkinCatalog) {
+        if (entry.target == target && entry.id == id && SANE_PTR(entry.obj)) {
+            *result = entry;
+            return true;
+        }
+    }
+    return false;
+}
+
 static void SkinSelectCurrent(void) {
     gSkinLastAppliedWeapon = nullptr;
     if (gSkinFiltered.empty()) {
@@ -2929,6 +2994,33 @@ static void SkinSelectCurrent(void) {
     gSkinSelectedObj = e.obj;
     gSkinSelectedId = e.id;
     gSkinSelectedTarget = e.target;
+    {
+        std::lock_guard<std::mutex> lock(gSkinAssignmentsMutex);
+        gSkinAssignments[e.target] = e.id;
+    }
+}
+
+// Browsing a weapon must not implicitly equip its first skin.
+static void SkinRestoreBrowser(void) {
+    gSkinSelectedObj = nullptr;
+    gSkinSelectedId.clear();
+    gSkinSelectedTarget.clear();
+    gSkinIndex = 0;
+    if (gWeaponList.empty() || gSkinTargetIndex < 0 ||
+        gSkinTargetIndex >= (int)gWeaponList.size()) {
+        return;
+    }
+    std::string id = SkinAssignedId(gWeaponList[gSkinTargetIndex].id);
+    for (int k = 0; k < (int)gSkinFiltered.size(); ++k) {
+        const SkinEntry& entry = gSkinCatalog[gSkinFiltered[k]];
+        if (entry.id == id) {
+            gSkinIndex = k;
+            gSkinSelectedObj = entry.obj;
+            gSkinSelectedId = entry.id;
+            gSkinSelectedTarget = entry.target;
+            break;
+        }
+    }
 }
 
 static void SkinCatalogLoad(void) {
@@ -3077,7 +3169,17 @@ static void SkinCatalogLoad(void) {
     }
     gSkinIndex = 0;
     SkinRebuildFilter();
-    SkinSelectCurrent();
+    // One-time migration from the old single-selection config.
+    if (![[NSUserDefaults standardUserDefaults] objectForKey:@"sk_loadout"] &&
+        !gSkinPendingId.empty()) {
+        std::lock_guard<std::mutex> lock(gSkinAssignmentsMutex);
+        for (const SkinEntry& entry : gSkinCatalog) {
+            if (entry.id == gSkinPendingId && !gSkinAssignments.count(entry.target)) {
+                gSkinAssignments[entry.target] = entry.id;
+                break;
+            }
+        }
+    }
 
     if (!gSkinPendingId.empty()) {
         for (int i = 0; i < (int)gSkinCatalog.size(); i++) {
@@ -3097,33 +3199,27 @@ static void SkinCatalogLoad(void) {
                     break;
                 }
             }
-            SkinSelectCurrent();
             break;
         }
     }
+    SkinRestoreBrowser();
+    gSkinLastAppliedWeapon = nullptr;
 
     gSkinCatalogLoaded = true;
     LOG(@"[SKIN] catalog=%d weapons=%d", (int)gSkinCatalog.size(), (int)gWeaponList.size());
 }
 
 static void SkinApplyEx(bool withEquip) {
-    if (!gSkinChangerEnabled.load() || !SANE_PTR(gSkinSelectedObj) || !SANE_PTR(g_localWeapon)) {
+    SkinEntry skin;
+    if (!SkinForWeapon(g_localWeapon, &skin)) {
         return;
-    }
-    // Only paint the weapon the selected skin actually belongs to; otherwise an AK skin
-    // would be written onto whatever happens to be in hand.
-    if (!gSkinSelectedTarget.empty()) {
-        void* dataIdStr = *(void**)((uintptr_t)g_localWeapon + 0xB0);
-        if (!Il2CppStringEqualsStd(dataIdStr, gSkinSelectedTarget)) {
-            return;
-        }
     }
 
     // The viewmodel rebuild is driven by ItemSkinDto, not by the ItemSkinData field alone.
     // Feed the same JSON the server would send through SyncItemSkinDto so both the DTO and
     // the asset pointer are populated, then fire the update event.
     if (gItemSyncSkinDtoMI && p_runtime_invoke && p_string_new) {
-        std::string json = "{\"Id\":\"" + gSkinSelectedId + "\",\"DataId\":\"" + gSkinSelectedId +
+        std::string json = "{\"Id\":\"" + skin.id + "\",\"DataId\":\"" + skin.id +
                            "\",\"IsNew\":false,\"Modules\":[],\"Equip\":0,\"Status\":0,\"Pattern\":0,\"PatternWear\":0}";
         void* jsonStr = p_string_new(json.c_str());
         void* emptyStr = p_string_new("");
@@ -3140,7 +3236,7 @@ static void SkinApplyEx(bool withEquip) {
     }
 
     // Belt and suspenders: some paths read the backing field directly.
-    *(void**)((uintptr_t)g_localWeapon + 0xE8) = gSkinSelectedObj;
+    *(void**)((uintptr_t)g_localWeapon + 0xE8) = skin.obj;
 
     void* exc = nullptr;
     if (gItemFireSkinDtoUpdateMI && p_runtime_invoke) {
@@ -3158,14 +3254,14 @@ static void SkinApplyEx(bool withEquip) {
             // Equip rebuilds the whole viewmodel (and plays the swap animation). LoadModel
             // is the direct path that swaps just the mesh, so run it afterwards as well.
             if (gHandsLoadModelMI && p_runtime_invoke) {
-                void* args[1] = { gSkinSelectedObj };
+                void* args[1] = { skin.obj };
                 exc = nullptr;
                 p_runtime_invoke(gHandsLoadModelMI, hands, args, &exc);
             }
         }
     }
     gSkinLastAppliedWeapon = g_localWeapon;
-    LOG(@"[SKIN] applied id=%s target=%s", gSkinSelectedId.c_str(), gSkinSelectedTarget.c_str());
+    LOG(@"[SKIN] applied id=%s target=%s", skin.id.c_str(), skin.target.c_str());
 }
 
 static void SkinApply(void) {
@@ -3173,12 +3269,17 @@ static void SkinApply(void) {
 }
 
 static void SkinChangerTick(void) {
-    if (!gSkinChangerEnabled.load() || !SANE_PTR(gSkinSelectedObj)) {
+    if (!gSkinChangerEnabled.load()) {
         return;
     }
     if (!SANE_PTR(g_localWeapon)) {
         // Death / respawn: the old weapon is gone. Forget the pointer so the new weapon is
         // painted the moment it appears (otherwise a reused address would look "already done").
+        gSkinLastAppliedWeapon = nullptr;
+        return;
+    }
+    SkinEntry skin;
+    if (!SkinForWeapon(g_localWeapon, &skin)) {
         gSkinLastAppliedWeapon = nullptr;
         return;
     }
@@ -3197,7 +3298,7 @@ static void SkinChangerTick(void) {
     }
     gSkinLastCheckMs = now;
     void* current = *(void**)((uintptr_t)g_localWeapon + 0xE8);
-    if (current != gSkinSelectedObj) {
+    if (current != skin.obj) {
         SkinApplyEx(false);
     }
 }
@@ -3208,12 +3309,9 @@ typedef void* (*fn_ItemGetSkinData)(void* self, void* mi);
 static fn_ItemGetSkinData orig_ItemGetSkinData = nullptr;
 
 static void* hook_ItemGetSkinData(void* self, void* mi) {
-    if (gSkinChangerEnabled.load() && SANE_PTR(gSkinSelectedObj) && SANE_PTR(self) &&
-        !gSkinSelectedTarget.empty()) {
-        void* dataIdStr = *(void**)((uintptr_t)self + 0xB0);
-        if (Il2CppStringEqualsStd(dataIdStr, gSkinSelectedTarget)) {
-            return gSkinSelectedObj;
-        }
+    SkinEntry skin;
+    if (SkinForWeapon(self, &skin)) {
+        return skin.obj;
     }
     if (orig_ItemGetSkinData) {
         return orig_ItemGetSkinData(self, mi);
@@ -3228,13 +3326,10 @@ typedef void (*fn_SyncItemSkinDto)(void* self, void* was, void* become, void* mi
 static fn_SyncItemSkinDto orig_SyncItemSkinDto = nullptr;
 
 static void hook_SyncItemSkinDto(void* self, void* was, void* become, void* mi) {
-    if (!gSkinApplying.load() && gSkinChangerEnabled.load() && SANE_PTR(gSkinSelectedObj) &&
-        SANE_PTR(self) && !gSkinSelectedTarget.empty()) {
-        void* dataIdStr = *(void**)((uintptr_t)self + 0xB0);
-        if (Il2CppStringEqualsStd(dataIdStr, gSkinSelectedTarget)) {
-            gSkinLastAppliedWeapon = nullptr;
-            return;
-        }
+    SkinEntry skin;
+    if (!gSkinApplying.load() && SkinForWeapon(self, &skin)) {
+        gSkinLastAppliedWeapon = nullptr;
+        return;
     }
     if (orig_SyncItemSkinDto) {
         orig_SyncItemSkinDto(self, was, become, mi);
@@ -8581,13 +8676,16 @@ static NSString* NLIconForTab(NSString* title) {
 
             NLButton *bReset = [[NLButton alloc] initWithTitle:@"Reset"];
             bReset.onTap = ^{
-                gSkinSelectedObj = nullptr;
-                gSkinSelectedId.clear();
-                gSkinSelectedTarget.clear();
+                if (!gWeaponList.empty()) {
+                    std::lock_guard<std::mutex> lock(gSkinAssignmentsMutex);
+                    gSkinAssignments.erase(gWeaponList[gSkinTargetIndex].id);
+                }
+                SkinRestoreBrowser();
                 gSkinLastAppliedWeapon = nullptr;
+                [ConfigManager save];
                 [weakSelf buildContent];
             };
-            [gSkinTop addSubview:[[NLRow alloc] initWithTitle:@"Clear" y:ty control:bReset swatch:nil]];
+            [gSkinTop addSubview:[[NLRow alloc] initWithTitle:@"Clear weapon" y:ty control:bReset swatch:nil]];
             ty += 30;
 
             NLButton *bRefresh = [[NLButton alloc] initWithTitle:@"Refresh"];
@@ -8611,7 +8709,9 @@ static NSString* NLIconForTab(NSString* title) {
             for (int i = 0; i < (int)gWeaponList.size(); i++) {
                 const WeaponEntry& w = gWeaponList[i];
                 NSString *title = [NSString stringWithFormat:@"%s", w.label.c_str()];
-                NSString *detail = w.skinCount > 0 ? [NSString stringWithFormat:@"%d", w.skinCount] : @"—";
+                std::string assignedId = SkinAssignedId(w.id);
+                NSString *detail = !assignedId.empty() ? @"ON" :
+                    (w.skinCount > 0 ? [NSString stringWithFormat:@"%d", w.skinCount] : @"—");
                 NLSkinRow *row = [[NLSkinRow alloc] initWithTitle:title
                                                            detail:detail
                                                            rarity:-1
@@ -8622,7 +8722,7 @@ static NSString* NLIconForTab(NSString* title) {
                     gSkinTargetIndex = idx;
                     gSkinIndex = 0;
                     SkinRebuildFilter();
-                    SkinSelectCurrent();
+                    SkinRestoreBrowser();
                     [weakSelf buildContent];
                 };
                 [gWeapons addSubview:row];
@@ -8655,7 +8755,7 @@ static NSString* NLIconForTab(NSString* title) {
             } else {
                 for (int k = 0; k < (int)gSkinFiltered.size(); k++) {
                     const SkinEntry& s = gSkinCatalog[gSkinFiltered[k]];
-                    bool applied = (gSkinSelectedObj == s.obj);
+                    bool applied = (SkinAssignedId(s.target) == s.id);
                     NLSkinRow *row = [[NLSkinRow alloc] initWithTitle:[NSString stringWithFormat:@"%s", s.id.c_str()]
                                                                detail:[NSString stringWithFormat:@"%s", SkinRarityName(s.rarity)]
                                                                rarity:s.rarity
@@ -8665,10 +8765,8 @@ static NSString* NLIconForTab(NSString* title) {
                     row.onTap = ^{
                         gSkinIndex = idx;
                         SkinSelectCurrent();
-                        if (!gSkinChangerEnabled.load()) {
-                            gSkinChangerEnabled = true;
-                            [ConfigManager save];
-                        }
+                        gSkinChangerEnabled = true;
+                        [ConfigManager save];
                         SkinApply();
                         [weakSelf buildContent];
                     };
