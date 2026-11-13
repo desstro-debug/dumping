@@ -5624,6 +5624,7 @@ static UITextField* gSecureField = nil;
 static HotkeyView* gHotkeyView = nil;
 static SnowView* gSnowOverlay = nil;
 static void RefreshHotkeyView(void);
+static void ApplyFpsLimit(void);
 
 static void SnowOverlaySetEnabled(bool enabled) {
     dispatch_async(dispatch_get_main_queue(), ^{
@@ -6002,6 +6003,7 @@ static const CGFloat kSidebarW = 108.0;
         
         __weak NLColorSwatch *weakSwatch = swatch;
         __weak NSString *weakKey = key;
+        __weak MenuView* weakSelf = self;
         
         gColorPicker.onColorSelected = ^(UIColor *newColor) {
             if (!newColor || !weakSwatch || !weakKey) {
@@ -7743,15 +7745,15 @@ static NSString* NLIconForTab(NSString* title) {
             // ---- Post FX: motion blur + frame pacing ----
             NLGroupBox *gPost = [[NLGroupBox alloc] initWithTitle:@"Post FX" frame:CGRectMake(0, 2910, colW, 150)];
             [c2 addSubview:gPost];
-            CGFloat py = 30;
+            CGFloat pfy = 30;
             
             NLCheckbox *cbMB = RageMakeCheckbox(gMotionBlurEnabled, ^(BOOL v) {
                 gMotionBlurEnabled = v;
                 gGradingDirty = true;
                 [ConfigManager save];
             });
-            [gPost addSubview:[[NLRow alloc] initWithTitle:@"Motion Blur" y:py control:cbMB swatch:nil]];
-            py += 30;
+            [gPost addSubview:[[NLRow alloc] initWithTitle:@"Motion Blur" y:pfy control:cbMB swatch:nil]];
+            pfy += 30;
             
             NLSlider *sMB = RageMakeSlider(gMotionBlurAmount, 0.0f, 1.0f, @"", ^(float v) {
                 gMotionBlurAmount = v;
@@ -7761,8 +7763,8 @@ static NSString* NLIconForTab(NSString* title) {
                 gGradingDirty = true;
                 [ConfigManager save];
             });
-            [gPost addSubview:[[NLRow alloc] initWithTitle:@"Blur Amount" y:py control:sMB swatch:nil]];
-            py += 30;
+            [gPost addSubview:[[NLRow alloc] initWithTitle:@"Blur Amount" y:pfy control:sMB swatch:nil]];
+            pfy += 30;
             
             NLSlider *sFps = RageMakeSlider((float)gFpsLimit.load(), 30.0f, 144.0f, @"fps", ^(float v) {
                 gFpsLimit = (int)v;
@@ -7772,26 +7774,26 @@ static NSString* NLIconForTab(NSString* title) {
                 ApplyFpsLimit();
                 [ConfigManager save];
             });
-            [gPost addSubview:[[NLRow alloc] initWithTitle:@"FPS Limit" y:py control:sFps swatch:nil]];
-            py += 30;
+            [gPost addSubview:[[NLRow alloc] initWithTitle:@"FPS Limit" y:pfy control:sFps swatch:nil]];
+            pfy += 30;
             
             NLGroupBox *gExtra = [[NLGroupBox alloc] initWithTitle:@"HUD Extras" frame:CGRectMake(0, 3070, colW, 210)];
             [c2 addSubview:gExtra];
-            CGFloat ey = 30;
+            CGFloat exy = 30;
             
             NLCheckbox *cbSnap = RageMakeCheckbox(gSnapBottomEnabled, ^(BOOL v) {
                 gSnapBottomEnabled = v;
                 [ConfigManager save];
             });
-            [gExtra addSubview:[[NLRow alloc] initWithTitle:@"Snap Bottom" y:ey control:cbSnap swatch:nil]];
-            ey += 30;
+            [gExtra addSubview:[[NLRow alloc] initWithTitle:@"Snap Bottom" y:exy control:cbSnap swatch:nil]];
+            exy += 30;
             
-            NLCheckbox *cbKF = RageMakeCheckbox(gKillFeedEnabled, ^(BOOL v) {
+            NLCheckbox *cbKF2 = RageMakeCheckbox(gKillFeedEnabled, ^(BOOL v) {
                 gKillFeedEnabled = v;
                 [ConfigManager save];
             });
-            [gExtra addSubview:[[NLRow alloc] initWithTitle:@"Kill Feed" y:ey control:cbKF swatch:nil]];
-            ey += 30;
+            [gExtra addSubview:[[NLRow alloc] initWithTitle:@"Kill Feed" y:exy control:cbKF2 swatch:nil]];
+            exy += 30;
             
             NLSlider *sBoxStyle = RageMakeSlider((float)gBoxStyle, 0.0f, 3.0f, @"", ^(float v) {
                 gBoxStyle = (int)v;
@@ -7799,17 +7801,17 @@ static NSString* NLIconForTab(NSString* title) {
                 gBoxStyle = (int)v;
                 [ConfigManager save];
             });
-            [gExtra addSubview:[[NLRow alloc] initWithTitle:@"Box Style" y:ey control:sBoxStyle swatch:nil]];
-            ey += 30;
+            [gExtra addSubview:[[NLRow alloc] initWithTitle:@"Box Style" y:exy control:sBoxStyle swatch:nil]];
+            exy += 30;
             
-            NLSlider *sSkel = RageMakeSlider(gSkelThickness, 0.5f, 4.0f, @"px", ^(float v) {
+            NLSlider *sSkel2 = RageMakeSlider(gSkelThickness, 0.5f, 4.0f, @"px", ^(float v) {
                 gSkelThickness = v;
             }, ^(float v) {
                 gSkelThickness = v;
                 [ConfigManager save];
             });
-            [gExtra addSubview:[[NLRow alloc] initWithTitle:@"Skeleton Width" y:ey control:sSkel swatch:nil]];
-            ey += 30;
+            [gExtra addSubview:[[NLRow alloc] initWithTitle:@"Skeleton Width" y:exy control:sSkel2 swatch:nil]];
+            exy += 30;
             
             NLSlider *sRR = RageMakeSlider((float)gRadarRange, 20.0f, 200.0f, @"m", ^(float v) {
                 gRadarRange = (int)v;
@@ -7817,8 +7819,8 @@ static NSString* NLIconForTab(NSString* title) {
                 gRadarRange = (int)v;
                 [ConfigManager save];
             });
-            [gExtra addSubview:[[NLRow alloc] initWithTitle:@"Radar Range" y:ey control:sRR swatch:nil]];
-            ey += 30;
+            [gExtra addSubview:[[NLRow alloc] initWithTitle:@"Radar Range" y:exy control:sRR swatch:nil]];
+            exy += 30;
             
             NLSlider *sRS = RageMakeSlider(gRadarSize, 70.0f, 220.0f, @"px", ^(float v) {
                 gRadarSize = v;
@@ -7826,8 +7828,8 @@ static NSString* NLIconForTab(NSString* title) {
                 gRadarSize = v;
                 [ConfigManager save];
             });
-            [gExtra addSubview:[[NLRow alloc] initWithTitle:@"Radar Size" y:ey control:sRS swatch:nil]];
-            ey += 30;
+            [gExtra addSubview:[[NLRow alloc] initWithTitle:@"Radar Size" y:exy control:sRS swatch:nil]];
+            exy += 30;
             
         } else if (_currentTab == 3) {
             NLGroupBox *gWV = [[NLGroupBox alloc] initWithTitle:@"World View" frame:CGRectMake(0, 0, colW, 240)];
