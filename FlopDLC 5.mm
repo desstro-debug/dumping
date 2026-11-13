@@ -9283,9 +9283,16 @@ static void ApplyFpsLimit(void) {
         return;
     }
     int v = gFpsLimit.load();
-    void* args[1] = { &v };
-    void* exc = nullptr;
-    p_runtime_invoke(gSetTargetFrameRateMI, nullptr, args, &exc);
+    // Application.set_targetFrameRate is a Unity API and must run on the main thread;
+    // bootstrap() runs on a background queue, so hop over before invoking.
+    dispatch_async(dispatch_get_main_queue(), ^{
+        @try {
+            void* args[1] = { &v };
+            void* exc = nullptr;
+            p_runtime_invoke(gSetTargetFrameRateMI, nullptr, args, &exc);
+        } @catch (NSException* e) {
+        }
+    });
 }
 
 static void ApplyWorldView(void) {
@@ -10696,9 +10703,13 @@ static void bootstrap(void) {
             }
         }
         
-        InstallAllHooks();
-        [ConfigManager load];
-        ApplyFpsLimit();
+        @try {
+            InstallAllHooks();
+            [ConfigManager load];
+            ApplyFpsLimit();
+        } @catch (NSException* e) {
+            LOG(@"bootstrap hooks: %@", SafeStr([e reason]));
+        }
         
         dispatch_queue_t q = dispatch_get_main_queue();
         gChamsTimer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, q);
