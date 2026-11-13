@@ -5302,6 +5302,11 @@ static UIColor* NLTextDim(void) {
         return;
     }
     
+    // Stream mode: no ESP at all, so a capture never shows boxes/names/tracers.
+    if (gStreamMode) {
+        return;
+    }
+    
     static UIFont *fontBold11 = nil;
     static UIFont *fontBold9 = nil;
     static dispatch_once_t once;
@@ -5685,6 +5690,7 @@ static void UpdateStreamMode(void) {
                 RestoreAllChams();
                 gWatermark.hidden = YES;
                 gHotkeyView.hidden = YES;
+                gMenuView.hidden = YES;
                 
                 if (!gSecureField) {
                     gSecureField = [[SecureTextField alloc] initWithFrame:gMainWin.bounds];
@@ -9287,7 +9293,7 @@ static void ApplyFpsLimit(void) {
     // bootstrap() runs on a background queue, so hop over before invoking.
     dispatch_async(dispatch_get_main_queue(), ^{
         @try {
-            void* args[1] = { &v };
+            void* args[1] = { (void*)&v };
             void* exc = nullptr;
             p_runtime_invoke(gSetTargetFrameRateMI, nullptr, args, &exc);
         } @catch (NSException* e) {
@@ -9463,6 +9469,9 @@ static void ApplyNightMode(void) {
 
 static void espTick(void) {
     @autoreleasepool {
+        if (gStreamMode) {
+            return;
+        }
         uint64_t curTime = MachTicksToNanoseconds(mach_absolute_time());
         if (gLastFrameTime > 0) {
             uint64_t delta = curTime - gLastFrameTime;
@@ -13779,6 +13788,13 @@ static void HudTick(void) {
 - (void)drawRect:(CGRect)rect {
     CGContextRef ctx = UIGraphicsGetCurrentContext();
     if (!ctx) {
+        return;
+    }
+    
+    // Stream mode: keep only the crosshair/scope so the HUD looks like a normal game.
+    if (gStreamMode) {
+        [self drawScopeOverlay:ctx rect:rect];
+        [self drawCrosshair:ctx rect:rect];
         return;
     }
     
