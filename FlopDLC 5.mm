@@ -943,6 +943,99 @@ static Vec3 gTriggerBestPos{};
 static bool gTriggerBestVisible = false;
 
 // =========================================================================================
+// SKIN CHANGER
+// Catalog comes from GameManager.Data._items (List<ItemData>); every ItemWeaponSkin /
+// ItemSkin entry carries its asset name (ItemData.get_Id) and _targetItem (0x70).
+// Applying writes Item.<ItemSkinData> (0xE8) on the local weapon and fires
+// FireSkinDtoUpdate so the viewmodel rebuilds with the new model.
+// =========================================================================================
+struct SkinEntry {
+    std::string id;
+    std::string target;
+    void* obj;
+    int rarity;
+};
+
+struct WeaponEntry {
+    std::string id;
+    std::string label;
+    void* obj;
+    int skinCount;
+};
+
+static std::atomic<bool> gSkinChangerEnabled{false};
+static std::vector<SkinEntry> gSkinCatalog;
+static std::vector<WeaponEntry> gWeaponList;
+static std::vector<int> gSkinFiltered;
+static int gSkinTargetIndex = 0;
+static int gSkinIndex = 0;
+static bool gSkinCatalogLoaded = false;
+static void* gSkinSelectedObj = nullptr;
+static std::string gSkinSelectedId;
+static std::string gSkinSelectedTarget;
+static std::string gSkinPendingId;
+static void* gWeaponClasses[12] = {nullptr};
+static int gWeaponClassCount = 0;
+
+static UIColor* SkinRarityColor(int rarity) {
+    switch (rarity) {
+        case 1:  return [UIColor colorWithRed:0.42 green:0.72 blue:0.95 alpha:1.0];
+        case 2:  return [UIColor colorWithRed:0.24 green:0.44 blue:0.95 alpha:1.0];
+        case 3:  return [UIColor colorWithRed:0.64 green:0.30 blue:0.95 alpha:1.0];
+        case 4:  return [UIColor colorWithRed:0.95 green:0.30 blue:0.64 alpha:1.0];
+        case 5:  return [UIColor colorWithRed:0.95 green:0.56 blue:0.16 alpha:1.0];
+        default: return [UIColor colorWithWhite:0.55 alpha:1.0];
+    }
+}
+
+static const char* SkinRarityName(int rarity) {
+    switch (rarity) {
+        case 0:  return "Common";
+        case 1:  return "Rare";
+        case 2:  return "Epic";
+        case 3:  return "Legendary";
+        case 4:  return "Arcane";
+        case 5:  return "Mythical";
+        default: return "";
+    }
+}
+
+static std::string SkinPrettyName(const std::string& id) {
+    static const struct { const char* id; const char* label; } kMap[] = {
+        {"Ak47", "AK-47"}, {"M4", "M4A4"}, {"M4A1", "M4A1-S"}, {"AWP", "AWP"},
+        {"Deagle", "Desert Eagle"}, {"Fiveseven", "Five-SeveN"}, {"Glock", "Glock-18"},
+        {"Usp", "USP-S"}, {"Ssg08", "SSG 08"}, {"Scar20", "SCAR-20"},
+        {"G3sg1_delete", "G3SG1"}, {"Mag7_delete", "MAG-7"}, {"Negev_delete", "Negev"},
+        {"Berettas_delete", "Dual Berettas"}, {"Bizon_delete", "PP-Bizon"},
+        {"Cz75_delete", "CZ75-Auto"}, {"Xm1014", "XM1014"}, {"Sawedoff", "Sawed-Off"},
+        {"Tec9", "Tec-9"}, {"Mp9", "MP9"}, {"Mp7", "MP7"}, {"Mp5", "MP5-SD"},
+        {"Mac10", "MAC-10"}, {"Ump45", "UMP-45"}, {"P90", "P90"}, {"P250", "P250"},
+        {"P2000", "P2000"}, {"Nova", "Nova"}, {"M249", "M249"}, {"Galil", "Galil AR"},
+        {"Famas", "FAMAS"}, {"Aug", "AUG"}, {"Sg553", "SG 553"}, {"Knife", "Knife"},
+        {"CFour", "C4"}, {"DefuseKit", "Defuse Kit"},
+        {"GrenadeExplosion", "HE Grenade"}, {"GrenadeFlash", "Flashbang"},
+        {"GrenadeIncendiary", "Incendiary"}, {"GrenadeMolotov", "Molotov"},
+        {"GrenadeSmoke", "Smoke Grenade"},
+    };
+    for (const auto& e : kMap) {
+        if (id == e.id) {
+            return std::string(e.label);
+        }
+    }
+    return id;
+}
+
+static void* gItemCls = nullptr;
+static void* gItemWeaponSkinCls = nullptr;
+static void* gItemSkinCls = nullptr;
+static void* gGameManagerCls = nullptr;
+static void* gDataCls = nullptr;
+static void* gItemDataGetIdMI = nullptr;
+static void* gItemFireSkinDtoUpdateMI = nullptr;
+static void* gHandsEquipMI = nullptr;
+static void* gMobileInputsCls = nullptr;
+
+// =========================================================================================
 // CROSSHAIR / FOV CIRCLE / ESP STYLE
 // =========================================================================================
 static std::atomic<int> gCrosshairStyle{0};            // 0 cross, 1 dot, 2 circle, 3 T, 4 X
@@ -1271,6 +1364,7 @@ static UIColor* gTracerColor = [UIColor whiteColor];
 static Vec3 g_localEye;
 static Vec3 g_targetHead;
 static Vec3 g_smoothTarget{};
+static Vec3 g_aimOnFireSmoothTarget{};
 static Vec3 g_silentAimTarget;
 static std::atomic<bool> g_haveTarget{false};
 static std::atomic<bool> g_silentAimActive{false};
@@ -1554,6 +1648,8 @@ static NSString* getIL2CPPString(void* strObj) {
     [d setBool:gTriggerbotTeamCheck forKey:@"tb_tc"];
     [d setBool:gTriggerbotScopeOnly forKey:@"tb_so"];
     [d setBool:gTriggerbotHeadOnly forKey:@"tb_ho"];
+    [d setBool:gSkinChangerEnabled forKey:@"sk_e"];
+    [d setObject:[NSString stringWithUTF8String:gSkinSelectedId.c_str()] forKey:@"sk_id"];
     [d setInteger:gCrosshairStyle forKey:@"ch_st"];
     [d setFloat:gCrosshairGap forKey:@"ch_g"];
     [d setFloat:gCrosshairLength forKey:@"ch_l"];
@@ -1897,6 +1993,9 @@ static NSString* getIL2CPPString(void* strObj) {
     gTriggerbotTeamCheck = [d objectForKey:@"tb_tc"] ? [d boolForKey:@"tb_tc"] : true;
     gTriggerbotScopeOnly = [d boolForKey:@"tb_so"];
     gTriggerbotHeadOnly = [d boolForKey:@"tb_ho"];
+    gSkinChangerEnabled = [d boolForKey:@"sk_e"];
+    NSString* savedSkinId = [d stringForKey:@"sk_id"];
+    gSkinPendingId = savedSkinId ? std::string([savedSkinId UTF8String]) : std::string();
     gCrosshairStyle = (int)[d integerForKey:@"ch_st"];
     if (gCrosshairStyle < 0 || gCrosshairStyle > 4) {
         gCrosshairStyle = 0;
@@ -2184,8 +2283,18 @@ static void ApplyAimOnFire(void) {
         return;
     }
 
-    if (gAimOnFireSmooth.load() <= 0.0f) {
-        p_lookAtTarget(sceneCamera, g_targetHead, p_lookAtTargetMI);
+    Vec3 aimPoint = g_targetHead;
+    float smooth = gAimOnFireSmooth.load();
+    if (smooth > 0.0f) {
+        if (!Math::Finite(g_aimOnFireSmoothTarget)) {
+            g_aimOnFireSmoothTarget = aimPoint;
+        }
+        Vec3 diff = aimPoint - g_aimOnFireSmoothTarget;
+        g_aimOnFireSmoothTarget = g_aimOnFireSmoothTarget + diff * smooth;
+        aimPoint = g_aimOnFireSmoothTarget;
+    }
+    if (Math::Finite(aimPoint)) {
+        p_lookAtTarget(sceneCamera, aimPoint, p_lookAtTargetMI);
     }
 }
 
@@ -2415,36 +2524,52 @@ static void hook_UiOnClickFireUp(void* self, void* mi) {
 // radius around an enemy. The instance and method pointers are captured from the
 // OnClickFire* hooks, so no extra offsets are required.
 // =========================================================================================
+// The instance used to be captured only from a real OnClickFire* tap, so the triggerbot
+// did nothing until the player manually fired once. Resolve it through
+// Object.FindObjectsOfType(SceneLevelUiMobileInputs) instead.
+static void* FindMobileInputsInstance(void) {
+    if (SANE_PTR(gMobileInputsInst)) {
+        return gMobileInputsInst;
+    }
+    if (!gMobileInputsCls || !p_findPlayerMI || !p_runtime_invoke || !p_class_get_type || !p_type_get_object) {
+        return nullptr;
+    }
+    void* typeObj = p_type_get_object(p_class_get_type(gMobileInputsCls));
+    if (!typeObj) {
+        return nullptr;
+    }
+    void* args[1] = { typeObj };
+    void* exc = nullptr;
+    void* arr = p_runtime_invoke(p_findPlayerMI, nullptr, args, &exc);
+    if (exc || !SANE_PTR(arr)) {
+        return nullptr;
+    }
+    int len = *(int*)((uintptr_t)arr + 0x18);
+    if (len <= 0) {
+        return nullptr;
+    }
+    void* inst = *(void**)((uintptr_t)arr + 0x20);
+    if (SANE_PTR(inst)) {
+        gMobileInputsInst = inst;
+    }
+    return gMobileInputsInst;
+}
+
 static void TriggerbotFireDown(void) {
-    if (!SANE_PTR(gMobileInputsInst)) {
+    void* inst = FindMobileInputsInstance();
+    if (!SANE_PTR(inst)) {
         return;
     }
-    if (p_runtime_invoke && gMobileInputsFireDownMI) {
-        void* exc = nullptr;
-        p_runtime_invoke(gMobileInputsFireDownMI, gMobileInputsInst, nullptr, &exc);
-        if (!exc) {
-            return;
-        }
-    }
-    if (orig_UiOnClickFireDown) {
-        orig_UiOnClickFireDown(gMobileInputsInst, gMobileInputsFireDownMI);
-    }
+    // Go through the hook so aim-on-fire and the ballistics window run for this shot too.
+    hook_UiOnClickFireDown(inst, gMobileInputsFireDownMI);
 }
 
 static void TriggerbotFireUp(void) {
-    if (!SANE_PTR(gMobileInputsInst)) {
+    void* inst = FindMobileInputsInstance();
+    if (!SANE_PTR(inst)) {
         return;
     }
-    if (p_runtime_invoke && gMobileInputsFireUpMI) {
-        void* exc = nullptr;
-        p_runtime_invoke(gMobileInputsFireUpMI, gMobileInputsInst, nullptr, &exc);
-        if (!exc) {
-            return;
-        }
-    }
-    if (orig_UiOnClickFireUp) {
-        orig_UiOnClickFireUp(gMobileInputsInst, gMobileInputsFireUpMI);
-    }
+    hook_UiOnClickFireUp(inst, gMobileInputsFireUpMI);
 }
 
 static void TriggerbotTick(void) {
@@ -2455,7 +2580,7 @@ static void TriggerbotTick(void) {
         }
         return;
     }
-    if (!SANE_PTR(gMobileInputsInst)) {
+    if (!FindMobileInputsInstance()) {
         return;
     }
     
@@ -2524,6 +2649,313 @@ static void TriggerbotTick(void) {
     TriggerbotFireDown();
     gTriggerHolding = true;
     gTriggerReleaseMs = now;
+}
+
+// =========================================================================================
+// SKIN CHANGER — catalog + apply
+// =========================================================================================
+static void* gSkinLastAppliedWeapon = nullptr;
+
+static std::string Il2CppStringToStd(void* s) {
+    if (!SANE_PTR(s)) {
+        return std::string();
+    }
+    int len = *(int*)((uintptr_t)s + 0x10);
+    if (len <= 0 || len > 4096) {
+        return std::string();
+    }
+    const uint16_t* chars = (const uint16_t*)((uintptr_t)s + 0x14);
+    std::string out;
+    out.reserve((size_t)len);
+    for (int i = 0; i < len; i++) {
+        uint16_t c = chars[i];
+        out.push_back(c < 0x80 ? (char)c : '?');
+    }
+    return out;
+}
+
+// Fast UTF-16 comparison against a std::string without allocating.
+static bool Il2CppStringEqualsStd(void* s, const std::string& str) {
+    if (!SANE_PTR(s)) {
+        return str.empty();
+    }
+    int len = *(int*)((uintptr_t)s + 0x10);
+    if (len != (int)str.size()) {
+        return false;
+    }
+    const uint16_t* chars = (const uint16_t*)((uintptr_t)s + 0x14);
+    for (int i = 0; i < len; i++) {
+        if (chars[i] != (uint16_t)(unsigned char)str[i]) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static void SkinRebuildFilter(void) {
+    gSkinFiltered.clear();
+    if (gWeaponList.empty()) {
+        return;
+    }
+    const std::string& target = gWeaponList[gSkinTargetIndex].id;
+    for (int i = 0; i < (int)gSkinCatalog.size(); i++) {
+        if (gSkinCatalog[i].target == target) {
+            gSkinFiltered.push_back(i);
+        }
+    }
+    if (gSkinIndex >= (int)gSkinFiltered.size()) {
+        gSkinIndex = 0;
+    }
+}
+
+static void SkinSelectCurrent(void) {
+    gSkinLastAppliedWeapon = nullptr;
+    if (gSkinFiltered.empty()) {
+        gSkinSelectedObj = nullptr;
+        gSkinSelectedId.clear();
+        gSkinSelectedTarget.clear();
+        return;
+    }
+    const SkinEntry& e = gSkinCatalog[gSkinFiltered[gSkinIndex]];
+    gSkinSelectedObj = e.obj;
+    gSkinSelectedId = e.id;
+    gSkinSelectedTarget = e.target;
+}
+
+static void SkinCatalogLoad(void) {
+    if (gSkinCatalogLoaded) {
+        return;
+    }
+    if (!gGameManagerCls || !p_findPlayerMI || !p_runtime_invoke || !gItemDataGetIdMI) {
+        return;
+    }
+    void* typeObj = p_type_get_object(p_class_get_type(gGameManagerCls));
+    if (!typeObj) {
+        return;
+    }
+    void* args[1] = { typeObj };
+    void* exc = nullptr;
+    void* arr = p_runtime_invoke(p_findPlayerMI, nullptr, args, &exc);
+    if (exc || !SANE_PTR(arr)) {
+        return;
+    }
+    int len = *(int*)((uintptr_t)arr + 0x18);
+    if (len <= 0) {
+        return;
+    }
+    void* gm = *(void**)((uintptr_t)arr + 0x20);
+    if (!SANE_PTR(gm)) {
+        return;
+    }
+    void* getDataMI = p_class_get_method_from_name(gGameManagerCls, "get_Data", 0);
+    if (!getDataMI) {
+        return;
+    }
+    void* data = p_runtime_invoke(getDataMI, gm, nullptr, &exc);
+    if (exc || !SANE_PTR(data)) {
+        return;
+    }
+    void* list = *(void**)((uintptr_t)data + 0x58);
+    if (!SANE_PTR(list)) {
+        return;
+    }
+    void* items = *(void**)((uintptr_t)list + 0x10);
+    int size = *(int*)((uintptr_t)list + 0x18);
+    if (!SANE_PTR(items) || size <= 0) {
+        return;
+    }
+
+    gSkinCatalog.clear();
+    gWeaponList.clear();
+
+    for (int i = 0; i < size; i++) {
+        void* obj = *(void**)((uintptr_t)items + 0x20 + (uintptr_t)i * 8);
+        if (!SANE_PTR(obj)) {
+            continue;
+        }
+        void* klass = *(void**)obj;
+
+        bool isSkin = (klass == gItemWeaponSkinCls || klass == gItemSkinCls);
+        bool isWeapon = false;
+        for (int w = 0; w < gWeaponClassCount; w++) {
+            if (klass == gWeaponClasses[w]) {
+                isWeapon = true;
+                break;
+            }
+        }
+        if (!isSkin && !isWeapon) {
+            continue;
+        }
+
+        void* idStr = p_runtime_invoke(gItemDataGetIdMI, obj, nullptr, &exc);
+        if (exc || !SANE_PTR(idStr)) {
+            continue;
+        }
+        std::string id = Il2CppStringToStd(idStr);
+        if (id.empty()) {
+            continue;
+        }
+
+        if (isWeapon) {
+            WeaponEntry we;
+            we.id = id;
+            we.label = SkinPrettyName(id);
+            we.obj = obj;
+            we.skinCount = 0;
+            gWeaponList.push_back(we);
+            continue;
+        }
+
+        std::string targetId;
+        void* target = *(void**)((uintptr_t)obj + 0x70);
+        if (SANE_PTR(target)) {
+            void* tStr = p_runtime_invoke(gItemDataGetIdMI, target, nullptr, &exc);
+            if (!exc && SANE_PTR(tStr)) {
+                targetId = Il2CppStringToStd(tStr);
+            }
+        }
+        if (targetId.empty()) {
+            // Knife skins ship with a null _targetItem; they are universal melee skins.
+            targetId = "Knife";
+        }
+
+        SkinEntry entry;
+        entry.id = id;
+        entry.target = targetId;
+        entry.obj = obj;
+        entry.rarity = *(int*)((uintptr_t)obj + 0x24);
+        gSkinCatalog.push_back(entry);
+    }
+
+    // Any skin target that is not a WeaponData asset (C4, defuse kit) still gets a row.
+    for (const SkinEntry& s : gSkinCatalog) {
+        bool found = false;
+        for (const WeaponEntry& w : gWeaponList) {
+            if (w.id == s.target) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            WeaponEntry we;
+            we.id = s.target;
+            we.label = SkinPrettyName(s.target);
+            we.obj = nullptr;
+            we.skinCount = 0;
+            gWeaponList.push_back(we);
+        }
+    }
+
+    for (WeaponEntry& w : gWeaponList) {
+        w.skinCount = 0;
+        for (const SkinEntry& s : gSkinCatalog) {
+            if (s.target == w.id) {
+                w.skinCount++;
+            }
+        }
+    }
+
+    std::sort(gWeaponList.begin(), gWeaponList.end(), [](const WeaponEntry& a, const WeaponEntry& b) {
+        return a.label < b.label;
+    });
+
+    gSkinTargetIndex = 0;
+    for (int i = 0; i < (int)gWeaponList.size(); i++) {
+        if (gWeaponList[i].skinCount > 0) {
+            gSkinTargetIndex = i;
+            break;
+        }
+    }
+    gSkinIndex = 0;
+    SkinRebuildFilter();
+    SkinSelectCurrent();
+
+    if (!gSkinPendingId.empty()) {
+        for (int i = 0; i < (int)gSkinCatalog.size(); i++) {
+            if (gSkinCatalog[i].id != gSkinPendingId) {
+                continue;
+            }
+            for (int t = 0; t < (int)gWeaponList.size(); t++) {
+                if (gWeaponList[t].id == gSkinCatalog[i].target) {
+                    gSkinTargetIndex = t;
+                    break;
+                }
+            }
+            SkinRebuildFilter();
+            for (int k = 0; k < (int)gSkinFiltered.size(); k++) {
+                if (gSkinFiltered[k] == i) {
+                    gSkinIndex = k;
+                    break;
+                }
+            }
+            SkinSelectCurrent();
+            break;
+        }
+    }
+
+    gSkinCatalogLoaded = true;
+    LOG(@"[SKIN] catalog=%d weapons=%d", (int)gSkinCatalog.size(), (int)gWeaponList.size());
+}
+
+static void SkinApply(void) {
+    if (!gSkinChangerEnabled.load() || !SANE_PTR(gSkinSelectedObj) || !SANE_PTR(g_localWeapon)) {
+        return;
+    }
+    // Only paint the weapon the selected skin actually belongs to; otherwise an AK skin
+    // would be written onto whatever happens to be in hand.
+    if (!gSkinSelectedTarget.empty()) {
+        void* dataIdStr = *(void**)((uintptr_t)g_localWeapon + 0xB0);
+        if (!Il2CppStringEqualsStd(dataIdStr, gSkinSelectedTarget)) {
+            return;
+        }
+    }
+    *(void**)((uintptr_t)g_localWeapon + 0xE8) = gSkinSelectedObj;
+    void* exc = nullptr;
+    if (gItemFireSkinDtoUpdateMI && p_runtime_invoke) {
+        p_runtime_invoke(gItemFireSkinDtoUpdateMI, g_localWeapon, nullptr, &exc);
+    }
+    if (gHandsEquipMI && p_runtime_invoke && SANE_PTR(g_localSceneChar)) {
+        void* hands = *(void**)((uintptr_t)g_localSceneChar + off::kCamHands);
+        if (SANE_PTR(hands)) {
+            bool spectator = false;
+            void* args[2] = { g_localWeapon, &spectator };
+            exc = nullptr;
+            p_runtime_invoke(gHandsEquipMI, hands, args, &exc);
+        }
+    }
+    gSkinLastAppliedWeapon = g_localWeapon;
+}
+
+static void SkinChangerTick(void) {
+    if (!gSkinChangerEnabled.load() || !SANE_PTR(gSkinSelectedObj)) {
+        return;
+    }
+    if (!SANE_PTR(g_localWeapon) || g_localWeapon == gSkinLastAppliedWeapon) {
+        return;
+    }
+    // Mark before applying: a weapon that does not match the selected target must not be
+    // re-checked every frame.
+    gSkinLastAppliedWeapon = g_localWeapon;
+    SkinApply();
+}
+
+// Belt and suspenders: even if the game re-reads the skin from the DTO, the property
+// getter still hands out the selected skin for the matching weapon.
+typedef void* (*fn_ItemGetSkinData)(void* self, void* mi);
+static fn_ItemGetSkinData orig_ItemGetSkinData = nullptr;
+
+static void* hook_ItemGetSkinData(void* self, void* mi) {
+    if (gSkinChangerEnabled.load() && SANE_PTR(gSkinSelectedObj) && SANE_PTR(self) &&
+        !gSkinSelectedTarget.empty()) {
+        void* dataIdStr = *(void**)((uintptr_t)self + 0xB0);
+        if (Il2CppStringEqualsStd(dataIdStr, gSkinSelectedTarget)) {
+            return gSkinSelectedObj;
+        }
+    }
+    if (orig_ItemGetSkinData) {
+        return orig_ItemGetSkinData(self, mi);
+    }
+    return SANE_PTR(self) ? *(void**)((uintptr_t)self + 0xE8) : nullptr;
 }
 
 typedef void (*fn_WepUpdate)(void* self, void* mi);
@@ -2678,6 +3110,64 @@ static void InstallAllHooks(void) {
             }
         }
         
+        gMobileInputsCls = mobileInputsCls;
+
+        // Skin changer: resolve the data classes once. The catalog itself is built lazily
+        // from GameManager.Data._items when the SKINS tab is opened.
+        gItemCls = findClass("", "Item");
+        gItemWeaponSkinCls = findClass("Assets.Common.Scripts.Data.Global", "ItemWeaponSkin");
+        if (!gItemWeaponSkinCls) {
+            gItemWeaponSkinCls = findClass("", "ItemWeaponSkin");
+        }
+        gItemSkinCls = findClass("Assets.Common.Scripts.Data.Global", "ItemSkin");
+        if (!gItemSkinCls) {
+            gItemSkinCls = findClass("", "ItemSkin");
+        }
+        gGameManagerCls = findClass("", "GameManager");
+        gDataCls = findClass("Assets.Common.Scripts.Data", "Data");
+        void* itemDataCls = findClass("Assets.Common.Scripts.Data.Level", "ItemData");
+        if (!itemDataCls) {
+            itemDataCls = findClass("", "ItemData");
+        }
+        if (itemDataCls) {
+            gItemDataGetIdMI = p_class_get_method_from_name(itemDataCls, "get_Id", 0);
+        }
+        if (gItemCls) {
+            gItemFireSkinDtoUpdateMI = p_class_get_method_from_name(gItemCls, "FireSkinDtoUpdate", 0);
+            void* miSkin = p_class_get_method_from_name(gItemCls, "get_ItemSkinData", 0);
+            if (miSkin) {
+                hook_install(miSkin, (void*)hook_ItemGetSkinData, (void**)&orig_ItemGetSkinData);
+            }
+        }
+        void* handsCls = findClass("", "SceneLevelHands");
+        if (handsCls) {
+            gHandsEquipMI = p_class_get_method_from_name(handsCls, "Equip", 2);
+        }
+
+        // Every weapon class that can appear in Data._items. The SKINS tab lists all of
+        // them, not just the ones that already have skins.
+        const char* weaponNames[] = {
+            "WeaponDataRange", "WeaponDataMelee", "WeaponDataGrenade",
+            "WeaponDataGrenadeExplosion", "WeaponDataGrenadeFlash",
+            "WeaponDataGrenadeMolotov", "WeaponDataGrenadeSmoke", "WeaponData",
+            "ItemEquipDataCFour", "ItemEquipDataDefuseKit"
+        };
+        gWeaponClassCount = 0;
+        for (int i = 0; i < (int)(sizeof(weaponNames) / sizeof(weaponNames[0])); i++) {
+            void* k = findClass("Assets.Game.Scripts.Scenes.Game.Mono.Characters", weaponNames[i]);
+            if (!k) {
+                k = findClass("Assets.Common.Scripts.Data.Level", weaponNames[i]);
+            }
+            if (!k) {
+                k = findClass("", weaponNames[i]);
+            }
+            if (k && gWeaponClassCount < 12) {
+                gWeaponClasses[gWeaponClassCount++] = k;
+            }
+        }
+        LOG(@"[SKIN] item=%p skin=%p weaponSkin=%p data=%p weapons=%d",
+            gItemCls, gItemSkinCls, gItemWeaponSkinCls, gDataCls, gWeaponClassCount);
+
         InstallBallisticsHooks();
         
         if (moveCls) {
@@ -3947,6 +4437,7 @@ static UIImage* CreateKeyIcon(CGSize size, UIColor *color) {
 // UI COMPONENTS
 // =========================================================================================
 @interface NLGroupBox : UIView
+@property (nonatomic, strong) UILabel *titleLabel;
 @end
 
 @implementation NLGroupBox
@@ -3964,6 +4455,7 @@ static UIImage* CreateKeyIcon(CGSize size, UIColor *color) {
         lbl.font = [UIFont systemFontOfSize:12 weight:UIFontWeightSemibold];
         lbl.textColor = [UIColor lightGrayColor];
         [self addSubview:lbl];
+        self.titleLabel = lbl;
     }
     return self;
 }
@@ -4193,6 +4685,75 @@ static UIImage* CreateKeyIcon(CGSize size, UIColor *color) {
         _titleLabel.textAlignment = NSTextAlignmentCenter;
         [self addSubview:_titleLabel];
         
+        UITapGestureRecognizer *tap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(tapAction)];
+        [self addGestureRecognizer:tap];
+    }
+    return self;
+}
+
+- (void)tapAction {
+    if (self.onTap) {
+        self.onTap();
+    }
+}
+
+@end
+
+// =========================================================================================
+// NLSkinRow — one row in the SKINS tab: rarity dot, name, right-side detail, check mark.
+// =========================================================================================
+@interface NLSkinRow : UIView
+@property (nonatomic, copy) void (^onTap)(void);
+- (instancetype)initWithTitle:(NSString*)title detail:(NSString*)detail rarity:(int)rarity selected:(BOOL)selected;
+@end
+
+@implementation NLSkinRow
+
+- (instancetype)initWithTitle:(NSString*)title detail:(NSString*)detail rarity:(int)rarity selected:(BOOL)selected {
+    self = [super initWithFrame:CGRectMake(0, 0, 260, 26)];
+    if (self) {
+        self.backgroundColor = selected
+            ? [UIColor colorWithRed:0.16 green:0.42 blue:0.85 alpha:0.95]
+            : [UIColor colorWithWhite:0.14 alpha:0.85];
+        self.layer.cornerRadius = 5;
+        self.layer.borderWidth = selected ? 1.0 : 0.5;
+        self.layer.borderColor = selected
+            ? [UIColor colorWithRed:0.45 green:0.75 blue:1.0 alpha:1.0].CGColor
+            : [UIColor colorWithWhite:0.30 alpha:0.6].CGColor;
+        self.userInteractionEnabled = YES;
+
+        UIView *dot = [[UIView alloc] initWithFrame:CGRectMake(9, 9, 8, 8)];
+        dot.backgroundColor = SkinRarityColor(rarity);
+        dot.layer.cornerRadius = 4;
+        [self addSubview:dot];
+
+        UILabel *name = [[UILabel alloc] initWithFrame:CGRectMake(24, 0, self.bounds.size.width - 92, 26)];
+        name.text = SafeStr(title);
+        name.textColor = [UIColor whiteColor];
+        name.font = [UIFont systemFontOfSize:10 weight:UIFontWeightSemibold];
+        name.autoresizingMask = UIViewAutoresizingFlexibleWidth;
+        [self addSubview:name];
+
+        if (detail.length > 0) {
+            UILabel *d = [[UILabel alloc] initWithFrame:CGRectMake(self.bounds.size.width - 92, 0, 70, 26)];
+            d.text = detail;
+            d.textColor = [UIColor colorWithWhite:0.72 alpha:1.0];
+            d.font = [UIFont systemFontOfSize:9 weight:UIFontWeightMedium];
+            d.textAlignment = NSTextAlignmentRight;
+            d.autoresizingMask = UIViewAutoresizingFlexibleLeftMargin;
+            [self addSubview:d];
+        }
+
+        if (selected) {
+            UILabel *check = [[UILabel alloc] initWithFrame:CGRectMake(self.bounds.size.width - 22, 0, 18, 26)];
+            check.text = @"✓";
+            check.textColor = [UIColor whiteColor];
+            check.font = [UIFont systemFontOfSize:12 weight:UIFontWeightBold];
+            check.textAlignment = NSTextAlignmentCenter;
+            check.autoresizingMask = UIViewAutoresizingFlexibleLeftMargin;
+            [self addSubview:check];
+        }
+
         UITapGestureRecognizer *tap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(tapAction)];
         [self addGestureRecognizer:tap];
     }
@@ -5027,12 +5588,13 @@ static NLButton* RageMakeCycle(NSString* initial, NSArray<NSString*>* labels, NS
         // LEGIT first, RAGE right beside it: the two aim tabs stay adjacent so switching
         // between the legit aimbot and the rage pipeline is one tap.
         [self addTab:@"LEGIT" x:112];
-        [self addTab:@"RAGE" x:170];
-        [self addTab:@"VISUALS" x:228];
-        [self addTab:@"WORLD" x:286];
-        [self addTab:@"PLAYER" x:344];
-        [self addTab:@"MISC" x:402];
-        [self addTab:@"SETTINGS" x:460];
+        [self addTab:@"RAGE" x:162];
+        [self addTab:@"VISUALS" x:212];
+        [self addTab:@"WORLD" x:262];
+        [self addTab:@"PLAYER" x:312];
+        [self addTab:@"MISC" x:362];
+        [self addTab:@"SETTINGS" x:412];
+        [self addTab:@"SKINS" x:462];
         
         UIButton *mb = [UIButton buttonWithType:UIButtonTypeCustom];
         mb.frame = CGRectMake(frame.size.width - 60, 10, 15, 15);
@@ -5207,9 +5769,9 @@ static NLButton* RageMakeCycle(NSString* initial, NSArray<NSString*>* labels, NS
 
 - (void)addTab:(NSString*)title x:(CGFloat)x {
     UIButton *b = [UIButton buttonWithType:UIButtonTypeCustom];
-    b.frame = CGRectMake(x, 0, 56, 35);
+    b.frame = CGRectMake(x, 0, 50, 35);
     [b setTitle:SafeStr(title) forState:UIControlStateNormal];
-    b.titleLabel.font = [UIFont systemFontOfSize:10 weight:UIFontWeightBold];
+    b.titleLabel.font = [UIFont systemFontOfSize:9 weight:UIFontWeightBold];
     [b setTitleColor:[UIColor lightGrayColor] forState:UIControlStateNormal];
     [b addTarget:self action:@selector(tabTap:) forControlEvents:UIControlEventTouchUpInside];
     [_topBar addSubview:b];
@@ -7248,6 +7810,125 @@ static NLButton* RageMakeCycle(NSString* initial, NSArray<NSString*>* labels, NS
             };
             [gColors addSubview:[[NLRow alloc] initWithTitle:@"Info Panel" y:ccy control:nil swatch:swIPanel]];
             ccy += 30;
+        } else if (_currentTab == 7) {
+            SkinCatalogLoad();
+
+            // ---- left: master switch + full weapon list ----
+            NLGroupBox *gSkinTop = [[NLGroupBox alloc] initWithTitle:@"Skin Changer" frame:CGRectMake(0, 0, colW, 126)];
+            [c1 addSubview:gSkinTop];
+            CGFloat ty = 30;
+
+            NLCheckbox *cbSkin = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbSkin.isOn = gSkinChangerEnabled;
+            cbSkin.onToggle = ^(BOOL v) {
+                gSkinChangerEnabled = v;
+                if (v) {
+                    SkinCatalogLoad();
+                    SkinApply();
+                }
+                [ConfigManager save];
+                [weakSelf buildContent];
+            };
+            [gSkinTop addSubview:[[NLRow alloc] initWithTitle:@"Enable" y:ty control:cbSkin swatch:nil]];
+            ty += 30;
+
+            NLButton *bReset = [[NLButton alloc] initWithTitle:@"Reset"];
+            bReset.onTap = ^{
+                gSkinSelectedObj = nullptr;
+                gSkinSelectedId.clear();
+                gSkinSelectedTarget.clear();
+                gSkinLastAppliedWeapon = nullptr;
+                [weakSelf buildContent];
+            };
+            [gSkinTop addSubview:[[NLRow alloc] initWithTitle:@"Clear" y:ty control:bReset swatch:nil]];
+            ty += 30;
+
+            NLButton *bRefresh = [[NLButton alloc] initWithTitle:@"Refresh"];
+            bRefresh.onTap = ^{
+                gSkinCatalogLoaded = false;
+                SkinCatalogLoad();
+                [weakSelf buildContent];
+            };
+            [gSkinTop addSubview:[[NLRow alloc] initWithTitle:@"Catalog" y:ty control:bRefresh swatch:nil]];
+
+            CGFloat weaponsH = 30 + (CGFloat)gWeaponList.size() * 28 + 10;
+            if (weaponsH < 80) {
+                weaponsH = 80;
+            }
+            if (weaponsH > columnHeight - 136) {
+                weaponsH = columnHeight - 136;
+            }
+            NLGroupBox *gWeapons = [[NLGroupBox alloc] initWithTitle:@"Weapons" frame:CGRectMake(0, 136, colW, weaponsH)];
+            [c1 addSubview:gWeapons];
+            CGFloat wy = 30;
+            for (int i = 0; i < (int)gWeaponList.size(); i++) {
+                const WeaponEntry& w = gWeaponList[i];
+                NSString *title = [NSString stringWithFormat:@"%s", w.label.c_str()];
+                NSString *detail = w.skinCount > 0 ? [NSString stringWithFormat:@"%d", w.skinCount] : @"—";
+                NLSkinRow *row = [[NLSkinRow alloc] initWithTitle:title
+                                                           detail:detail
+                                                           rarity:-1
+                                                         selected:(i == gSkinTargetIndex)];
+                row.frame = CGRectMake(10, wy, colW - 20, 26);
+                int idx = i;
+                row.onTap = ^{
+                    gSkinTargetIndex = idx;
+                    gSkinIndex = 0;
+                    SkinRebuildFilter();
+                    SkinSelectCurrent();
+                    [weakSelf buildContent];
+                };
+                [gWeapons addSubview:row];
+                wy += 28;
+            }
+
+            // ---- right: skins for the selected weapon ----
+            NSString *weaponLabel = gWeaponList.empty()
+                ? @"—"
+                : [NSString stringWithFormat:@"%s", gWeaponList[gSkinTargetIndex].label.c_str()];
+            CGFloat skinsH = 30 + (CGFloat)gSkinFiltered.size() * 28 + 10;
+            if (skinsH < 80) {
+                skinsH = 80;
+            }
+            if (skinsH > columnHeight) {
+                skinsH = columnHeight;
+            }
+            NLGroupBox *gSkins = [[NLGroupBox alloc] initWithTitle:[NSString stringWithFormat:@"Skins · %@", weaponLabel]
+                                                             frame:CGRectMake(0, 0, colW, skinsH)];
+            [c2 addSubview:gSkins];
+            CGFloat sy = 30;
+
+            if (gSkinFiltered.empty()) {
+                UILabel *empty = [[UILabel alloc] initWithFrame:CGRectMake(12, sy, colW - 24, 44)];
+                empty.text = @"No skins for this weapon";
+                empty.textColor = [UIColor grayColor];
+                empty.font = [UIFont systemFontOfSize:10 weight:UIFontWeightMedium];
+                empty.numberOfLines = 0;
+                [gSkins addSubview:empty];
+            } else {
+                for (int k = 0; k < (int)gSkinFiltered.size(); k++) {
+                    const SkinEntry& s = gSkinCatalog[gSkinFiltered[k]];
+                    bool applied = (gSkinSelectedObj == s.obj);
+                    NLSkinRow *row = [[NLSkinRow alloc] initWithTitle:[NSString stringWithFormat:@"%s", s.id.c_str()]
+                                                               detail:[NSString stringWithFormat:@"%s", SkinRarityName(s.rarity)]
+                                                               rarity:s.rarity
+                                                             selected:applied];
+                    row.frame = CGRectMake(10, sy, colW - 20, 26);
+                    int idx = k;
+                    row.onTap = ^{
+                        gSkinIndex = idx;
+                        SkinSelectCurrent();
+                        if (!gSkinChangerEnabled.load()) {
+                            gSkinChangerEnabled = true;
+                            [ConfigManager save];
+                        }
+                        SkinApply();
+                        [weakSelf buildContent];
+                    };
+                    [gSkins addSubview:row];
+                    sy += 28;
+                }
+            }
         } else if (_currentTab == 1) {
             // ======================= RAGE =======================
             // Column 1: target selection, aim, trigger.
@@ -8405,6 +9086,7 @@ static void espTick(void) {
             
             bool isVisible = true;
             bool needVisCheck = gAimbotVisibleOnly ||
+                                gTriggerbotVisibleOnly.load() ||
                                 (gVisibleColorEnabled && (gEspEnabled || gHotEspEnabled));
             if (needVisCheck && p_CheckSeen && g_localSceneChar) {
                 if (!p_CheckSeen(g_localSceneChar, aimPos, p_checkSeenMI)) {
@@ -8646,6 +9328,7 @@ static void espTick(void) {
         gSpeedHistory.push_back(gLocalSpeedVal.load());
         
         TriggerbotTick();
+        SkinChangerTick();
         HudTick();
 
         // Rage runs last: it reads the same gCached / g_localCamera snapshot the legacy
@@ -9788,7 +10471,10 @@ static inline float Vec3Len(const Vec3& v) {
 }
 
 static bool BuildSilentAimShot(Vec3 from, Vec3 originalTo, Vec3* outTo, void** outHits, void* weapon) {
-    if (!outTo || !gSilentAimEnabled.load() || !g_silentAimActive.load() || !g_haveTarget.load()) {
+    // Aim-on-fire rides the same forged-shot path: the visual LookAtTarget in LateUpdate
+    // runs after the weapon already fired, so it can never bend the current bullet.
+    const bool aimOnFire = (gAimOnFireEnabled.load() || gHotAimOnFireEnabled.load()) && IsFireHeld();
+    if (!outTo || !(gSilentAimEnabled.load() || aimOnFire) || !g_silentAimActive.load() || !g_haveTarget.load()) {
         return false;
     }
     
@@ -10465,13 +11151,14 @@ static void RageAimAt(const Vec3& aimPos) {
         return;
     }
 
-    // IsBusy / IsDisable live on SceneLevelCamera (0x60 / 0x61), not on the character, so
-    // the camera has to be the object we interrogate here.
-    if (!alive(g_localCamera)) {
+    // IsBusy / IsDisable live on SceneLevelCamera (0x60 / 0x61). g_localCamera is the
+    // UnityEngine.Camera component, so reading those offsets there returned garbage and
+    // silently aborted the rage aim on most frames.
+    if (!alive(g_localSceneChar)) {
         return;
     }
-    if (*(bool*)((uintptr_t)g_localCamera + off::kCamIsDisable) ||
-        *(bool*)((uintptr_t)g_localCamera + off::kCamIsBusy)) {
+    if (*(bool*)((uintptr_t)g_localSceneChar + off::kCamIsDisable) ||
+        *(bool*)((uintptr_t)g_localSceneChar + off::kCamIsBusy)) {
         return;
     }
 
