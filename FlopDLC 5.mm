@@ -1,5 +1,5 @@
 // =========================================================================================
-// FlopDLC.mm — v136.5 (Key system removed, menu scale and scene-switch fixes)
+// FlopDLC.mm — v136.6 (ESP/HUD draw-path optimisation)
 // =========================================================================================
 // Сборка: clang++ -arch arm64 -miphoneos-version-min=15.0 -isysroot $(xcrun --sdk iphoneos --show-sdk-path) -std=c++17 -fobjc-arc -O2 -fvisibility=hidden -dynamiclib -install_name @rpath/FlopDLC.dylib -framework Foundation -framework UIKit -framework CoreGraphics -framework CoreFoundation -framework QuartzCore -framework AVFoundation FlopDLC.mm -o FlopDLC.dylib
 // =========================================================================================
@@ -34,7 +34,7 @@
 #include <dispatch/dispatch.h>
 #include <CoreFoundation/CoreFoundation.h>
 
-static constexpr const char* kEspVersion = "136.5";
+static constexpr const char* kEspVersion = "136.6";
 
 #define SANE_PTR(p) ((uintptr_t)(p) > 0x100000000 && (uintptr_t)(p) < 0x00007FFFFFFFFFFF)
 
@@ -5431,6 +5431,26 @@ static UIColor* NLTextDim(void) {
 @property (nonatomic, strong) NSMutableArray<NSNumber*>* dists;
 @end
 
+// Text measurement is one of the more expensive parts of the ESP draw. The strings
+// repeat (names, rounded distances, health values), so cache the measured size by hash.
+static CGSize CachedTextSize(NSString* text, NSDictionary* attrs) {
+    if (!text) {
+        return CGSizeZero;
+    }
+    static std::unordered_map<NSUInteger, CGSize> cache;
+    NSUInteger key = text.hash;
+    auto it = cache.find(key);
+    if (it != cache.end()) {
+        return it->second;
+    }
+    CGSize sz = [text sizeWithAttributes:attrs];
+    if (cache.size() > 512) {
+        cache.clear();
+    }
+    cache[key] = sz;
+    return sz;
+}
+
 @implementation ESPView
 
 - (instancetype)initWithFrame:(CGRect)f {
@@ -5480,15 +5500,30 @@ static UIColor* NLTextDim(void) {
         fontBold9 = [UIFont boldSystemFontOfSize:9];
     });
     
-    NSDictionary *a = @{
-        NSFontAttributeName: fontBold11 ?: [UIFont boldSystemFontOfSize:11],
-        NSForegroundColorAttributeName: gNameColor ?: [UIColor whiteColor]
-    };
-    
-    NSDictionary *fa = @{
-        NSFontAttributeName: fontBold9 ?: [UIFont boldSystemFontOfSize:9],
-        NSForegroundColorAttributeName: [UIColor whiteColor]
-    };
+    // Attribute dictionaries are rebuilt only when the name colour changes. Creating
+    // them (and the UIColor inside) on every frame was a steady allocation churn.
+    static NSDictionary *cachedNameAttrs = nil;
+    static NSDictionary *cachedLabelAttrs = nil;
+    static NSDictionary *cachedShadowAttrs = nil;
+    static UIColor *cachedNameColor = nil;
+    UIColor *nameColor = gNameColor ?: [UIColor whiteColor];
+    if (!cachedNameAttrs || cachedNameColor != nameColor) {
+        cachedNameColor = nameColor;
+        cachedNameAttrs = @{
+            NSFontAttributeName: fontBold11 ?: [UIFont boldSystemFontOfSize:11],
+            NSForegroundColorAttributeName: nameColor
+        };
+        cachedLabelAttrs = @{
+            NSFontAttributeName: fontBold9 ?: [UIFont boldSystemFontOfSize:9],
+            NSForegroundColorAttributeName: [UIColor whiteColor]
+        };
+        cachedShadowAttrs = @{
+            NSFontAttributeName: fontBold9 ?: [UIFont boldSystemFontOfSize:9],
+            NSForegroundColorAttributeName: [[UIColor blackColor] colorWithAlphaComponent:0.8]
+        };
+    }
+    NSDictionary *a = cachedNameAttrs;
+    NSDictionary *fa = cachedLabelAttrs;
     
     // ---- tracers -------------------------------------------------------
     if (gTracersEnabled && self.tracers.count > 0) {
@@ -5543,13 +5578,15 @@ static UIColor* NLTextDim(void) {
                 }
             }
             
-            UIColor *stroke = [bc colorWithAlphaComponent:fade];
-            CGContextSetStrokeColorWithColor(ctx, stroke.CGColor);
+            CGContextSetStrokeColorWithColor(ctx, bc.CGColor);
+            CGContextSetAlpha(ctx, fade);
             CGContextSetLineWidth(ctx, boxW);
             
             if (filled) {
-                CGContextSetFillColorWithColor(ctx, [bc colorWithAlphaComponent:fillAlpha * fade].CGColor);
+                CGContextSetFillColorWithColor(ctx, bc.CGColor);
+                CGContextSetAlpha(ctx, fillAlpha * fade);
                 CGContextFillRect(ctx, r);
+                CGContextSetAlpha(ctx, fade);
             }
             
             int boxStyle = gBoxStyle.load();
@@ -5571,20 +5608,26 @@ static UIColor* NLTextDim(void) {
             } else {
                 CGContextStrokeRect(ctx, r);
             }
+            // Text below uses its own colour alpha; reset the context alpha so it is not
+            // faded twice.
+            CGContextSetAlpha(ctx, 1.0);
             
             if (gNameEnabled && i < self.names.count && i < self.nameTexts.count) {
                 NSString *name = SafeStr(self.names[i]);
                 CGPoint pt = [self.nameTexts[i] CGPointValue];
-                CGSize size = [name sizeWithAttributes:a];
+                CGSize size = CachedTextSize(name, a);
                 CGFloat nx = pt.x - size.width / 2.0f;
                 if (gNameBgEnabled.load()) {
                     CGContextSetFillColorWithColor(ctx, [UIColor colorWithWhite:0.0 alpha:0.45 * fade].CGColor);
                     CGContextFillRect(ctx, CGRectMake(nx - 2.0f, pt.y - 1.0f, size.width + 4.0f, size.height + 2.0f));
                 }
-                NSDictionary *na = @{
-                    NSFontAttributeName: fontBold11 ?: [UIFont boldSystemFontOfSize:11],
-                    NSForegroundColorAttributeName: [(gNameColor ?: [UIColor whiteColor]) colorWithAlphaComponent:fade]
-                };
+                NSDictionary *na = a;
+                if (fade < 0.999f) {
+                    na = @{
+                        NSFontAttributeName: fontBold11 ?: [UIFont boldSystemFontOfSize:11],
+                        NSForegroundColorAttributeName: [nameColor colorWithAlphaComponent:fade]
+                    };
+                }
                 [name drawAtPoint:CGPointMake(nx, pt.y) withAttributes:na];
             }
             
@@ -5593,7 +5636,7 @@ static UIColor* NLTextDim(void) {
                 if (distFmt == 1 && i < self.dists.count) {
                     lbl = SafeFmt(@"%.0f", [self.dists[i] floatValue]);
                 }
-                CGSize size = [lbl sizeWithAttributes:fa];
+                CGSize size = CachedTextSize(lbl, fa);
                 CGFloat lx = r.origin.x + r.size.width + 2.0f;
                 CGFloat ly = r.origin.y + r.size.height / 2.0f - size.height / 2.0f;
                 if (distAbove) {
@@ -5601,22 +5644,28 @@ static UIColor* NLTextDim(void) {
                     ly = r.origin.y - size.height - 2.0f;
                 }
                 if (gEspDistanceShadow.load()) {
-                    NSDictionary *sa = @{
-                        NSFontAttributeName: fontBold9 ?: [UIFont boldSystemFontOfSize:9],
-                        NSForegroundColorAttributeName: [[UIColor blackColor] colorWithAlphaComponent:0.8 * fade]
-                    };
+                    NSDictionary *sa = cachedShadowAttrs;
+                    if (fade < 0.999f) {
+                        sa = @{
+                            NSFontAttributeName: fontBold9 ?: [UIFont boldSystemFontOfSize:9],
+                            NSForegroundColorAttributeName: [[UIColor blackColor] colorWithAlphaComponent:0.8 * fade]
+                        };
+                    }
                     [lbl drawAtPoint:CGPointMake(lx + 1.0f, ly + 1.0f) withAttributes:sa];
                 }
-                NSDictionary *la = @{
-                    NSFontAttributeName: fontBold9 ?: [UIFont boldSystemFontOfSize:9],
-                    NSForegroundColorAttributeName: [[UIColor whiteColor] colorWithAlphaComponent:fade]
-                };
+                NSDictionary *la = fa;
+                if (fade < 0.999f) {
+                    la = @{
+                        NSFontAttributeName: fontBold9 ?: [UIFont boldSystemFontOfSize:9],
+                        NSForegroundColorAttributeName: [[UIColor whiteColor] colorWithAlphaComponent:fade]
+                    };
+                }
                 [lbl drawAtPoint:CGPointMake(lx, ly) withAttributes:la];
             }
             
             if (gHealthTextEnabled && i < self.healthTexts.count) {
                 NSString *hp = SafeStr(self.healthTexts[i]);
-                CGSize hsz = [hp sizeWithAttributes:fa];
+                CGSize hsz = CachedTextSize(hp, fa);
                 [hp drawAtPoint:CGPointMake(r.origin.x + r.size.width / 2.0f - hsz.width / 2.0f, r.origin.y + r.size.height + 2.0f) withAttributes:fa];
             }
             
@@ -5687,7 +5736,7 @@ static UIColor* NLTextDim(void) {
         for (NSUInteger i = 0; i < self.weaponLabels.count && i < self.weaponBoxes.count; i++) {
             CGRect r = [self.weaponBoxes[i] CGRectValue];
             NSString *lbl = SafeStr(self.weaponLabels[i]);
-            CGSize sz = [lbl sizeWithAttributes:wa];
+            CGSize sz = CachedTextSize(lbl, wa);
             [lbl drawAtPoint:CGPointMake(r.origin.x + r.size.width / 2.0f - sz.width / 2.0f, r.origin.y - sz.height - 1.0f) withAttributes:wa];
         }
     }
@@ -6059,7 +6108,7 @@ static const CGFloat kSidebarW = 108.0;
         [_sidebar addSubview:brand];
         
         UILabel *brandSub = [[UILabel alloc] initWithFrame:CGRectMake(14, 30, kSidebarW - 20, 12)];
-        brandSub.text = @"v136.5";
+        brandSub.text = @"v136.6";
         brandSub.textColor = NLAccent();
         brandSub.font = [UIFont systemFontOfSize:8 weight:UIFontWeightBold];
         [_sidebar addSubview:brandSub];
@@ -10097,7 +10146,7 @@ static void espTick(void) {
                         
                         if (espOn) {
                             [gEspView.boxes addObject:[NSValue valueWithCGRect:CGRectMake(xx, yy, bw, bh)]];
-                            [gEspView.labels addObject:SafeFmt(@"%.0fm", realDist)];
+                            [gEspView.labels addObject:[NSString stringWithFormat:@"%.0fm", realDist]];
                             [gEspView.dists addObject:@(realDist)];
                             [gEspView.hps addObject:@(hh > 0 ? hh : 0)];
                             [gEspView.armors addObject:@(aa > 0 ? aa : 0)];
@@ -10109,7 +10158,7 @@ static void espTick(void) {
                             }
                             
                             if (gHealthTextEnabled) {
-                                [gEspView.healthTexts addObject:SafeFmt(@"%d", hh > 0 ? hh : 0)];
+                                [gEspView.healthTexts addObject:[NSString stringWithFormat:@"%d", hh > 0 ? hh : 0]];
                             }
                             
                             if (gNameEnabled) {
@@ -13067,6 +13116,15 @@ static void HudSampleFrame(void) {
 
 static void HudTick(void) {
     HudSampleFrame();
+    // The HUD is a stack of ~20 panels and text runs. Redrawing it at the full 30 Hz
+    // display-link rate was the main source of frame spikes; 20 Hz is visually identical
+    // for static panels and cuts the text layout work by a third.
+    static uint64_t lastHudDraw = 0;
+    uint64_t now = NowMs();
+    if (now - lastHudDraw < 50) {
+        return;
+    }
+    lastHudDraw = now;
     if (gHudView) {
         [gHudView setNeedsDisplay];
     }
@@ -13096,14 +13154,23 @@ static void HudTick(void) {
     CGFloat radius = MIN(w, h) * 0.42f;
     CGRect hole = CGRectMake(w/2 - radius, h/2 - radius, radius * 2, radius * 2);
     
-    CGMutablePathRef path = CGPathCreateMutable();
-    CGPathAddRect(path, NULL, rect);
-    CGPathAddEllipseInRect(path, NULL, hole);
+    static CGMutablePathRef cachedPath = NULL;
+    static CGRect cachedRect = CGRectZero;
+    static CGRect cachedHole = CGRectZero;
+    if (!cachedPath || !CGRectEqualToRect(cachedRect, rect) || !CGRectEqualToRect(cachedHole, hole)) {
+        if (cachedPath) {
+            CGPathRelease(cachedPath);
+        }
+        cachedPath = CGPathCreateMutable();
+        CGPathAddRect(cachedPath, NULL, rect);
+        CGPathAddEllipseInRect(cachedPath, NULL, hole);
+        cachedRect = rect;
+        cachedHole = hole;
+    }
     
     CGContextSetFillColorWithColor(ctx, [UIColor colorWithWhite:0.0 alpha:0.88].CGColor);
-    CGContextAddPath(ctx, path);
+    CGContextAddPath(ctx, cachedPath);
     CGContextEOFillPath(ctx);
-    CGPathRelease(path);
     
     CGContextSetStrokeColorWithColor(ctx, [UIColor colorWithWhite:0.0 alpha:0.95].CGColor);
     CGContextSetLineWidth(ctx, 2.0);
@@ -13308,7 +13375,7 @@ static void HudTick(void) {
             NSFontAttributeName: hmFont ?: [UIFont boldSystemFontOfSize:12],
             NSForegroundColorAttributeName: [color colorWithAlphaComponent:remain]
         };
-        CGSize sz = [dmg sizeWithAttributes:attrs];
+        CGSize sz = CachedTextSize(dmg, attrs);
         [dmg drawAtPoint:CGPointMake(cx - sz.width / 2.0f, cy + s + 2.0f) withAttributes:attrs];
     }
 }
@@ -13322,10 +13389,13 @@ static void HudTick(void) {
     if (!std::isfinite(fontSize) || fontSize < 6.0f) {
         fontSize = 13.0f;
     }
-    UIFont* dmgFont = [UIFont boldSystemFontOfSize:fontSize];
-    if (!dmgFont) {
-        dmgFont = [UIFont boldSystemFontOfSize:13];
+    static UIFont* cachedDmgFont = nil;
+    static float cachedDmgSize = -1.0f;
+    if (!cachedDmgFont || cachedDmgSize != fontSize) {
+        cachedDmgSize = fontSize;
+        cachedDmgFont = [UIFont boldSystemFontOfSize:fontSize] ?: [UIFont boldSystemFontOfSize:13];
     }
+    UIFont* dmgFont = cachedDmgFont;
     
     int duration = gDamageNumberDuration.load();
     if (duration < 100) {
@@ -13356,7 +13426,7 @@ static void HudTick(void) {
             NSFontAttributeName: dmgFont,
             NSForegroundColorAttributeName: color
         };
-        CGSize sz = [text sizeWithAttributes:attrs];
+        CGSize sz = CachedTextSize(text, attrs);
         CGFloat tx = d.pos.x - sz.width / 2.0f;
         CGFloat ty = d.pos.y - (1.0f - remain) * rise;
         
@@ -13406,7 +13476,7 @@ static void HudTick(void) {
             NSFontAttributeName: kfFont ?: [UIFont boldSystemFontOfSize:11],
             NSForegroundColorAttributeName: [kc colorWithAlphaComponent:remain]
         };
-        CGSize sz = [text sizeWithAttributes:attrs];
+        CGSize sz = CachedTextSize(text, attrs);
         [text drawAtPoint:CGPointMake(x - sz.width, y) withAttributes:attrs];
         y += sz.height + 3.0f;
     }
@@ -13607,8 +13677,19 @@ static void HudTick(void) {
     if (maxN < 1) maxN = 1;
     if (maxN > 16) maxN = 16;
     UIColor* base = gPlayerListColor ?: [UIColor whiteColor];
-    UIFont* f = [UIFont systemFontOfSize:10.0f * scale weight:UIFontWeightMedium];
+    static UIFont* cachedListFont = nil;
+    static float cachedListScale = -1.0f;
+    if (!cachedListFont || cachedListScale != scale) {
+        cachedListScale = scale;
+        cachedListFont = [UIFont systemFontOfSize:10.0f * scale weight:UIFontWeightMedium];
+    }
+    UIFont* f = cachedListFont;
+    NSDictionary* attrs = @{
+        NSFontAttributeName: f ?: [UIFont systemFontOfSize:10],
+        NSForegroundColorAttributeName: base
+    };
     int shown = 0;
+    NSMutableString* line = [NSMutableString stringWithCapacity:64];
     for (const HudPlayerInfo& p : gHudPlayers) {
         if (shown >= maxN) {
             break;
@@ -13616,7 +13697,7 @@ static void HudTick(void) {
         if (!gPlayerListDead.load() && p.health <= 0) {
             continue;
         }
-        NSMutableString* line = [NSMutableString string];
+        [line setString:@""];
         if (gPlayerListTeam.load()) {
             [line appendFormat:@"[%d] ", p.team];
         }
@@ -13629,10 +13710,6 @@ static void HudTick(void) {
         if (gPlayerListWeapon.load()) {
             [line appendString:@"•"];
         }
-        NSDictionary* attrs = @{
-            NSFontAttributeName: f ?: [UIFont systemFontOfSize:10],
-            NSForegroundColorAttributeName: base
-        };
         [line drawAtPoint:CGPointMake(x, y) withAttributes:attrs];
         y += 14.0f * scale;
         shown++;
@@ -13668,7 +13745,7 @@ static void HudTick(void) {
     if (gPanelBackground.load()) {
         CGFloat w = 0.0f;
         for (NSString* s in lines) {
-            CGSize sz = [s sizeWithAttributes:@{NSFontAttributeName: f ?: [UIFont systemFontOfSize:10]}];
+            CGSize sz = CachedTextSize(s, @{NSFontAttributeName: f ?: [UIFont systemFontOfSize:10]});
             if (sz.width > w) w = sz.width;
         }
         CGContextSetFillColorWithColor(ctx, [UIColor colorWithWhite:0.0 alpha:0.35].CGColor);
@@ -13731,7 +13808,7 @@ static void HudTick(void) {
         NSFontAttributeName: f ?: [UIFont systemFontOfSize:10],
         NSForegroundColorAttributeName: base
     };
-    CGSize sz = [text sizeWithAttributes:attrs];
+    CGSize sz = CachedTextSize(text, attrs);
     [text drawAtPoint:CGPointMake(cx - sz.width / 2.0f, y) withAttributes:attrs];
 }
 
@@ -13892,7 +13969,8 @@ static void HudTick(void) {
     });
     CGFloat x = rect.size.width - 170.0f;
     CGFloat y = 180.0f;
-    std::vector<HudPlayerInfo> sorted = gHudPlayers;
+    static std::vector<HudPlayerInfo> sorted;
+    sorted.assign(gHudPlayers.begin(), gHudPlayers.end());
     std::sort(sorted.begin(), sorted.end(), [](const HudPlayerInfo& a, const HudPlayerInfo& b) {
         return a.distance < b.distance;
     });
@@ -13931,7 +14009,7 @@ static void HudTick(void) {
         NSFontAttributeName: f ?: [UIFont systemFontOfSize:9],
         NSForegroundColorAttributeName: [UIColor yellowColor]
     };
-    CGSize sz = [text sizeWithAttributes:attrs];
+    CGSize sz = CachedTextSize(text, attrs);
     [text drawAtPoint:CGPointMake(cx - sz.width / 2.0f, y) withAttributes:attrs];
 }
 
@@ -13964,7 +14042,7 @@ static void HudTick(void) {
         NSFontAttributeName: f ?: [UIFont boldSystemFontOfSize:10],
         NSForegroundColorAttributeName: [UIColor whiteColor]
     };
-    CGSize sz = [text sizeWithAttributes:attrs];
+    CGSize sz = CachedTextSize(text, attrs);
     [text drawAtPoint:CGPointMake(rect.size.width / 2.0f - sz.width / 2.0f, y - 14.0f) withAttributes:attrs];
 }
 
