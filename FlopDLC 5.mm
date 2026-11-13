@@ -26,7 +26,7 @@
 #include <algorithm>
 #include <mach/mach_time.h>
 #include <mach/mach.h>
-#include <mach/mach_vm.h>
+#include <mach/vm_map.h>
 #include <mach/task_info.h>
 #include <mach/vm_param.h>
 #include <mach-o/dyld.h>
@@ -2303,14 +2303,14 @@ static bool hook_install(void* mi, void* hook, void** orig) {
     }
     
     void** slot = (void**)((uintptr_t)mi + 0x0);
-    // Read through mach_vm_read_overwrite: a stale/foreign MethodInfo must fail the hook
+    // Read through vm_read_overwrite: a stale/foreign MethodInfo must fail the hook
     // instead of faulting during bootstrap.
     void* old = nullptr;
-    mach_vm_size_t got = 0;
-    kern_return_t rk = mach_vm_read_overwrite(mach_task_self(),
-                                              (mach_vm_address_t)slot,
+    vm_size_t got = 0;
+    kern_return_t rk = vm_read_overwrite(mach_task_self(),
+                                              (vm_address_t)slot,
                                               sizeof(void*),
-                                              (mach_vm_address_t)&old,
+                                              (vm_address_t)&old,
                                               &got);
     if (rk != KERN_SUCCESS || got != sizeof(void*) || !old) {
         return false;
@@ -2370,11 +2370,11 @@ static bool SafeReadU32(uintptr_t addr, uint32_t* out) {
     if (!addr || !out) {
         return false;
     }
-    mach_vm_size_t got = 0;
-    kern_return_t kr = mach_vm_read_overwrite(mach_task_self(),
-                                              (mach_vm_address_t)addr,
+    vm_size_t got = 0;
+    kern_return_t kr = vm_read_overwrite(mach_task_self(),
+                                              (vm_address_t)addr,
                                               sizeof(uint32_t),
-                                              (mach_vm_address_t)out,
+                                              (vm_address_t)out,
                                               &got);
     return kr == KERN_SUCCESS && got == sizeof(uint32_t);
 }
