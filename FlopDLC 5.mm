@@ -38,6 +38,17 @@ static constexpr const char* kEspVersion = "136.3";
 
 #define SANE_PTR(p) ((uintptr_t)(p) > 0x100000000 && (uintptr_t)(p) < 0x00007FFFFFFFFFFF)
 
+// A numeric pointer range does not establish that memory is mapped/readable.
+static bool ReadMemory(uintptr_t address, void* output, size_t size) {
+    if (!output || size == 0 || address > UINTPTR_MAX - size) {
+        return false;
+    }
+    vm_size_t received = 0;
+    return vm_read_overwrite(mach_task_self(), (vm_address_t)address,
+                             (vm_size_t)size, (vm_address_t)output, &received) == KERN_SUCCESS &&
+           received == size;
+}
+
 struct __attribute__((aligned(4))) Vec3 {
     float x;
     float y;
@@ -983,6 +994,8 @@ static std::string gSkinPendingId;
 // Persistent IDs, never weapon-instance pointers: respawn must not erase the loadout.
 static std::unordered_map<std::string, std::string> gSkinAssignments;
 static std::mutex gSkinAssignmentsMutex;
+// Hooks must never iterate the UI's mutable catalog during a refresh.
+static std::unordered_map<std::string, SkinEntry> gSkinRuntimeCatalog;
 static void SkinRestoreBrowser(void);
 static std::atomic<bool> gSkinApplying{false};
 static void* gWeaponClasses[12] = {nullptr};
@@ -1557,7 +1570,8 @@ static NSString* getIL2CPPString(void* strObj) {
 @implementation ConfigManager
 
 + (UIColor*)loadColorForKey:(NSString*)key defaultColor:(UIColor*)def {
-    NSString* hex = [[NSUserDefaults standardUserDefaults] stringForKey:key];
+    id storedColor = [[NSUserDefaults standardUserDefaults] objectForKey:key];
+    NSString* hex = [storedColor isKindOfClass:[NSString class]] ? storedColor : nil;
     if (!hex || hex.length == 0) {
         return def ?: [UIColor whiteColor];
     }
@@ -2035,12 +2049,14 @@ static NSString* getIL2CPPString(void* strObj) {
     gTriggerbotScopeOnly = [d boolForKey:@"tb_so"];
     gTriggerbotHeadOnly = [d boolForKey:@"tb_ho"];
     gSkinChangerEnabled = [d boolForKey:@"sk_e"];
-    NSString* savedSkinId = [d stringForKey:@"sk_id"];
+    id storedSkinId = [d objectForKey:@"sk_id"];
+    NSString* savedSkinId = [storedSkinId isKindOfClass:[NSString class]] ? storedSkinId : nil;
     gSkinPendingId = savedSkinId ? std::string([savedSkinId UTF8String]) : std::string();
     {
         std::lock_guard<std::mutex> lock(gSkinAssignmentsMutex);
         gSkinAssignments.clear();
-        NSDictionary *loadout = [d dictionaryForKey:@"sk_loadout"];
+        id storedLoadout = [d objectForKey:@"sk_loadout"];
+        NSDictionary *loadout = [storedLoadout isKindOfClass:[NSDictionary class]] ? storedLoadout : nil;
         for (id target in loadout) {
             id skin = loadout[target];
             if ([target isKindOfClass:[NSString class]] && [skin isKindOfClass:[NSString class]] &&
@@ -2358,6 +2374,9 @@ static bool hook_install(void* mi, void* hook, void** orig) {
     }
     
     long ps = sysconf(_SC_PAGESIZE);
+    if (ps <= 0 || (ps & (ps - 1)) != 0) {
+        return false;
+    }
     vm_address_t start = (vm_address_t)slot & ~((vm_address_t)ps - 1);
     vm_address_t end = ((vm_address_t)slot + sizeof(void*) + ps - 1) & ~((vm_address_t)ps - 1);
     
@@ -2365,10 +2384,14 @@ static bool hook_install(void* mi, void* hook, void** orig) {
         return false;
     }
     
-    *slot = hook;
+    // A duplicate install must not turn the hook into its own original (recursion).
+    if (old == hook) {
+        return orig && *orig && *orig != hook;
+    }
     if (orig) {
         *orig = old;
     }
+    __atomic_store_n(slot, hook, __ATOMIC_RELEASE);
     
     return true;
 }
@@ -2910,11 +2933,14 @@ static std::string Il2CppStringToStd(void* s) {
     if (!SANE_PTR(s)) {
         return std::string();
     }
-    int len = *(int*)((uintptr_t)s + 0x10);
-    if (len <= 0 || len > 4096) {
+    int len = 0;
+    if (!ReadMemory((uintptr_t)s + 0x10, &len, sizeof(len)) || len <= 0 || len > 4096) {
         return std::string();
     }
-    const uint16_t* chars = (const uint16_t*)((uintptr_t)s + 0x14);
+    std::vector<uint16_t> chars((size_t)len);
+    if (!ReadMemory((uintptr_t)s + 0x14, chars.data(), chars.size() * sizeof(uint16_t))) {
+        return std::string();
+    }
     std::string out;
     out.reserve((size_t)len);
     for (int i = 0; i < len; i++) {
@@ -2929,11 +2955,15 @@ static bool Il2CppStringEqualsStd(void* s, const std::string& str) {
     if (!SANE_PTR(s)) {
         return str.empty();
     }
-    int len = *(int*)((uintptr_t)s + 0x10);
-    if (len != (int)str.size()) {
+    int len = 0;
+    if (!ReadMemory((uintptr_t)s + 0x10, &len, sizeof(len)) || len < 0 || len > 4096 ||
+        (size_t)len != str.size()) {
         return false;
     }
-    const uint16_t* chars = (const uint16_t*)((uintptr_t)s + 0x14);
+    std::vector<uint16_t> chars((size_t)len);
+    if (len && !ReadMemory((uintptr_t)s + 0x14, chars.data(), chars.size() * sizeof(uint16_t))) {
+        return false;
+    }
     for (int i = 0; i < len; i++) {
         if (chars[i] != (uint16_t)(unsigned char)str[i]) {
             return false;
@@ -2945,7 +2975,12 @@ static bool Il2CppStringEqualsStd(void* s, const std::string& str) {
 static void SkinRebuildFilter(void) {
     gSkinFiltered.clear();
     if (gWeaponList.empty()) {
+        gSkinTargetIndex = 0;
+        gSkinIndex = 0;
         return;
+    }
+    if (gSkinTargetIndex < 0 || gSkinTargetIndex >= (int)gWeaponList.size()) {
+        gSkinTargetIndex = 0;
     }
     const std::string& target = gWeaponList[gSkinTargetIndex].id;
     for (int i = 0; i < (int)gSkinCatalog.size(); i++) {
@@ -2953,7 +2988,7 @@ static void SkinRebuildFilter(void) {
             gSkinFiltered.push_back(i);
         }
     }
-    if (gSkinIndex >= (int)gSkinFiltered.size()) {
+    if (gSkinIndex < 0 || gSkinIndex >= (int)gSkinFiltered.size()) {
         gSkinIndex = 0;
     }
 }
@@ -2968,23 +3003,29 @@ static bool SkinForWeapon(void* weapon, SkinEntry* result) {
     if (!gSkinChangerEnabled.load() || !SANE_PTR(weapon) || !result) {
         return false;
     }
-    std::string target = Il2CppStringToStd(*(void**)((uintptr_t)weapon + 0xB0));
-    std::string id = SkinAssignedId(target);
-    if (id.empty()) {
+    void* dataId = nullptr;
+    if (!ReadMemory((uintptr_t)weapon + 0xB0, &dataId, sizeof(dataId))) {
         return false;
     }
-    for (const SkinEntry& entry : gSkinCatalog) {
-        if (entry.target == target && entry.id == id && SANE_PTR(entry.obj)) {
-            *result = entry;
-            return true;
-        }
+    std::string target = Il2CppStringToStd(dataId);
+    std::lock_guard<std::mutex> lock(gSkinAssignmentsMutex);
+    auto assignment = gSkinAssignments.find(target);
+    if (assignment == gSkinAssignments.end()) {
+        return false;
     }
-    return false;
+    auto entry = gSkinRuntimeCatalog.find(assignment->second);
+    if (entry == gSkinRuntimeCatalog.end() || entry->second.target != target ||
+        !SANE_PTR(entry->second.obj)) {
+        return false;
+    }
+    *result = entry->second;
+    return true;
 }
 
 static void SkinSelectCurrent(void) {
     gSkinLastAppliedWeapon = nullptr;
-    if (gSkinFiltered.empty()) {
+    if (gSkinIndex < 0 || gSkinIndex >= (int)gSkinFiltered.size() ||
+        gSkinFiltered[gSkinIndex] < 0 || gSkinFiltered[gSkinIndex] >= (int)gSkinCatalog.size()) {
         gSkinSelectedObj = nullptr;
         gSkinSelectedId.clear();
         gSkinSelectedTarget.clear();
@@ -3012,6 +3053,9 @@ static void SkinRestoreBrowser(void) {
     }
     std::string id = SkinAssignedId(gWeaponList[gSkinTargetIndex].id);
     for (int k = 0; k < (int)gSkinFiltered.size(); ++k) {
+        if (gSkinFiltered[k] < 0 || gSkinFiltered[k] >= (int)gSkinCatalog.size()) {
+            continue;
+        }
         const SkinEntry& entry = gSkinCatalog[gSkinFiltered[k]];
         if (entry.id == id) {
             gSkinIndex = k;
@@ -3027,7 +3071,8 @@ static void SkinCatalogLoad(void) {
     if (gSkinCatalogLoaded) {
         return;
     }
-    if (!gGameManagerCls || !p_findPlayerMI || !p_runtime_invoke || !gItemDataGetIdMI) {
+    if (!gGameManagerCls || !p_findPlayerMI || !p_runtime_invoke || !gItemDataGetIdMI ||
+        !p_type_get_object || !p_class_get_type || !p_class_get_method_from_name) {
         return;
     }
     void* typeObj = p_type_get_object(p_class_get_type(gGameManagerCls));
@@ -3040,11 +3085,14 @@ static void SkinCatalogLoad(void) {
     if (exc || !SANE_PTR(arr)) {
         return;
     }
-    int len = *(int*)((uintptr_t)arr + 0x18);
-    if (len <= 0) {
+    uintptr_t len = 0;
+    if (!ReadMemory((uintptr_t)arr + 0x18, &len, sizeof(len)) || len == 0 || len > 65536) {
         return;
     }
-    void* gm = *(void**)((uintptr_t)arr + 0x20);
+    void* gm = nullptr;
+    if (!ReadMemory((uintptr_t)arr + 0x20, &gm, sizeof(gm))) {
+        return;
+    }
     if (!SANE_PTR(gm)) {
         return;
     }
@@ -3056,13 +3104,16 @@ static void SkinCatalogLoad(void) {
     if (exc || !SANE_PTR(data)) {
         return;
     }
-    void* list = *(void**)((uintptr_t)data + 0x58);
-    if (!SANE_PTR(list)) {
+    void* list = nullptr;
+    if (!ReadMemory((uintptr_t)data + 0x58, &list, sizeof(list)) || !SANE_PTR(list)) {
         return;
     }
-    void* items = *(void**)((uintptr_t)list + 0x10);
-    int size = *(int*)((uintptr_t)list + 0x18);
-    if (!SANE_PTR(items) || size <= 0) {
+    void* items = nullptr;
+    int size = 0;
+    uintptr_t capacity = 0;
+    if (!ReadMemory((uintptr_t)list + 0x10, &items, sizeof(items)) || !SANE_PTR(items) ||
+        !ReadMemory((uintptr_t)list + 0x18, &size, sizeof(size)) || size <= 0 || size > 65536 ||
+        !ReadMemory((uintptr_t)items + 0x18, &capacity, sizeof(capacity)) || (uintptr_t)size > capacity) {
         return;
     }
 
@@ -3070,11 +3121,12 @@ static void SkinCatalogLoad(void) {
     gWeaponList.clear();
 
     for (int i = 0; i < size; i++) {
-        void* obj = *(void**)((uintptr_t)items + 0x20 + (uintptr_t)i * 8);
-        if (!SANE_PTR(obj)) {
+        void* obj = nullptr;
+        void* klass = nullptr;
+        if (!ReadMemory((uintptr_t)items + 0x20 + (uintptr_t)i * sizeof(void*), &obj, sizeof(obj)) ||
+            !SANE_PTR(obj) || !ReadMemory((uintptr_t)obj, &klass, sizeof(klass))) {
             continue;
         }
-        void* klass = *(void**)obj;
 
         bool isSkin = (klass == gItemWeaponSkinCls || klass == gItemSkinCls);
         bool isWeapon = false;
@@ -3088,6 +3140,7 @@ static void SkinCatalogLoad(void) {
             continue;
         }
 
+        exc = nullptr;
         void* idStr = p_runtime_invoke(gItemDataGetIdMI, obj, nullptr, &exc);
         if (exc || !SANE_PTR(idStr)) {
             continue;
@@ -3108,8 +3161,12 @@ static void SkinCatalogLoad(void) {
         }
 
         std::string targetId;
-        void* target = *(void**)((uintptr_t)obj + 0x70);
+        void* target = nullptr;
+        if (!ReadMemory((uintptr_t)obj + 0x70, &target, sizeof(target))) {
+            continue;
+        }
         if (SANE_PTR(target)) {
+            exc = nullptr;
             void* tStr = p_runtime_invoke(gItemDataGetIdMI, target, nullptr, &exc);
             if (!exc && SANE_PTR(tStr)) {
                 targetId = Il2CppStringToStd(tStr);
@@ -3204,6 +3261,13 @@ static void SkinCatalogLoad(void) {
     }
     SkinRestoreBrowser();
     gSkinLastAppliedWeapon = nullptr;
+    {
+        std::lock_guard<std::mutex> lock(gSkinAssignmentsMutex);
+        gSkinRuntimeCatalog.clear();
+        for (const SkinEntry& entry : gSkinCatalog) {
+            gSkinRuntimeCatalog[entry.id] = entry;
+        }
+    }
 
     gSkinCatalogLoaded = true;
     LOG(@"[SKIN] catalog=%d weapons=%d", (int)gSkinCatalog.size(), (int)gWeaponList.size());
@@ -10886,12 +10950,19 @@ static void bootstrap(void) {
             }
         }
         
+        // Metadata discovery may run in the background. Publishing settings, installing
+        // gameplay hooks and creating UI/timers must be serialized with the Unity thread.
+        dispatch_async(dispatch_get_main_queue(), ^{
+        if (p_thread_attach && gDomain) {
+            p_thread_attach(gDomain);
+        }
         @try {
-            InstallAllHooks();
             [ConfigManager load];
+            InstallAllHooks();
             ApplyFpsLimit();
         } @catch (NSException* e) {
             LOG(@"bootstrap hooks: %@", SafeStr([e reason]));
+            return; // Do not start a partially initialized overlay.
         }
         
         dispatch_queue_t q = dispatch_get_main_queue();
@@ -10930,15 +11001,21 @@ static void bootstrap(void) {
                 
                 LOG(@"Bootstrap complete");
             } @catch (NSException* e) {
+                LOG(@"bootstrap UI: %@", SafeStr([e reason]));
             }
+        });
         });
     }
 }
 
 __attribute__((constructor, used))
 static void ctor(void) {
-    dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
-        bootstrap();
+    // A loader constructor can run before later C++ global constructors. Wait for the
+    // main run loop before touching vectors, strings, mutexes or saved preferences.
+    dispatch_async(dispatch_get_main_queue(), ^{
+        dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+            bootstrap();
+        });
     });
 }
 

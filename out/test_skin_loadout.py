@@ -32,6 +32,14 @@ code = r'''
 #include <atomic>
 #include <cstdint>
 #include <cassert>
+#include <thread>
+#include <sys/uio.h>
+#include <unistd.h>
+bool ReadMemory(uintptr_t address, void* output, size_t size) {
+    if (!output || !size || address > UINTPTR_MAX-size) return false;
+    iovec local{output,size}, remote{(void*)address,size};
+    return process_vm_readv(getpid(),&local,1,&remote,1,0)==(ssize_t)size;
+}
 #define SANE_PTR(p) ((p) != nullptr)
 struct SkinEntry { std::string id, target; void* obj; int rarity; };
 struct WeaponEntry { std::string id, label; void* obj; int skinCount; };
@@ -43,6 +51,7 @@ void* gSkinSelectedObj=nullptr;
 std::string gSkinSelectedId, gSkinSelectedTarget;
 std::unordered_map<std::string, std::string> gSkinAssignments;
 std::mutex gSkinAssignmentsMutex;
+std::unordered_map<std::string, SkinEntry> gSkinRuntimeCatalog;
 std::atomic<bool> gSkinChangerEnabled{true};
 std::string Il2CppStringToStd(void* p) {
     return p ? *static_cast<std::string*>(p) : std::string();
@@ -65,6 +74,7 @@ void SkinApplyEx(bool) {
 }
 '''
 code += function("SkinChangerTick")
+code += "\nnamespace managed_strings {\n" + function("Il2CppStringToStd") + "\n" + function("Il2CppStringEqualsStd") + "\n}\n"
 code += r'''
 int main() {
     int a=1, b=2, c=3;
@@ -76,6 +86,24 @@ int main() {
     }
     assert(gSkinAssignments.size()==3);
     auto saved=gSkinAssignments;
+    gSkinTargetIndex=-1; gSkinIndex=-99; SkinRebuildFilter();
+    assert(gSkinTargetIndex==0 && gSkinIndex==0);
+    gSkinIndex=99999; SkinSelectCurrent(); assert(!gSkinSelectedObj);
+    gSkinIndex=0; gSkinFiltered={99999}; SkinSelectCurrent(); assert(!gSkinSelectedObj);
+    SkinRestoreBrowser(); assert(!gSkinSelectedObj);
+    SkinRebuildFilter();
+    SkinEntry invalid;
+    assert(!SkinForWeapon((void*)1,&invalid));
+    struct ManagedString { unsigned char header[16]{}; int32_t length=3; uint16_t text[3]={'A','K','7'}; } managed;
+    assert(managed_strings::Il2CppStringToStd(&managed)=="AK7");
+    assert(managed_strings::Il2CppStringEqualsStd(&managed,"AK7"));
+    assert(!managed_strings::Il2CppStringEqualsStd(&managed,"wrong"));
+    managed.length=-1;
+    assert(managed_strings::Il2CppStringToStd(&managed).empty());
+    assert(!managed_strings::Il2CppStringEqualsStd(&managed,""));
+    managed.length=99999;
+    assert(managed_strings::Il2CppStringToStd(&managed).empty());
+    assert(managed_strings::Il2CppStringToStd((void*)1).empty());
     for (int i=0; i<3; ++i) {
         gSkinTargetIndex=i; SkinRebuildFilter(); SkinRestoreBrowser();
         assert(gSkinSelectedId==saved[gWeaponList[i].id]);
@@ -84,6 +112,23 @@ int main() {
     Weapon wa,wb,wc;
     auto set=[](Weapon& w,std::string& id) { *(void**)(w.bytes+0xB0)=&id; };
     set(wa,ak); set(wb,gl); set(wc,kn);
+    // Saved assignments exist before the runtime catalog on a cold restart.
+    SkinEntry cold;
+    assert(!SkinForWeapon(&wa, &cold));
+    for (const auto& entry : gSkinCatalog) gSkinRuntimeCatalog[entry.id]=entry;
+    // A menu refresh cannot invalidate storage being iterated by hooks.
+    std::thread reader([&] {
+        for (int i=0; i<10000; ++i) {
+            SkinEntry entry;
+            if (SkinForWeapon(&wa, &entry)) assert(entry.id=="myth");
+        }
+    });
+    for (int i=0; i<1000; ++i) {
+        std::lock_guard<std::mutex> lock(gSkinAssignmentsMutex);
+        gSkinRuntimeCatalog.clear();
+        for (const auto& entry : gSkinCatalog) gSkinRuntimeCatalog[entry.id]=entry;
+    }
+    reader.join();
     for (auto weapon : {&wa,&wb,&wc}) {
         g_localWeapon=weapon; SkinChangerTick(); SkinEntry entry;
         assert(SkinForWeapon(weapon,&entry));
@@ -104,10 +149,14 @@ int main() {
 with tempfile.TemporaryDirectory() as directory:
     root = Path(directory)
     (root / "test.cpp").write_text(code)
-    subprocess.run(["c++", "-std=c++17", "-pthread", str(root / "test.cpp"), "-o", str(root / "test")], check=True)
+    subprocess.run(["c++", "-std=c++17", "-pthread", "-fsanitize=address,undefined", "-fno-omit-frame-pointer", str(root / "test.cpp"), "-o", str(root / "test")], check=True)
     subprocess.run([str(root / "test")], check=True)
 assert "mach_vm" not in source
 assert len(source.splitlines()) >= 10000
 assert "SkinSelectCurrent" not in function("SkinCatalogLoad")
-print("PASS: independent selections, browsing, switching, death, round reset, reload, clear-one, disable")
+assert "gSkinCatalog" not in function("SkinForWeapon")
+assert "dispatch_get_main_queue" in function("ctor")
+startup = source[source.index("// Metadata discovery may run in the background."):]
+assert startup.index("dispatch_get_main_queue") < startup.index("[ConfigManager load]") < startup.index("InstallAllHooks();")
+print("PASS: loadouts, cold restart, concurrent refresh, invalid indices/pointers/strings (ASan/UBSan)")
 print("PASS: source checks; lines:", len(source.splitlines()))
