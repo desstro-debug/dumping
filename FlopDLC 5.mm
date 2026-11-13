@@ -2298,6 +2298,46 @@ static bool PatchBranch(uintptr_t site, uintptr_t target) {
     return true;
 }
 
+// The dylib can sit more than ±128 MB from UnityFramework, which is outside the range of a
+// single `b`. Allocate a small executable page near the site and jump through it.
+static void* AllocNear(uintptr_t near, size_t size) {
+    uintptr_t page = 0x4000;
+    uintptr_t base = near & ~(page - 1);
+    for (int64_t off = 0; off < 0x8000000; off += page) {
+        for (int dir = 0; dir < 2; dir++) {
+            uintptr_t addr = dir == 0 ? base + off : base - off;
+            if (addr < 0x100000000ULL) {
+                continue;
+            }
+            mach_vm_address_t a = (mach_vm_address_t)addr;
+            if (mach_vm_allocate(mach_task_self(), &a, size, VM_FLAGS_FIXED) == KERN_SUCCESS) {
+                return (void*)a;
+            }
+        }
+    }
+    return nullptr;
+}
+
+static bool PatchBranchFar(uintptr_t site, uintptr_t target) {
+    int64_t delta = (int64_t)target - (int64_t)site;
+    if (delta % 4 == 0 && delta >= -(1LL << 27) && delta < (1LL << 27)) {
+        return PatchBranch(site, target);
+    }
+    uint32_t* tramp = (uint32_t*)AllocNear(site, 0x4000);
+    if (!tramp) {
+        return false;
+    }
+    tramp[0] = 0x58000050;  // ldr x16, #8
+    tramp[1] = 0xD61F0200;  // br x16
+    // arm64e function pointers carry a PAC in the top bits; `br` needs the raw address.
+    *(uint64_t*)&tramp[2] = (uint64_t)target & 0x0000FFFFFFFFFFFFULL;
+    __builtin___clear_cache((char*)tramp, (char*)tramp + 16);
+    // W^X: write while RW, then flip the page to RX.
+    mach_vm_protect(mach_task_self(), (mach_vm_address_t)tramp, 0x4000, FALSE,
+                    VM_PROT_READ | VM_PROT_EXECUTE);
+    return PatchBranch(site, (uintptr_t)tramp);
+}
+
 typedef void (*fn_CamLateUpdate)(void* self, void* mi);
 static fn_CamLateUpdate orig_CamLateUpdate = nullptr;
 
@@ -2694,6 +2734,7 @@ static void TriggerbotTick(void) {
 // SKIN CHANGER — catalog + apply
 // =========================================================================================
 static void* gSkinLastAppliedWeapon = nullptr;
+static uint64_t gSkinLastCheckMs = 0;
 
 static std::string Il2CppStringToStd(void* s) {
     if (!SANE_PTR(s)) {
@@ -2936,7 +2977,7 @@ static void SkinCatalogLoad(void) {
     LOG(@"[SKIN] catalog=%d weapons=%d", (int)gSkinCatalog.size(), (int)gWeaponList.size());
 }
 
-static void SkinApply(void) {
+static void SkinApplyEx(bool withEquip) {
     if (!gSkinChangerEnabled.load() || !SANE_PTR(gSkinSelectedObj) || !SANE_PTR(g_localWeapon)) {
         return;
     }
@@ -2979,7 +3020,7 @@ static void SkinApply(void) {
     if (SANE_PTR(g_localSceneChar)) {
         void* hands = *(void**)((uintptr_t)g_localSceneChar + off::kCamHands);
         if (SANE_PTR(hands)) {
-            if (gHandsEquipMI && p_runtime_invoke) {
+            if (withEquip && gHandsEquipMI && p_runtime_invoke) {
                 bool spectator = false;
                 void* args[2] = { g_localWeapon, &spectator };
                 exc = nullptr;
@@ -2998,6 +3039,10 @@ static void SkinApply(void) {
     LOG(@"[SKIN] applied id=%s target=%s", gSkinSelectedId.c_str(), gSkinSelectedTarget.c_str());
 }
 
+static void SkinApply(void) {
+    SkinApplyEx(true);
+}
+
 static void SkinChangerTick(void) {
     if (!gSkinChangerEnabled.load() || !SANE_PTR(gSkinSelectedObj)) {
         return;
@@ -3008,13 +3053,24 @@ static void SkinChangerTick(void) {
         gSkinLastAppliedWeapon = nullptr;
         return;
     }
-    if (g_localWeapon == gSkinLastAppliedWeapon) {
+    uint64_t now = NowMs();
+    if (g_localWeapon != gSkinLastAppliedWeapon) {
+        // New weapon: full apply (Equip rebuilds the viewmodel).
+        gSkinLastAppliedWeapon = g_localWeapon;
+        gSkinLastCheckMs = now;
+        SkinApplyEx(true);
         return;
     }
-    // Mark before applying: a weapon that does not match the selected target must not be
-    // re-checked every frame.
-    gSkinLastAppliedWeapon = g_localWeapon;
-    SkinApply();
+    // Round end / re-equip can reset the skin field without changing the weapon pointer.
+    // Poll once a second and quietly re-assert the skin (no Equip, so no swap animation).
+    if (now - gSkinLastCheckMs < 1000) {
+        return;
+    }
+    gSkinLastCheckMs = now;
+    void* current = *(void**)((uintptr_t)g_localWeapon + 0xE8);
+    if (current != gSkinSelectedObj) {
+        SkinApplyEx(false);
+    }
 }
 
 // Belt and suspenders: even if the game re-reads the skin from the DTO, the property
@@ -5706,13 +5762,13 @@ static const CGFloat kSidebarW = 108.0;
         [self addSubview:_sidebar];
         
         UILabel *brand = [[UILabel alloc] initWithFrame:CGRectMake(14, 14, kSidebarW - 20, 18)];
-        brand.text = @"NEVERLOSE";
+        brand.text = @"FLOPDLC";
         brand.textColor = [UIColor whiteColor];
         brand.font = [UIFont systemFontOfSize:12 weight:UIFontWeightHeavy];
         [_sidebar addSubview:brand];
         
         UILabel *brandSub = [[UILabel alloc] initWithFrame:CGRectMake(14, 30, kSidebarW - 20, 12)];
-        brandSub.text = @"FLOPDLC";
+        brandSub.text = @"v136.3";
         brandSub.textColor = NLAccent();
         brandSub.font = [UIFont systemFontOfSize:8 weight:UIFontWeightBold];
         [_sidebar addSubview:brandSub];
@@ -10626,6 +10682,7 @@ static bool hook_TryUse(void* self, void* info, void* mi) {
 
 typedef void (*fn_FireBulletCommand)(void*, Vec3, Vec3, void*, bool, void*);
 static fn_FireBulletCommand orig_FireBulletCommand = nullptr;
+static std::atomic<bool> gFkePatched{false};
 
 typedef void* (*fn_CalcShotHits)(void*, Vec3, Vec3, void*);
 static fn_CalcShotHits p_CalcShotHits = nullptr;
@@ -10777,10 +10834,12 @@ static void InstallBallisticsHooks(void) {
                 uintptr_t fkeAddr = ufBase + 0x19D8624;
                 uintptr_t callSite = ufBase + 0x19D710C;
                 orig_FireBulletCommand = (fn_FireBulletCommand)fkeAddr;
-                if (PatchBranch(callSite, (uintptr_t)hook_FireBulletCommand)) {
-                    LOG(@"[BALL] fke call-site patched");
+                int64_t delta = (int64_t)(uintptr_t)hook_FireBulletCommand - (int64_t)callSite;
+                if (PatchBranchFar(callSite, (uintptr_t)hook_FireBulletCommand)) {
+                    gFkePatched = true;
+                    LOG(@"[BALL] fke call-site patched base=%p delta=%lld", (void*)ufBase, (long long)delta);
                 } else {
-                    LOG(@"[BALL] fke call-site patch failed");
+                    LOG(@"[BALL] fke call-site patch failed base=%p delta=%lld", (void*)ufBase, (long long)delta);
                 }
             } else {
                 LOG(@"[BALL] UnityFramework base not found");
@@ -12920,6 +12979,11 @@ static void HudTick(void) {
     NSArray<NSString*>* lines = @[
         SafeFmt(@"AIMBOT: %@", (gAimbotEnabled || gHotAimbotEnabled) ? @"ON" : @"OFF"),
         SafeFmt(@"AIM FIRE: %@", (gAimOnFireEnabled || gHotAimOnFireEnabled) ? @"ON" : @"OFF"),
+        SafeFmt(@"SA: %@ tgt=%d fire=%d fke=%@",
+                gSilentAimEnabled.load() ? @"ON" : @"OFF",
+                g_haveTarget.load() ? 1 : 0,
+                IsFireHeld() ? 1 : 0,
+                gFkePatched.load() ? @"OK" : @"NO"),
         SafeFmt(@"ESP: %@", (gEspEnabled || gHotEspEnabled) ? @"ON" : @"OFF"),
         SafeFmt(@"TRIGGER: %@", gTriggerbotEnabled.load() ? @"ON" : @"OFF")
     ];
