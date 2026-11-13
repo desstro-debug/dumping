@@ -692,6 +692,9 @@ static void* gRendererCls = nullptr;
 static void* gLightCls = nullptr;
 static void* gColorAdjCls = nullptr;
 static void* gBloomCls = nullptr;
+static void* gMotionBlurCls = nullptr;
+static void* gApplicationCls = nullptr;
+static void* gSetTargetFrameRateMI = nullptr;
 static void* gClampedFCls = nullptr;
 static void* gMinFCls = nullptr;
 static void* gFloatPCls = nullptr;
@@ -1299,6 +1302,10 @@ static std::atomic<bool> gSkyboxDirty{true};
 // WORLD VIEW
 static std::atomic<bool> gFullbrightEnabled{false};
 static std::atomic<bool> gSnowEnabled{false};
+static UIColor* gMenuAccent = nil;
+static std::atomic<float> gMenuOpacity{1.0f};
+static std::atomic<float> gMenuScale{1.0f};
+static std::atomic<bool> gMenuBlurEnabled{true};
 static std::atomic<float> gFullbrightMul{3.0f};
 static std::atomic<bool> gNoFogEnabled{false};
 static std::atomic<bool> gAmbientTintEnabled{false};
@@ -1309,6 +1316,9 @@ static std::atomic<float> gContrastVal{0.0f};
 static std::atomic<float> gGammaVal{0.0f};
 static std::atomic<float> gBloomVal{0.0f};
 static std::atomic<float> gSharpenVal{0.0f};
+static std::atomic<bool> gMotionBlurEnabled{false};
+static std::atomic<float> gMotionBlurAmount{0.45f};
+static std::atomic<int> gFpsLimit{120};
 
 // THIRD PERSON (visual only: the camera is pulled back, nothing about the player's aim,
 // movement or hitboxes changes).
@@ -1755,6 +1765,9 @@ static NSString* getIL2CPPString(void* strObj) {
     [d setInteger:(NSInteger)gSkyboxColorHex.load() forKey:@"v_sky_c"];
     [d setBool:gFullbrightEnabled forKey:@"wv_fb"];
     [d setBool:gSnowEnabled forKey:@"wv_snow"];
+    [d setFloat:gMenuOpacity forKey:@"m_op"];
+    [d setFloat:gMenuScale forKey:@"m_sc"];
+    [d setBool:gMenuBlurEnabled forKey:@"m_blur"];
     [d setFloat:gFullbrightMul forKey:@"wv_fbm"];
     [d setBool:gNoFogEnabled forKey:@"wv_nf"];
     [d setBool:gAmbientTintEnabled forKey:@"wv_amb_e"];
@@ -1764,6 +1777,9 @@ static NSString* getIL2CPPString(void* strObj) {
     [d setFloat:gGammaVal forKey:@"wv_gam"];
     [d setFloat:gBloomVal forKey:@"wv_bloom"];
     [d setFloat:gSharpenVal forKey:@"wv_sharp"];
+    [d setBool:gMotionBlurEnabled forKey:@"wv_mblur"];
+    [d setFloat:gMotionBlurAmount forKey:@"wv_mblur_a"];
+    [d setInteger:gFpsLimit forKey:@"wv_fps"];
     [d setBool:gChamsPlayerEnabled forKey:@"v_chams_pl_e"];
     [d setBool:gChamsWeaponEnabled forKey:@"v_chams_wep_e"];
     [d setBool:gChamsPlayerXray forKey:@"v_chams_pl_x"];
@@ -2127,6 +2143,10 @@ static NSString* getIL2CPPString(void* strObj) {
     
     gFullbrightEnabled = [d boolForKey:@"wv_fb"];
     gSnowEnabled = [d boolForKey:@"wv_snow"];
+    gMenuOpacity = ClampFinite([d floatForKey:@"m_op"], 0.5f, 1.0f, 1.0f);
+    gMenuScale = ClampFinite([d floatForKey:@"m_sc"], 0.8f, 1.2f, 1.0f);
+    gMenuBlurEnabled = [d objectForKey:@"m_blur"] ? [d boolForKey:@"m_blur"] : true;
+    gMenuAccent = [ConfigManager loadColorForKey:@"m_accent" defaultColor:nil];
     gFullbrightMul = ClampFinite([d floatForKey:@"wv_fbm"], 1.0f, 20.0f, 3.0f);
     gNoFogEnabled = [d boolForKey:@"wv_nf"];
     gAmbientTintEnabled = [d boolForKey:@"wv_amb_e"];
@@ -2139,6 +2159,9 @@ static NSString* getIL2CPPString(void* strObj) {
     gGammaVal = ClampFinite([d floatForKey:@"wv_gam"], -1.0f, 1.0f, 0.0f);
     gBloomVal = ClampFinite([d floatForKey:@"wv_bloom"], 0.0f, 5.0f, 0.0f);
     gSharpenVal = ClampFinite([d floatForKey:@"wv_sharp"], 0.0f, 5.0f, 0.0f);
+    gMotionBlurEnabled = [d boolForKey:@"wv_mblur"];
+    gMotionBlurAmount = ClampFinite([d floatForKey:@"wv_mblur_a"], 0.0f, 1.0f, 0.45f);
+    gFpsLimit = (int)ClampFinite([d floatForKey:@"wv_fps"], 30.0f, 144.0f, 120.0f);
     gGradingDirty = true;
     
     gChamsPlayerEnabled = [d boolForKey:@"v_chams_pl_e"];
@@ -2239,6 +2262,36 @@ static NSString* getIL2CPPString(void* strObj) {
 
 @end
 
+// CONFIG SLOTS — snapshot the whole NSUserDefaults dictionary under cfg_slot_N.
+static void ConfigSaveSlot(int slot) {
+    NSUserDefaults *d = [NSUserDefaults standardUserDefaults];
+    NSDictionary *all = [d dictionaryRepresentation];
+    [d setObject:all forKey:[NSString stringWithFormat:@"cfg_slot_%d", slot]];
+    [d synchronize];
+}
+
+static void ConfigLoadSlot(int slot) {
+    NSUserDefaults *d = [NSUserDefaults standardUserDefaults];
+    NSDictionary *all = [d dictionaryForKey:[NSString stringWithFormat:@"cfg_slot_%d", slot]];
+    if (!all) {
+        return;
+    }
+    for (NSString *k in all) {
+        if ([k hasPrefix:@"cfg_slot_"]) {
+            continue;
+        }
+        [d setObject:all[k] forKey:k];
+    }
+    [d synchronize];
+    [ConfigManager load];
+}
+
+static void ConfigDeleteSlot(int slot) {
+    NSUserDefaults *d = [NSUserDefaults standardUserDefaults];
+    [d removeObjectForKey:[NSString stringWithFormat:@"cfg_slot_%d", slot]];
+    [d synchronize];
+}
+
 // HOOKS
 static bool hook_install(void* mi, void* hook, void** orig) {
     if (!mi || !hook) {
@@ -2312,8 +2365,8 @@ static void* AllocNear(uintptr_t near, size_t size) {
             if (addr < 0x100000000ULL) {
                 continue;
             }
-            mach_vm_address_t a = (mach_vm_address_t)addr;
-            if (mach_vm_allocate(mach_task_self(), &a, size, VM_FLAGS_FIXED) == KERN_SUCCESS) {
+            vm_address_t a = (vm_address_t)addr;
+            if (vm_allocate(mach_task_self(), &a, size, VM_FLAGS_FIXED) == KERN_SUCCESS) {
                 return (void*)a;
             }
         }
@@ -2336,8 +2389,8 @@ static bool PatchBranchFar(uintptr_t site, uintptr_t target) {
     *(uint64_t*)&tramp[2] = (uint64_t)target & 0x0000FFFFFFFFFFFFULL;
     __builtin___clear_cache((char*)tramp, (char*)tramp + 16);
     // W^X: write while RW, then flip the page to RX.
-    mach_vm_protect(mach_task_self(), (mach_vm_address_t)tramp, 0x4000, FALSE,
-                    VM_PROT_READ | VM_PROT_EXECUTE);
+    vm_protect(mach_task_self(), (vm_address_t)tramp, 0x4000, FALSE,
+               VM_PROT_READ | VM_PROT_EXECUTE);
     return PatchBranch(site, (uintptr_t)tramp);
 }
 
@@ -4604,7 +4657,7 @@ static UIImage* CreateKeyIcon(CGSize size, UIColor *color) {
 
 // Neverlose palette: near-black surfaces, one violet accent, hairline borders.
 static UIColor* NLAccent(void) {
-    return [UIColor colorWithRed:0.545 green:0.361 blue:0.965 alpha:1.0];
+    return gMenuAccent ?: [UIColor colorWithRed:0.545 green:0.361 blue:0.965 alpha:1.0];
 }
 static UIColor* NLSurface(void) {
     return [UIColor colorWithRed:0.055 green:0.055 blue:0.070 alpha:1.0];
@@ -4982,6 +5035,48 @@ static UIColor* NLTextDim(void) {
             control.frame = f;
             [self addSubview:control];
         }
+    }
+    return self;
+}
+
+@end
+
+// CONFIG ROW — label + Save / Load / Del, used by the CONFIG tab.
+@interface NLConfigRow : UIView
+- (instancetype)initWithTitle:(NSString*)title y:(CGFloat)y
+                       onSave:(void(^)(void))onSave
+                       onLoad:(void(^)(void))onLoad
+                     onDelete:(void(^)(void))onDelete;
+@end
+
+@implementation NLConfigRow
+
+- (instancetype)initWithTitle:(NSString*)title y:(CGFloat)y
+                       onSave:(void(^)(void))onSave
+                       onLoad:(void(^)(void))onLoad
+                     onDelete:(void(^)(void))onDelete {
+    self = [super initWithFrame:CGRectMake(15, y, 210, 22)];
+    if (self) {
+        UILabel *l = [[UILabel alloc] initWithFrame:CGRectMake(0, 0, 90, 22)];
+        l.text = SafeStr(title);
+        l.textColor = [UIColor colorWithWhite:0.92 alpha:1.0];
+        l.font = [UIFont systemFontOfSize:11 weight:UIFontWeightMedium];
+        [self addSubview:l];
+        
+        NLButton *bSave = [[NLButton alloc] initWithTitle:@"Save"];
+        bSave.frame = CGRectMake(96, 3, 34, 16);
+        bSave.onTap = onSave;
+        [self addSubview:bSave];
+        
+        NLButton *bLoad = [[NLButton alloc] initWithTitle:@"Load"];
+        bLoad.frame = CGRectMake(134, 3, 34, 16);
+        bLoad.onTap = onLoad;
+        [self addSubview:bLoad];
+        
+        NLButton *bDel = [[NLButton alloc] initWithTitle:@"Del"];
+        bDel.frame = CGRectMake(172, 3, 34, 16);
+        bDel.onTap = onDelete;
+        [self addSubview:bDel];
     }
     return self;
 }
@@ -5855,6 +5950,7 @@ static const CGFloat kSidebarW = 108.0;
         [self addTab:@"MISC" x:362];
         [self addTab:@"SETTINGS" x:412];
         [self addTab:@"SKINS" x:462];
+        [self addTab:@"CONFIG" x:512];
         
         UIButton *cfg = [UIButton buttonWithType:UIButtonTypeCustom];
         cfg.frame = CGRectMake(_topBar.bounds.size.width - 90, 10, 15, 15);
@@ -5885,7 +5981,7 @@ static const CGFloat kSidebarW = 108.0;
         _scrollView.showsVerticalScrollIndicator = NO;
         // VISUALS is the tallest tab (the third-person group sits at y 2660 + 240), so the
         // scroll area has to cover it.
-        _scrollView.contentSize = CGSizeMake(frame.size.width - kSidebarW, 2960);
+        _scrollView.contentSize = CGSizeMake(frame.size.width - kSidebarW, 3400);
         [_content addSubview:_scrollView];
         
         [self switchToTab:0];
@@ -5996,6 +6092,9 @@ static const CGFloat kSidebarW = 108.0;
                 gAimInfoColor = newColor;
             } else if ([weakKey isEqualToString:@"c_dl"]) {
                 gDamageLogColor = newColor;
+            } else if ([weakKey isEqualToString:@"m_accent"]) {
+                gMenuAccent = newColor;
+                [weakSelf buildContent];
             }
             
             [ConfigManager saveColor:newColor forKey:weakKey];
@@ -6098,8 +6197,18 @@ static NSString* NLIconForTab(NSString* title) {
     [self switchToTab:6];
 }
 
+- (void)applyMenuStyle {
+    CGFloat s = gMenuScale.load();
+    if (!std::isfinite(s) || s < 0.5f) {
+        s = 1.0f;
+    }
+    self.transform = CGAffineTransformMakeScale(s, s);
+    _blurView.hidden = !gMenuBlurEnabled.load();
+}
+
 - (void)buildContent {
     @try {
+        [self applyMenuStyle];
         __weak MenuView* weakSelf = self;
         
         for (UIView *v in _scrollView.subviews) {
@@ -7631,6 +7740,95 @@ static NSString* NLIconForTab(NSString* title) {
             [gTp addSubview:[[NLRow alloc] initWithTitle:@"Third Person FOV" y:ty control:sTpF swatch:nil]];
             ty += 30;
             
+            // ---- Post FX: motion blur + frame pacing ----
+            NLGroupBox *gPost = [[NLGroupBox alloc] initWithTitle:@"Post FX" frame:CGRectMake(0, 2910, colW, 150)];
+            [c2 addSubview:gPost];
+            CGFloat py = 30;
+            
+            NLCheckbox *cbMB = RageMakeCheckbox(gMotionBlurEnabled, ^(BOOL v) {
+                gMotionBlurEnabled = v;
+                gGradingDirty = true;
+                [ConfigManager save];
+            });
+            [gPost addSubview:[[NLRow alloc] initWithTitle:@"Motion Blur" y:py control:cbMB swatch:nil]];
+            py += 30;
+            
+            NLSlider *sMB = RageMakeSlider(gMotionBlurAmount, 0.0f, 1.0f, @"", ^(float v) {
+                gMotionBlurAmount = v;
+                gGradingDirty = true;
+            }, ^(float v) {
+                gMotionBlurAmount = v;
+                gGradingDirty = true;
+                [ConfigManager save];
+            });
+            [gPost addSubview:[[NLRow alloc] initWithTitle:@"Blur Amount" y:py control:sMB swatch:nil]];
+            py += 30;
+            
+            NLSlider *sFps = RageMakeSlider((float)gFpsLimit.load(), 30.0f, 144.0f, @"fps", ^(float v) {
+                gFpsLimit = (int)v;
+                ApplyFpsLimit();
+            }, ^(float v) {
+                gFpsLimit = (int)v;
+                ApplyFpsLimit();
+                [ConfigManager save];
+            });
+            [gPost addSubview:[[NLRow alloc] initWithTitle:@"FPS Limit" y:py control:sFps swatch:nil]];
+            py += 30;
+            
+            NLGroupBox *gExtra = [[NLGroupBox alloc] initWithTitle:@"HUD Extras" frame:CGRectMake(0, 3070, colW, 210)];
+            [c2 addSubview:gExtra];
+            CGFloat ey = 30;
+            
+            NLCheckbox *cbSnap = RageMakeCheckbox(gSnapBottomEnabled, ^(BOOL v) {
+                gSnapBottomEnabled = v;
+                [ConfigManager save];
+            });
+            [gExtra addSubview:[[NLRow alloc] initWithTitle:@"Snap Bottom" y:ey control:cbSnap swatch:nil]];
+            ey += 30;
+            
+            NLCheckbox *cbKF = RageMakeCheckbox(gKillFeedEnabled, ^(BOOL v) {
+                gKillFeedEnabled = v;
+                [ConfigManager save];
+            });
+            [gExtra addSubview:[[NLRow alloc] initWithTitle:@"Kill Feed" y:ey control:cbKF swatch:nil]];
+            ey += 30;
+            
+            NLSlider *sBoxStyle = RageMakeSlider((float)gBoxStyle, 0.0f, 3.0f, @"", ^(float v) {
+                gBoxStyle = (int)v;
+            }, ^(float v) {
+                gBoxStyle = (int)v;
+                [ConfigManager save];
+            });
+            [gExtra addSubview:[[NLRow alloc] initWithTitle:@"Box Style" y:ey control:sBoxStyle swatch:nil]];
+            ey += 30;
+            
+            NLSlider *sSkel = RageMakeSlider(gSkelThickness, 0.5f, 4.0f, @"px", ^(float v) {
+                gSkelThickness = v;
+            }, ^(float v) {
+                gSkelThickness = v;
+                [ConfigManager save];
+            });
+            [gExtra addSubview:[[NLRow alloc] initWithTitle:@"Skeleton Width" y:ey control:sSkel swatch:nil]];
+            ey += 30;
+            
+            NLSlider *sRR = RageMakeSlider((float)gRadarRange, 20.0f, 200.0f, @"m", ^(float v) {
+                gRadarRange = (int)v;
+            }, ^(float v) {
+                gRadarRange = (int)v;
+                [ConfigManager save];
+            });
+            [gExtra addSubview:[[NLRow alloc] initWithTitle:@"Radar Range" y:ey control:sRR swatch:nil]];
+            ey += 30;
+            
+            NLSlider *sRS = RageMakeSlider(gRadarSize, 70.0f, 220.0f, @"px", ^(float v) {
+                gRadarSize = v;
+            }, ^(float v) {
+                gRadarSize = v;
+                [ConfigManager save];
+            });
+            [gExtra addSubview:[[NLRow alloc] initWithTitle:@"Radar Size" y:ey control:sRS swatch:nil]];
+            ey += 30;
+            
         } else if (_currentTab == 3) {
             NLGroupBox *gWV = [[NLGroupBox alloc] initWithTitle:@"World View" frame:CGRectMake(0, 0, colW, 240)];
             [c1 addSubview:gWV];
@@ -7995,6 +8193,74 @@ static NSString* NLIconForTab(NSString* title) {
             [gVis addSubview:[[NLRow alloc] initWithTitle:@"Nightmode" y:y control:cbNM swatch:nil]];
             y += 30;
             
+            NLGroupBox *gQuick = [[NLGroupBox alloc] initWithTitle:@"Quick Toggles" frame:CGRectMake(0, 0, colW, 240)];
+            [c2 addSubview:gQuick];
+            CGFloat qy = 30;
+            
+            NLCheckbox *cbQA = RageMakeCheckbox(gHotAimbotEnabled, ^(BOOL v) {
+                gHotAimbotEnabled = v;
+                [ConfigManager save];
+            });
+            [gQuick addSubview:[[NLRow alloc] initWithTitle:@"Hotkey Aimbot" y:qy control:cbQA swatch:nil]];
+            qy += 30;
+            
+            NLCheckbox *cbQAF = RageMakeCheckbox(gHotAimOnFireEnabled, ^(BOOL v) {
+                gHotAimOnFireEnabled = v;
+                [ConfigManager save];
+            });
+            [gQuick addSubview:[[NLRow alloc] initWithTitle:@"Hotkey Aim Fire" y:qy control:cbQAF swatch:nil]];
+            qy += 30;
+            
+            NLCheckbox *cbQE = RageMakeCheckbox(gHotEspEnabled, ^(BOOL v) {
+                gHotEspEnabled = v;
+                [ConfigManager save];
+            });
+            [gQuick addSubview:[[NLRow alloc] initWithTitle:@"Hotkey ESP" y:qy control:cbQE swatch:nil]];
+            qy += 30;
+            
+            NLCheckbox *cbQS = RageMakeCheckbox(gSnowEnabled, ^(BOOL v) {
+                gSnowEnabled = v;
+                SnowOverlaySetEnabled(v);
+                [ConfigManager save];
+            });
+            [gQuick addSubview:[[NLRow alloc] initWithTitle:@"Snow" y:qy control:cbQS swatch:nil]];
+            qy += 30;
+            
+            NLCheckbox *cbQM = RageMakeCheckbox(gMotionBlurEnabled, ^(BOOL v) {
+                gMotionBlurEnabled = v;
+                gGradingDirty = true;
+                [ConfigManager save];
+            });
+            [gQuick addSubview:[[NLRow alloc] initWithTitle:@"Motion Blur" y:qy control:cbQM swatch:nil]];
+            qy += 30;
+            
+            NLCheckbox *cbQF = RageMakeCheckbox(gFpsEnabled, ^(BOOL v) {
+                gFpsEnabled = v;
+                [ConfigManager save];
+            });
+            [gQuick addSubview:[[NLRow alloc] initWithTitle:@"Show FPS" y:qy control:cbQF swatch:nil]];
+            qy += 30;
+            
+            NLGroupBox *gReset = [[NLGroupBox alloc] initWithTitle:@"Reset" frame:CGRectMake(0, 250, colW, 90)];
+            [c2 addSubview:gReset];
+            CGFloat ry = 30;
+            
+            NLButton *bResetCfg = [[NLButton alloc] initWithTitle:@"Reset"];
+            bResetCfg.onTap = ^{
+                NSUserDefaults *d = [NSUserDefaults standardUserDefaults];
+                NSDictionary *all = [d dictionaryRepresentation];
+                for (NSString *k in all) {
+                    if ([k hasPrefix:@"cfg_slot_"]) {
+                        continue;
+                    }
+                    [d removeObjectForKey:k];
+                }
+                [d synchronize];
+                [ConfigManager load];
+                [weakSelf buildContent];
+            };
+            [gReset addSubview:[[NLRow alloc] initWithTitle:@"Defaults" y:ry control:bResetCfg swatch:nil]];
+            ry += 30;
             
         } else if (_currentTab == 6) {
             NLGroupBox *gSet = [[NLGroupBox alloc] initWithTitle:@"Settings" frame:CGRectMake(0, 0, colW, 270)];
@@ -8118,6 +8384,95 @@ static NSString* NLIconForTab(NSString* title) {
             };
             [gColors addSubview:[[NLRow alloc] initWithTitle:@"Info Panel" y:ccy control:nil swatch:swIPanel]];
             ccy += 30;
+            
+            NLGroupBox *gMenu = [[NLGroupBox alloc] initWithTitle:@"Menu" frame:CGRectMake(0, 250, colW, 180)];
+            [c2 addSubview:gMenu];
+            CGFloat my = 30;
+            
+            NLColorSwatch *swAccent = [[NLColorSwatch alloc] initWithFrame:CGRectMake(0,0,16,16)];
+            swAccent.color = NLAccent();
+            __weak NLColorSwatch *weakSwAccent = swAccent;
+            swAccent.onTap = ^{
+                [weakSelf showColorPickerForSwatch:weakSwAccent currentColor:weakSwAccent.color saveKey:@"m_accent"];
+            };
+            [gMenu addSubview:[[NLRow alloc] initWithTitle:@"Accent" y:my control:nil swatch:swAccent]];
+            my += 30;
+            
+            NLSlider *sOpacity = RageMakeSlider(gMenuOpacity, 0.5f, 1.0f, @"", ^(float v) {
+                gMenuOpacity = v;
+                [weakSelf applyMenuStyle];
+            }, ^(float v) {
+                gMenuOpacity = v;
+                [weakSelf applyMenuStyle];
+                [ConfigManager save];
+            });
+            [gMenu addSubview:[[NLRow alloc] initWithTitle:@"Opacity" y:my control:sOpacity swatch:nil]];
+            my += 30;
+            
+            NLSlider *sScale = RageMakeSlider(gMenuScale, 0.8f, 1.2f, @"x", ^(float v) {
+                gMenuScale = v;
+                [weakSelf applyMenuStyle];
+            }, ^(float v) {
+                gMenuScale = v;
+                [weakSelf applyMenuStyle];
+                [ConfigManager save];
+            });
+            [gMenu addSubview:[[NLRow alloc] initWithTitle:@"Scale" y:my control:sScale swatch:nil]];
+            my += 30;
+            
+            NLCheckbox *cbBlur = RageMakeCheckbox(gMenuBlurEnabled, ^(BOOL v) {
+                gMenuBlurEnabled = v;
+                [weakSelf applyMenuStyle];
+                [ConfigManager save];
+            });
+            [gMenu addSubview:[[NLRow alloc] initWithTitle:@"Blur" y:my control:cbBlur swatch:nil]];
+            my += 30;
+            
+            NLGroupBox *gDiag = [[NLGroupBox alloc] initWithTitle:@"Diagnostics" frame:CGRectMake(0, 440, colW, 210)];
+            [c2 addSubview:gDiag];
+            CGFloat dy = 30;
+            
+            NLCheckbox *cbFps = RageMakeCheckbox(gFpsEnabled, ^(BOOL v) {
+                gFpsEnabled = v;
+                [ConfigManager save];
+            });
+            [gDiag addSubview:[[NLRow alloc] initWithTitle:@"Show FPS" y:dy control:cbFps swatch:nil]];
+            dy += 30;
+            
+            NLCheckbox *cbKb = RageMakeCheckbox(gKeybindListEnabled, ^(BOOL v) {
+                gKeybindListEnabled = v;
+                [ConfigManager save];
+            });
+            [gDiag addSubview:[[NLRow alloc] initWithTitle:@"Keybind List" y:dy control:cbKb swatch:nil]];
+            dy += 30;
+            
+            NLCheckbox *cbWmF = RageMakeCheckbox(gWatermarkShowFps, ^(BOOL v) {
+                gWatermarkShowFps = v;
+                [ConfigManager save];
+            });
+            [gDiag addSubview:[[NLRow alloc] initWithTitle:@"Watermark FPS" y:dy control:cbWmF swatch:nil]];
+            dy += 30;
+            
+            NLCheckbox *cbWmT = RageMakeCheckbox(gWatermarkShowTime, ^(BOOL v) {
+                gWatermarkShowTime = v;
+                [ConfigManager save];
+            });
+            [gDiag addSubview:[[NLRow alloc] initWithTitle:@"Watermark Time" y:dy control:cbWmT swatch:nil]];
+            dy += 30;
+            
+            NLCheckbox *cbWmP = RageMakeCheckbox(gWatermarkShowPlayers, ^(BOOL v) {
+                gWatermarkShowPlayers = v;
+                [ConfigManager save];
+            });
+            [gDiag addSubview:[[NLRow alloc] initWithTitle:@"Watermark Players" y:dy control:cbWmP swatch:nil]];
+            dy += 30;
+            
+            NLCheckbox *cbRR = RageMakeCheckbox(gRadarRotate, ^(BOOL v) {
+                gRadarRotate = v;
+                [ConfigManager save];
+            });
+            [gDiag addSubview:[[NLRow alloc] initWithTitle:@"Radar Rotate" y:dy control:cbRR swatch:nil]];
+            dy += 30;
         } else if (_currentTab == 7) {
             SkinCatalogLoad();
 
@@ -8237,6 +8592,85 @@ static NSString* NLIconForTab(NSString* title) {
                     sy += 28;
                 }
             }
+        } else if (_currentTab == 8) {
+            NLGroupBox *gCfg = [[NLGroupBox alloc] initWithTitle:@"Config Slots" frame:CGRectMake(0, 0, colW, 240)];
+            [c1 addSubview:gCfg];
+            CGFloat cy = 30;
+            for (int i = 0; i < 5; i++) {
+                int slot = i;
+                NLConfigRow *row = [[NLConfigRow alloc] initWithTitle:[NSString stringWithFormat:@"Slot %d", i + 1]
+                                                                    y:cy
+                                                               onSave:^{
+                    ConfigSaveSlot(slot);
+                    [weakSelf buildContent];
+                }
+                                                               onLoad:^{
+                    ConfigLoadSlot(slot);
+                    [weakSelf buildContent];
+                }
+                                                             onDelete:^{
+                    ConfigDeleteSlot(slot);
+                    [weakSelf buildContent];
+                }];
+                [gCfg addSubview:row];
+                cy += 30;
+            }
+            
+            NLGroupBox *gCfgInfo = [[NLGroupBox alloc] initWithTitle:@"Info" frame:CGRectMake(0, 0, colW, 120)];
+            [c2 addSubview:gCfgInfo];
+            CGFloat iy = 30;
+            UILabel *info = [[UILabel alloc] initWithFrame:CGRectMake(15, iy, colW - 30, 60)];
+            info.text = @"Slots snapshot every setting, including menu style and colors. Load restores the whole config.";
+            info.textColor = NLTextDim();
+            info.font = [UIFont systemFontOfSize:10 weight:UIFontWeightMedium];
+            info.numberOfLines = 0;
+            [gCfgInfo addSubview:info];
+            iy += 70;
+            
+            NLButton *bResetAll = [[NLButton alloc] initWithTitle:@"Reset All"];
+            bResetAll.onTap = ^{
+                NSUserDefaults *d = [NSUserDefaults standardUserDefaults];
+                NSDictionary *all = [d dictionaryRepresentation];
+                for (NSString *k in all) {
+                    if ([k hasPrefix:@"cfg_slot_"]) {
+                        continue;
+                    }
+                    [d removeObjectForKey:k];
+                }
+                [d synchronize];
+                [ConfigManager load];
+                [weakSelf buildContent];
+            };
+            [gCfgInfo addSubview:[[NLRow alloc] initWithTitle:@"Defaults" y:iy control:bResetAll swatch:nil]];
+            iy += 30;
+            
+            NLGroupBox *gAbout = [[NLGroupBox alloc] initWithTitle:@"About" frame:CGRectMake(0, 130, colW, 150)];
+            [c2 addSubview:gAbout];
+            CGFloat ay = 30;
+            
+            UILabel *about = [[UILabel alloc] initWithFrame:CGRectMake(15, ay, colW - 30, 50)];
+            about.text = @"FlopDLC v136.3\nNeverlose-inspired UI, no affiliation.";
+            about.textColor = NLTextDim();
+            about.font = [UIFont systemFontOfSize:10 weight:UIFontWeightMedium];
+            about.numberOfLines = 0;
+            [gAbout addSubview:about];
+            ay += 60;
+            
+            UILabel *credits = [[UILabel alloc] initWithFrame:CGRectMake(15, ay, colW - 30, 30)];
+            credits.text = @"UI: sidebar, cards, pill toggles, snow.";
+            credits.textColor = NLTextDim();
+            credits.font = [UIFont systemFontOfSize:9 weight:UIFontWeightMedium];
+            credits.numberOfLines = 0;
+            [gAbout addSubview:credits];
+            ay += 40;
+            
+            NLButton *bCopy = [[NLButton alloc] initWithTitle:@"Copy"];
+            bCopy.onTap = ^{
+                UIPasteboard *pb = [UIPasteboard generalPasteboard];
+                pb.string = @"FlopDLC v136.3";
+            };
+            [gAbout addSubview:[[NLRow alloc] initWithTitle:@"Version" y:ay control:bCopy swatch:nil]];
+            ay += 30;
         } else if (_currentTab == 1) {
             // ======================= RAGE =======================
             // Column 1: target selection, aim, trigger.
@@ -8835,6 +9269,23 @@ static void ApplyBloomToComponent(void* comp, void* ctx) {
     SetVolParam(*(void**)((uintptr_t)comp + 0x48), gBloomVal.load()); // intensity
 }
 
+static void ApplyMotionBlurToComponent(void* comp, void* ctx) {
+    bool on = gMotionBlurEnabled.load();
+    float amount = on ? gMotionBlurAmount.load() : 0.0f;
+    SetVolParam(*(void**)((uintptr_t)comp + 0x48), amount); // intensity
+    SetVolParam(*(void**)((uintptr_t)comp + 0x50), 0.05f);  // clamp
+}
+
+static void ApplyFpsLimit(void) {
+    if (!gSetTargetFrameRateMI || !p_runtime_invoke) {
+        return;
+    }
+    int v = gFpsLimit.load();
+    void* args[1] = { &v };
+    void* exc = nullptr;
+    p_runtime_invoke(gSetTargetFrameRateMI, nullptr, args, &exc);
+}
+
 static void ApplyWorldView(void) {
     @try {
         bool fb = gFullbrightEnabled.load();
@@ -8930,6 +9381,7 @@ static void ApplyWorldView(void) {
             gGradingDirty = false;
             ForEachVolumeComponent(gColorAdjCls, ApplyGradingToComponent, nullptr);
             ForEachVolumeComponent(gBloomCls, ApplyBloomToComponent, nullptr);
+            ForEachVolumeComponent(gMotionBlurCls, ApplyMotionBlurToComponent, nullptr);
         }
         
         float sharp = gSharpenVal.load();
@@ -9995,6 +10447,14 @@ static void bootstrap(void) {
         if (!gBloomCls) {
             gBloomCls = findClass("", "Bloom");
         }
+        gMotionBlurCls = findClass("UnityEngine.Rendering.Universal", "MotionBlur");
+        if (!gMotionBlurCls) {
+            gMotionBlurCls = findClass("", "MotionBlur");
+        }
+        gApplicationCls = findClass("UnityEngine", "Application");
+        if (gApplicationCls) {
+            gSetTargetFrameRateMI = p_class_get_method_from_name(gApplicationCls, "set_targetFrameRate", 1);
+        }
         gClampedFCls = findClass("UnityEngine.Rendering", "ClampedFloatParameter");
         if (!gClampedFCls) {
             gClampedFCls = findClass("", "ClampedFloatParameter");
@@ -10236,6 +10696,7 @@ static void bootstrap(void) {
         
         InstallAllHooks();
         [ConfigManager load];
+        ApplyFpsLimit();
         
         dispatch_queue_t q = dispatch_get_main_queue();
         gChamsTimer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, q);
