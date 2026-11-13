@@ -1032,7 +1032,9 @@ static void* gGameManagerCls = nullptr;
 static void* gDataCls = nullptr;
 static void* gItemDataGetIdMI = nullptr;
 static void* gItemFireSkinDtoUpdateMI = nullptr;
+static void* gItemSyncSkinDtoMI = nullptr;
 static void* gHandsEquipMI = nullptr;
+static void* gHandsLoadModelMI = nullptr;
 static void* gMobileInputsCls = nullptr;
 
 // =========================================================================================
@@ -1366,6 +1368,7 @@ static Vec3 g_targetHead;
 static Vec3 g_smoothTarget{};
 static Vec3 g_aimOnFireSmoothTarget{};
 static Vec3 g_silentAimTarget;
+static std::atomic<uint32_t> g_silentAimSeq{0};
 static std::atomic<bool> g_haveTarget{false};
 static std::atomic<bool> g_silentAimActive{false};
 
@@ -2909,21 +2912,52 @@ static void SkinApply(void) {
             return;
         }
     }
+
+    // The viewmodel rebuild is driven by ItemSkinDto, not by the ItemSkinData field alone.
+    // Feed the same JSON the server would send through SyncItemSkinDto so both the DTO and
+    // the asset pointer are populated, then fire the update event.
+    if (gItemSyncSkinDtoMI && p_runtime_invoke && p_string_new) {
+        std::string json = "{\"Id\":\"" + gSkinSelectedId + "\",\"DataId\":\"" + gSkinSelectedId +
+                           "\",\"IsNew\":false,\"Modules\":[],\"Equip\":0,\"Status\":0,\"Pattern\":0,\"PatternWear\":0}";
+        void* jsonStr = p_string_new(json.c_str());
+        void* emptyStr = p_string_new("");
+        if (jsonStr && emptyStr) {
+            void* args[2] = { emptyStr, jsonStr };
+            void* exc = nullptr;
+            p_runtime_invoke(gItemSyncSkinDtoMI, g_localWeapon, args, &exc);
+            if (exc) {
+                LOG(@"[SKIN] SyncItemSkinDto threw");
+            }
+        }
+    }
+
+    // Belt and suspenders: some paths read the backing field directly.
     *(void**)((uintptr_t)g_localWeapon + 0xE8) = gSkinSelectedObj;
+
     void* exc = nullptr;
     if (gItemFireSkinDtoUpdateMI && p_runtime_invoke) {
         p_runtime_invoke(gItemFireSkinDtoUpdateMI, g_localWeapon, nullptr, &exc);
     }
-    if (gHandsEquipMI && p_runtime_invoke && SANE_PTR(g_localSceneChar)) {
+    if (SANE_PTR(g_localSceneChar)) {
         void* hands = *(void**)((uintptr_t)g_localSceneChar + off::kCamHands);
         if (SANE_PTR(hands)) {
-            bool spectator = false;
-            void* args[2] = { g_localWeapon, &spectator };
-            exc = nullptr;
-            p_runtime_invoke(gHandsEquipMI, hands, args, &exc);
+            if (gHandsEquipMI && p_runtime_invoke) {
+                bool spectator = false;
+                void* args[2] = { g_localWeapon, &spectator };
+                exc = nullptr;
+                p_runtime_invoke(gHandsEquipMI, hands, args, &exc);
+            }
+            // Equip rebuilds the whole viewmodel (and plays the swap animation). LoadModel
+            // is the direct path that swaps just the mesh, so run it afterwards as well.
+            if (gHandsLoadModelMI && p_runtime_invoke) {
+                void* args[1] = { gSkinSelectedObj };
+                exc = nullptr;
+                p_runtime_invoke(gHandsLoadModelMI, hands, args, &exc);
+            }
         }
     }
     gSkinLastAppliedWeapon = g_localWeapon;
+    LOG(@"[SKIN] applied id=%s target=%s", gSkinSelectedId.c_str(), gSkinSelectedTarget.c_str());
 }
 
 static void SkinChangerTick(void) {
@@ -3134,6 +3168,7 @@ static void InstallAllHooks(void) {
         }
         if (gItemCls) {
             gItemFireSkinDtoUpdateMI = p_class_get_method_from_name(gItemCls, "FireSkinDtoUpdate", 0);
+            gItemSyncSkinDtoMI = p_class_get_method_from_name(gItemCls, "SyncItemSkinDto", 2);
             void* miSkin = p_class_get_method_from_name(gItemCls, "get_ItemSkinData", 0);
             if (miSkin) {
                 hook_install(miSkin, (void*)hook_ItemGetSkinData, (void**)&orig_ItemGetSkinData);
@@ -3142,6 +3177,7 @@ static void InstallAllHooks(void) {
         void* handsCls = findClass("", "SceneLevelHands");
         if (handsCls) {
             gHandsEquipMI = p_class_get_method_from_name(handsCls, "Equip", 2);
+            gHandsLoadModelMI = p_class_get_method_from_name(handsCls, "LoadModel", 1);
         }
 
         // Every weapon class that can appear in Data._items. The SKINS tab lists all of
@@ -9272,7 +9308,9 @@ static void espTick(void) {
         }
         
         if ((gAimbotEnabled || gAimOnFireEnabled || gSilentAimEnabled || gHotAimbotEnabled || gHotAimOnFireEnabled) && best && alive(slc) && alive(lcLocal)) {
+            g_silentAimSeq.fetch_add(1, std::memory_order_release);
             g_silentAimTarget = bestAimPos;
+            g_silentAimSeq.fetch_add(1, std::memory_order_release);
             g_silentAimActive = true;
             g_targetHead = bestAimPos;
             g_haveTarget = true;
@@ -10408,6 +10446,9 @@ typedef void (*fn_UseProcess)(void*, void*, void*);
 static fn_UseProcess orig_UseProcess = nullptr;
 
 static void hook_UseProcess(void* self, void* info, void* mi) {
+    // UseProcess only runs on a real shot, so it doubles as a fire-held signal when the
+    // OnClickFire hooks are missing on this build.
+    gFireHeldUntil = NowMs() + 600;
     BallisticsFirePre();
     if (NoSpreadActive()) {
         BallisticsWeaponTick(self);
@@ -10427,6 +10468,9 @@ typedef bool (*fn_TryUse)(void*, void*, void*);
 static fn_TryUse orig_TryUse = nullptr;
 
 static bool hook_TryUse(void* self, void* info, void* mi) {
+    // TryUse runs before the shot is built; open the fire window here so the visual
+    // aim-on-fire can track the target for the shot that is about to happen.
+    gFireHeldUntil = NowMs() + 400;
     if (NoSpreadActive()) {
         gSpreadWindowUntil = NowMs() + 500;
         BallisticsWeaponTick(self);
@@ -10473,12 +10517,19 @@ static inline float Vec3Len(const Vec3& v) {
 static bool BuildSilentAimShot(Vec3 from, Vec3 originalTo, Vec3* outTo, void** outHits, void* weapon) {
     // Aim-on-fire rides the same forged-shot path: the visual LookAtTarget in LateUpdate
     // runs after the weapon already fired, so it can never bend the current bullet.
-    const bool aimOnFire = (gAimOnFireEnabled.load() || gHotAimOnFireEnabled.load()) && IsFireHeld();
+    // fke is the fire Command itself, so it only runs on a real shot — no need to gate on
+    // the OnClickFire hooks (which are missing on some builds and left aim-on-fire dead).
+    const bool aimOnFire = gAimOnFireEnabled.load() || gHotAimOnFireEnabled.load();
     if (!outTo || !(gSilentAimEnabled.load() || aimOnFire) || !g_silentAimActive.load() || !g_haveTarget.load()) {
         return false;
     }
     
+    uint32_t seq1 = g_silentAimSeq.load(std::memory_order_acquire);
     Vec3 target = g_silentAimTarget;
+    uint32_t seq2 = g_silentAimSeq.load(std::memory_order_acquire);
+    if (seq1 != seq2 || (seq1 & 1)) {
+        return false;
+    }
     if (!Math::Finite(target) || !Math::Finite(from) || !Math::Finite(originalTo)) {
         return false;
     }
