@@ -1298,6 +1298,7 @@ static std::atomic<bool> gSkyboxDirty{true};
 
 // WORLD VIEW
 static std::atomic<bool> gFullbrightEnabled{false};
+static std::atomic<bool> gSnowEnabled{false};
 static std::atomic<float> gFullbrightMul{3.0f};
 static std::atomic<bool> gNoFogEnabled{false};
 static std::atomic<bool> gAmbientTintEnabled{false};
@@ -1753,6 +1754,7 @@ static NSString* getIL2CPPString(void* strObj) {
     [d setBool:gSkyboxEnabled forKey:@"v_sky_e"];
     [d setInteger:(NSInteger)gSkyboxColorHex.load() forKey:@"v_sky_c"];
     [d setBool:gFullbrightEnabled forKey:@"wv_fb"];
+    [d setBool:gSnowEnabled forKey:@"wv_snow"];
     [d setFloat:gFullbrightMul forKey:@"wv_fbm"];
     [d setBool:gNoFogEnabled forKey:@"wv_nf"];
     [d setBool:gAmbientTintEnabled forKey:@"wv_amb_e"];
@@ -2124,6 +2126,7 @@ static NSString* getIL2CPPString(void* strObj) {
     gSkyboxDirty = true;
     
     gFullbrightEnabled = [d boolForKey:@"wv_fb"];
+    gSnowEnabled = [d boolForKey:@"wv_snow"];
     gFullbrightMul = ClampFinite([d floatForKey:@"wv_fbm"], 1.0f, 20.0f, 3.0f);
     gNoFogEnabled = [d boolForKey:@"wv_nf"];
     gAmbientTintEnabled = [d boolForKey:@"wv_amb_e"];
@@ -4390,25 +4393,25 @@ static UIImage* CreateKeyIcon(CGSize size, UIColor *color) {
         emitter.emitterMode = kCAEmitterLayerSurface;
         
         CAEmitterCell *snowflake = [CAEmitterCell emitterCell];
-        snowflake.birthRate = 20.0;
-        snowflake.lifetime = 10.0;
-        snowflake.velocity = 40;
-        snowflake.velocityRange = 20;
-        snowflake.yAcceleration = 20;
+        snowflake.birthRate = 40.0;
+        snowflake.lifetime = 12.0;
+        snowflake.velocity = 30;
+        snowflake.velocityRange = 25;
+        snowflake.yAcceleration = 15;
         snowflake.emissionRange = 0.5 * M_PI;
-        snowflake.spinRange = 0.25 * M_PI;
+        snowflake.spinRange = 0.5 * M_PI;
         
-        UIGraphicsBeginImageContextWithOptions(CGSizeMake(4, 4), NO, 0.0);
+        UIGraphicsBeginImageContextWithOptions(CGSizeMake(6, 6), NO, 0.0);
         CGContextRef ctx = UIGraphicsGetCurrentContext();
         CGContextSetFillColorWithColor(ctx, [UIColor whiteColor].CGColor);
-        CGContextFillEllipseInRect(ctx, CGRectMake(0, 0, 4, 4));
+        CGContextFillEllipseInRect(ctx, CGRectMake(0, 0, 6, 6));
         UIImage *img = UIGraphicsGetImageFromCurrentImageContext();
         UIGraphicsEndImageContext();
         
         snowflake.contents = (id)img.CGImage;
-        snowflake.scale = 0.5;
-        snowflake.scaleRange = 0.5;
-        snowflake.alphaSpeed = -0.05;
+        snowflake.scale = 0.4;
+        snowflake.scaleRange = 0.6;
+        snowflake.alphaSpeed = -0.04;
         
         emitter.emitterCells = @[snowflake];
         [self.layer addSublayer:emitter];
@@ -5524,7 +5527,23 @@ static UIWindow* gMainWin = nil;
 static UIView* gOverlayContainer = nil;
 static UITextField* gSecureField = nil;
 static HotkeyView* gHotkeyView = nil;
+static SnowView* gSnowOverlay = nil;
 static void RefreshHotkeyView(void);
+
+static void SnowOverlaySetEnabled(bool enabled) {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if (enabled) {
+            if (!gSnowOverlay && gOverlayContainer) {
+                gSnowOverlay = [[SnowView alloc] initWithFrame:gOverlayContainer.bounds];
+                gSnowOverlay.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+                [gOverlayContainer insertSubview:gSnowOverlay atIndex:0];
+            }
+            gSnowOverlay.hidden = NO;
+        } else {
+            gSnowOverlay.hidden = YES;
+        }
+    });
+}
 
 @interface PassthroughView : UIView
 @end
@@ -5755,6 +5774,11 @@ static const CGFloat kSidebarW = 108.0;
         grad.endPoint = CGPointMake(1, 1);
         [self.layer insertSublayer:grad atIndex:0];
         
+        SnowView *menuSnow = [[SnowView alloc] initWithFrame:self.bounds];
+        menuSnow.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+        menuSnow.userInteractionEnabled = NO;
+        [self addSubview:menuSnow];
+        
         _sidebar = [[UIView alloc] initWithFrame:CGRectMake(0, 0, kSidebarW, frame.size.height)];
         _sidebar.backgroundColor = [UIColor colorWithWhite:0.0 alpha:0.28];
         _sidebar.layer.borderWidth = 0.5;
@@ -5772,6 +5796,37 @@ static const CGFloat kSidebarW = 108.0;
         brandSub.textColor = NLAccent();
         brandSub.font = [UIFont systemFontOfSize:8 weight:UIFontWeightBold];
         [_sidebar addSubview:brandSub];
+        
+        UIView *userCard = [[UIView alloc] initWithFrame:CGRectMake(8, frame.size.height - 56, kSidebarW - 16, 44)];
+        userCard.backgroundColor = NLSurfaceHi();
+        userCard.layer.cornerRadius = 8;
+        userCard.layer.borderWidth = 1;
+        userCard.layer.borderColor = NLBorder().CGColor;
+        [_sidebar addSubview:userCard];
+        
+        UIView *avatar = [[UIView alloc] initWithFrame:CGRectMake(8, 8, 28, 28)];
+        avatar.backgroundColor = NLAccent();
+        avatar.layer.cornerRadius = 14;
+        [userCard addSubview:avatar];
+        
+        UILabel *avatarText = [[UILabel alloc] initWithFrame:avatar.bounds];
+        avatarText.text = @"F";
+        avatarText.textColor = [UIColor whiteColor];
+        avatarText.textAlignment = NSTextAlignmentCenter;
+        avatarText.font = [UIFont systemFontOfSize:13 weight:UIFontWeightBold];
+        [avatar addSubview:avatarText];
+        
+        UILabel *userName = [[UILabel alloc] initWithFrame:CGRectMake(44, 8, kSidebarW - 60, 14)];
+        userName.text = @"Player";
+        userName.textColor = [UIColor whiteColor];
+        userName.font = [UIFont systemFontOfSize:10 weight:UIFontWeightSemibold];
+        [userCard addSubview:userName];
+        
+        UILabel *userRole = [[UILabel alloc] initWithFrame:CGRectMake(44, 22, kSidebarW - 60, 12)];
+        userRole.text = @"User";
+        userRole.textColor = NLTextDim();
+        userRole.font = [UIFont systemFontOfSize:8 weight:UIFontWeightMedium];
+        [userCard addSubview:userRole];
         
         _topBar = [[UIView alloc] initWithFrame:CGRectMake(kSidebarW, 0, frame.size.width - kSidebarW, 35)];
         _topBar.backgroundColor = [UIColor clearColor];
@@ -5800,6 +5855,13 @@ static const CGFloat kSidebarW = 108.0;
         [self addTab:@"MISC" x:362];
         [self addTab:@"SETTINGS" x:412];
         [self addTab:@"SKINS" x:462];
+        
+        UIButton *cfg = [UIButton buttonWithType:UIButtonTypeCustom];
+        cfg.frame = CGRectMake(_topBar.bounds.size.width - 90, 10, 15, 15);
+        [cfg setImage:[UIImage systemImageNamed:@"gearshape"] forState:UIControlStateNormal];
+        cfg.tintColor = NLTextDim();
+        [cfg addTarget:self action:@selector(openSettings) forControlEvents:UIControlEventTouchUpInside];
+        [_topBar addSubview:cfg];
         
         UIButton *mb = [UIButton buttonWithType:UIButtonTypeCustom];
         mb.frame = CGRectMake(_topBar.bounds.size.width - 60, 10, 15, 15);
@@ -5972,6 +6034,18 @@ static const CGFloat kSidebarW = 108.0;
     }];
 }
 
+static NSString* NLIconForTab(NSString* title) {
+    if ([title isEqualToString:@"LEGIT"]) return @"scope";
+    if ([title isEqualToString:@"RAGE"]) return @"flame";
+    if ([title isEqualToString:@"VISUALS"]) return @"eye";
+    if ([title isEqualToString:@"WORLD"]) return @"globe";
+    if ([title isEqualToString:@"PLAYER"]) return @"person";
+    if ([title isEqualToString:@"MISC"]) return @"wrench.and.screwdriver";
+    if ([title isEqualToString:@"SETTINGS"]) return @"gearshape";
+    if ([title isEqualToString:@"SKINS"]) return @"paintpalette";
+    return nil;
+}
+
 - (void)addTab:(NSString*)title x:(CGFloat)x {
     UIButton *b = [UIButton buttonWithType:UIButtonTypeCustom];
     NSUInteger idx = _tabs.count;
@@ -5980,6 +6054,12 @@ static const CGFloat kSidebarW = 108.0;
     b.titleLabel.font = [UIFont systemFontOfSize:10 weight:UIFontWeightBold];
     b.contentHorizontalAlignment = UIControlContentHorizontalAlignmentLeft;
     b.contentEdgeInsets = UIEdgeInsetsMake(0, 12, 0, 0);
+    NSString *icon = NLIconForTab(title);
+    if (icon) {
+        [b setImage:[UIImage systemImageNamed:icon] forState:UIControlStateNormal];
+        b.tintColor = NLTextDim();
+        b.imageEdgeInsets = UIEdgeInsetsMake(0, 0, 0, 8);
+    }
     [b setTitleColor:NLTextDim() forState:UIControlStateNormal];
     b.backgroundColor = [UIColor clearColor];
     b.layer.cornerRadius = 8;
@@ -6002,14 +6082,20 @@ static const CGFloat kSidebarW = 108.0;
         UIButton *b = _tabs[i];
         if (i == tabIndex) {
             [b setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
+            b.tintColor = [UIColor whiteColor];
             b.backgroundColor = [NLAccent() colorWithAlphaComponent:0.18];
         } else {
             [b setTitleColor:NLTextDim() forState:UIControlStateNormal];
+            b.tintColor = NLTextDim();
             b.backgroundColor = [UIColor clearColor];
         }
     }
     
     [self buildContent];
+}
+
+- (void)openSettings {
+    [self switchToTab:6];
 }
 
 - (void)buildContent {
@@ -7624,6 +7710,16 @@ static const CGFloat kSidebarW = 108.0;
                 [ConfigManager save];
             };
             [gWV addSubview:[[NLRow alloc] initWithTitle:@"Bloom" y:y control:sBloom swatch:nil]];
+            y += 30;
+            
+            NLCheckbox *cbSnow = [[NLCheckbox alloc] initWithFrame:CGRectMake(0,0,18,18)];
+            cbSnow.isOn = gSnowEnabled;
+            cbSnow.onToggle = ^(BOOL v) {
+                gSnowEnabled = v;
+                SnowOverlaySetEnabled(v);
+                [ConfigManager save];
+            };
+            [gWV addSubview:[[NLRow alloc] initWithTitle:@"Snow" y:y control:cbSnow swatch:nil]];
             y += 30;
             
             NLGroupBox *gSky = [[NLGroupBox alloc] initWithTitle:@"Skybox Presets" frame:CGRectMake(0, 250, colW, 120)];
@@ -9719,6 +9815,10 @@ static void startMainUI(void) {
             gMenuView = [[MenuView alloc] initWithFrame:CGRectMake((gMainWin.bounds.size.width - 620)/2, (gMainWin.bounds.size.height - 440)/2, 620, 440)];
             gMenuView.hidden = YES;
             [gOverlayContainer addSubview:gMenuView];
+            
+            if (gSnowEnabled.load()) {
+                SnowOverlaySetEnabled(true);
+            }
             
             gHotkeyView = [[HotkeyView alloc] initWithFrame:CGRectMake(8, MAX(0, gOverlayContainer.bounds.size.height - 92), 70, 84)];
             gHotkeyView.hidden = YES;
