@@ -28,6 +28,7 @@
 #include <mach/mach.h>
 #include <mach/task_info.h>
 #include <mach/vm_param.h>
+#include <mach-o/dyld.h>
 #include <dispatch/dispatch.h>
 #include <CoreFoundation/CoreFoundation.h>
 
@@ -974,6 +975,7 @@ static void* gSkinSelectedObj = nullptr;
 static std::string gSkinSelectedId;
 static std::string gSkinSelectedTarget;
 static std::string gSkinPendingId;
+static std::atomic<bool> gSkinApplying{false};
 static void* gWeaponClasses[12] = {nullptr};
 static int gWeaponClassCount = 0;
 
@@ -2262,6 +2264,40 @@ static bool hook_install(void* mi, void* hook, void** orig) {
     return true;
 }
 
+// IL2CPP compiles direct calls to a plain `b`/`bl`, so patching the MethodInfo only
+// catches runtime_invoke/virtual dispatch. These helpers patch the native branch itself.
+static uintptr_t UnityFrameworkBase(void) {
+    for (uint32_t i = 0; i < _dyld_image_count(); i++) {
+        const char* name = _dyld_get_image_name(i);
+        if (name && strstr(name, "UnityFramework")) {
+            return (uintptr_t)_dyld_get_image_header(i);
+        }
+    }
+    return 0;
+}
+
+static bool PatchBranch(uintptr_t site, uintptr_t target) {
+    uint32_t* p = (uint32_t*)site;
+    uint32_t w = *p;
+    if ((w & 0xFC000000) != 0x14000000) {
+        return false;
+    }
+    int64_t delta = (int64_t)target - (int64_t)site;
+    if (delta % 4 != 0 || delta < -(1LL << 27) || delta >= (1LL << 27)) {
+        return false;
+    }
+    uint32_t nw = 0x14000000 | ((uint32_t)(delta >> 2) & 0x03FFFFFF);
+    long ps = sysconf(_SC_PAGESIZE);
+    vm_address_t start = (vm_address_t)p & ~((vm_address_t)ps - 1);
+    vm_address_t end = ((vm_address_t)p + 4 + ps - 1) & ~((vm_address_t)ps - 1);
+    if (vm_protect(mach_task_self(), start, end - start, FALSE, VM_PROT_READ | VM_PROT_WRITE | VM_PROT_COPY) != KERN_SUCCESS) {
+        return false;
+    }
+    *p = nw;
+    __builtin___clear_cache((char*)p, (char*)p + 4);
+    return true;
+}
+
 typedef void (*fn_CamLateUpdate)(void* self, void* mi);
 static fn_CamLateUpdate orig_CamLateUpdate = nullptr;
 
@@ -2924,7 +2960,9 @@ static void SkinApply(void) {
         if (jsonStr && emptyStr) {
             void* args[2] = { emptyStr, jsonStr };
             void* exc = nullptr;
+            gSkinApplying = true;
             p_runtime_invoke(gItemSyncSkinDtoMI, g_localWeapon, args, &exc);
+            gSkinApplying = false;
             if (exc) {
                 LOG(@"[SKIN] SyncItemSkinDto threw");
             }
@@ -2964,7 +3002,13 @@ static void SkinChangerTick(void) {
     if (!gSkinChangerEnabled.load() || !SANE_PTR(gSkinSelectedObj)) {
         return;
     }
-    if (!SANE_PTR(g_localWeapon) || g_localWeapon == gSkinLastAppliedWeapon) {
+    if (!SANE_PTR(g_localWeapon)) {
+        // Death / respawn: the old weapon is gone. Forget the pointer so the new weapon is
+        // painted the moment it appears (otherwise a reused address would look "already done").
+        gSkinLastAppliedWeapon = nullptr;
+        return;
+    }
+    if (g_localWeapon == gSkinLastAppliedWeapon) {
         return;
     }
     // Mark before applying: a weapon that does not match the selected target must not be
@@ -2990,6 +3034,26 @@ static void* hook_ItemGetSkinData(void* self, void* mi) {
         return orig_ItemGetSkinData(self, mi);
     }
     return SANE_PTR(self) ? *(void**)((uintptr_t)self + 0xE8) : nullptr;
+}
+
+// The server re-sends ItemSkinDtoStr on respawn / re-equip and SyncItemSkinDto would wipe
+// the chosen skin. Swallow that update for the matching weapon so the selection survives
+// death; our own SkinApply call is flagged so it still goes through.
+typedef void (*fn_SyncItemSkinDto)(void* self, void* was, void* become, void* mi);
+static fn_SyncItemSkinDto orig_SyncItemSkinDto = nullptr;
+
+static void hook_SyncItemSkinDto(void* self, void* was, void* become, void* mi) {
+    if (!gSkinApplying.load() && gSkinChangerEnabled.load() && SANE_PTR(gSkinSelectedObj) &&
+        SANE_PTR(self) && !gSkinSelectedTarget.empty()) {
+        void* dataIdStr = *(void**)((uintptr_t)self + 0xB0);
+        if (Il2CppStringEqualsStd(dataIdStr, gSkinSelectedTarget)) {
+            gSkinLastAppliedWeapon = nullptr;
+            return;
+        }
+    }
+    if (orig_SyncItemSkinDto) {
+        orig_SyncItemSkinDto(self, was, become, mi);
+    }
 }
 
 typedef void (*fn_WepUpdate)(void* self, void* mi);
@@ -3172,6 +3236,9 @@ static void InstallAllHooks(void) {
             void* miSkin = p_class_get_method_from_name(gItemCls, "get_ItemSkinData", 0);
             if (miSkin) {
                 hook_install(miSkin, (void*)hook_ItemGetSkinData, (void**)&orig_ItemGetSkinData);
+            }
+            if (gItemSyncSkinDtoMI) {
+                hook_install(gItemSyncSkinDtoMI, (void*)hook_SyncItemSkinDto, (void**)&orig_SyncItemSkinDto);
             }
         }
         void* handsCls = findClass("", "SceneLevelHands");
@@ -4476,20 +4543,37 @@ static UIImage* CreateKeyIcon(CGSize size, UIColor *color) {
 @property (nonatomic, strong) UILabel *titleLabel;
 @end
 
+// Neverlose palette: near-black surfaces, one violet accent, hairline borders.
+static UIColor* NLAccent(void) {
+    return [UIColor colorWithRed:0.545 green:0.361 blue:0.965 alpha:1.0];
+}
+static UIColor* NLSurface(void) {
+    return [UIColor colorWithRed:0.055 green:0.055 blue:0.070 alpha:1.0];
+}
+static UIColor* NLSurfaceHi(void) {
+    return [UIColor colorWithRed:0.086 green:0.086 blue:0.106 alpha:1.0];
+}
+static UIColor* NLBorder(void) {
+    return [UIColor colorWithRed:0.145 green:0.145 blue:0.176 alpha:1.0];
+}
+static UIColor* NLTextDim(void) {
+    return [UIColor colorWithRed:0.545 green:0.545 blue:0.596 alpha:1.0];
+}
+
 @implementation NLGroupBox
 
 - (instancetype)initWithTitle:(NSString*)title frame:(CGRect)frame {
     self = [super initWithFrame:frame];
     if (self) {
-        self.layer.borderColor = [UIColor colorWithWhite:0.25 alpha:0.8].CGColor;
+        self.layer.borderColor = NLBorder().CGColor;
         self.layer.borderWidth = 1.0;
-        self.layer.cornerRadius = 6.0;
-        self.backgroundColor = [UIColor colorWithWhite:0.05 alpha:0.3];
+        self.layer.cornerRadius = 10.0;
+        self.backgroundColor = NLSurfaceHi();
         
         UILabel *lbl = [[UILabel alloc] initWithFrame:CGRectMake(12, 8, 200, 16)];
         lbl.text = SafeStr(title);
-        lbl.font = [UIFont systemFontOfSize:12 weight:UIFontWeightSemibold];
-        lbl.textColor = [UIColor lightGrayColor];
+        lbl.font = [UIFont systemFontOfSize:11 weight:UIFontWeightBold];
+        lbl.textColor = NLAccent();
         [self addSubview:lbl];
         self.titleLabel = lbl;
     }
@@ -4510,18 +4594,18 @@ static UIImage* CreateKeyIcon(CGSize size, UIColor *color) {
 }
 
 - (instancetype)initWithFrame:(CGRect)frame {
-    self = [super initWithFrame:frame];
+    // Call sites pass 18x18; Neverlose uses a pill, so force the pill size here.
+    self = [super initWithFrame:CGRectMake(frame.origin.x, frame.origin.y, 36, 20)];
     if (self) {
-        self.layer.cornerRadius = 4;
+        self.layer.cornerRadius = 10;
         self.layer.borderWidth = 1.0;
-        self.layer.borderColor = [UIColor colorWithWhite:0.4 alpha:1.0].CGColor;
-        self.backgroundColor = [UIColor colorWithWhite:0.1 alpha:1.0];
+        self.layer.borderColor = NLBorder().CGColor;
+        self.backgroundColor = NLSurface();
         self.userInteractionEnabled = YES;
         
-        _inner = [[UIView alloc] init];
-        _inner.layer.cornerRadius = 2;
-        _inner.backgroundColor = [UIColor whiteColor];
-        _inner.hidden = YES;
+        _inner = [[UIView alloc] initWithFrame:CGRectMake(2, 2, 16, 16)];
+        _inner.layer.cornerRadius = 8;
+        _inner.backgroundColor = NLTextDim();
         _inner.userInteractionEnabled = NO;
         [self addSubview:_inner];
         
@@ -4541,7 +4625,6 @@ static UIImage* CreateKeyIcon(CGSize size, UIColor *color) {
 
 - (void)layoutSubviews {
     [super layoutSubviews];
-    _inner.frame = CGRectInset(self.bounds, 4, 4);
     _xMark.frame = self.bounds;
 }
 
@@ -4551,7 +4634,6 @@ static UIImage* CreateKeyIcon(CGSize size, UIColor *color) {
     }
     
     self.isOn = !self.isOn;
-    _inner.hidden = !self.isOn;
     if (self.onToggle) {
         self.onToggle(self.isOn);
     }
@@ -4559,23 +4641,32 @@ static UIImage* CreateKeyIcon(CGSize size, UIColor *color) {
 
 - (void)setIsOn:(BOOL)isOn {
     _isOn = isOn;
-    _inner.hidden = !isOn;
+    __weak NLCheckbox* weakSelf = self;
+    [UIView animateWithDuration:0.15 animations:^{
+        NLCheckbox* s = weakSelf;
+        if (!s) {
+            return;
+        }
+        s.backgroundColor = isOn ? NLAccent() : NLSurface();
+        s->_inner.backgroundColor = isOn ? [UIColor whiteColor] : NLTextDim();
+        s->_inner.frame = CGRectMake(isOn ? 18 : 2, 2, 16, 16);
+    }];
 }
 
 - (void)setIsDisabled:(BOOL)isDisabled {
     _isDisabled = isDisabled;
     if (isDisabled) {
         self.userInteractionEnabled = NO;
-        self.backgroundColor = [UIColor colorWithWhite:0.05 alpha:1.0];
-        self.layer.borderColor = [UIColor colorWithWhite:0.2 alpha:1.0].CGColor;
+        self.backgroundColor = NLSurface();
+        self.layer.borderColor = NLBorder().CGColor;
         _inner.hidden = YES;
         _xMark.hidden = NO;
     } else {
         self.userInteractionEnabled = YES;
-        self.backgroundColor = [UIColor colorWithWhite:0.1 alpha:1.0];
-        self.layer.borderColor = [UIColor colorWithWhite:0.4 alpha:1.0].CGColor;
+        self.backgroundColor = _isOn ? NLAccent() : NLSurface();
+        self.layer.borderColor = NLBorder().CGColor;
         _xMark.hidden = YES;
-        _inner.hidden = !_isOn;
+        _inner.hidden = NO;
     }
 }
 
@@ -4639,12 +4730,12 @@ static UIImage* CreateKeyIcon(CGSize size, UIColor *color) {
         self.userInteractionEnabled = YES;
         
         _track = [[UIView alloc] initWithFrame:CGRectMake(0, frame.size.height/2 - 1.5, _w, 3)];
-        _track.backgroundColor = [UIColor darkGrayColor];
+        _track.backgroundColor = NLBorder();
         _track.layer.cornerRadius = 1.5;
         [self addSubview:_track];
         
         _fill = [[UIView alloc] initWithFrame:CGRectMake(0, 0, _w, 3)];
-        _fill.backgroundColor = [UIColor whiteColor];
+        _fill.backgroundColor = NLAccent();
         _fill.layer.cornerRadius = 1.5;
         [_track addSubview:_fill];
         
@@ -4710,8 +4801,10 @@ static UIImage* CreateKeyIcon(CGSize size, UIColor *color) {
 - (instancetype)initWithTitle:(NSString*)title {
     self = [super initWithFrame:CGRectMake(0, 0, 80, 16)];
     if (self) {
-        self.backgroundColor = [UIColor colorWithWhite:0.2 alpha:1.0];
-        self.layer.cornerRadius = 3;
+        self.backgroundColor = NLSurfaceHi();
+        self.layer.cornerRadius = 6;
+        self.layer.borderWidth = 1;
+        self.layer.borderColor = NLBorder().CGColor;
         self.userInteractionEnabled = YES;
         
         _titleLabel = [[UILabel alloc] initWithFrame:self.bounds];
@@ -4749,8 +4842,8 @@ static UIImage* CreateKeyIcon(CGSize size, UIColor *color) {
     self = [super initWithFrame:CGRectMake(0, 0, 260, 26)];
     if (self) {
         self.backgroundColor = selected
-            ? [UIColor colorWithRed:0.16 green:0.42 blue:0.85 alpha:0.95]
-            : [UIColor colorWithWhite:0.14 alpha:0.85];
+            ? [NLAccent() colorWithAlphaComponent:0.85]
+            : NLSurfaceHi();
         self.layer.cornerRadius = 5;
         self.layer.borderWidth = selected ? 1.0 : 0.5;
         self.layer.borderColor = selected
@@ -4814,7 +4907,7 @@ static UIImage* CreateKeyIcon(CGSize size, UIColor *color) {
     if (self) {
         UILabel *l = [[UILabel alloc] initWithFrame:CGRectMake(0, 0, 100, 22)];
         l.text = SafeStr(title);
-        l.textColor = [UIColor whiteColor];
+        l.textColor = [UIColor colorWithWhite:0.92 alpha:1.0];
         l.font = [UIFont systemFontOfSize:11 weight:UIFontWeightMedium];
         [self addSubview:l];
         
@@ -5571,6 +5664,7 @@ static NLButton* RageMakeCycle(NSString* initial, NSArray<NSString*>* labels, NS
 
 @implementation MenuView {
     UIVisualEffectView *_blurView;
+    UIView *_sidebar;
     UIView *_topBar;
     UIView *_content;
     UIScrollView *_scrollView;
@@ -5580,6 +5674,8 @@ static NLButton* RageMakeCycle(NSString* initial, NSArray<NSString*>* labels, NS
     CGRect _origFrame;
 }
 
+static const CGFloat kSidebarW = 108.0;
+
 - (instancetype)initWithFrame:(CGRect)frame {
     self = [super initWithFrame:frame];
     if (self) {
@@ -5588,37 +5684,54 @@ static NLButton* RageMakeCycle(NSString* initial, NSArray<NSString*>* labels, NS
         self.clipsToBounds = YES;
         self.userInteractionEnabled = YES;
         self.layer.borderWidth = 1;
-        self.layer.borderColor = [UIColor colorWithWhite:0.3 alpha:0.8].CGColor;
+        self.layer.borderColor = [NLAccent() colorWithAlphaComponent:0.35].CGColor;
         
         _blurView = [[UIVisualEffectView alloc] initWithEffect:[UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemUltraThinMaterialDark]];
         _blurView.frame = self.bounds;
         _blurView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
         [self addSubview:_blurView];
         
-        UIView *darkOverlay = [[UIView alloc] initWithFrame:self.bounds];
-        darkOverlay.backgroundColor = [UIColor colorWithWhite:0.0 alpha:0.3];
-        darkOverlay.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-        [self addSubview:darkOverlay];
+        CAGradientLayer *grad = [CAGradientLayer layer];
+        grad.frame = self.bounds;
+        grad.colors = @[(id)[UIColor colorWithRed:0.035 green:0.035 blue:0.047 alpha:0.92].CGColor,
+                        (id)[UIColor colorWithRed:0.075 green:0.055 blue:0.115 alpha:0.92].CGColor];
+        grad.startPoint = CGPointMake(0, 0);
+        grad.endPoint = CGPointMake(1, 1);
+        [self.layer insertSublayer:grad atIndex:0];
         
-        _topBar = [[UIView alloc] initWithFrame:CGRectMake(0, 0, frame.size.width, 35)];
+        _sidebar = [[UIView alloc] initWithFrame:CGRectMake(0, 0, kSidebarW, frame.size.height)];
+        _sidebar.backgroundColor = [UIColor colorWithWhite:0.0 alpha:0.28];
+        _sidebar.layer.borderWidth = 0.5;
+        _sidebar.layer.borderColor = NLBorder().CGColor;
+        [self addSubview:_sidebar];
+        
+        UILabel *brand = [[UILabel alloc] initWithFrame:CGRectMake(14, 14, kSidebarW - 20, 18)];
+        brand.text = @"NEVERLOSE";
+        brand.textColor = [UIColor whiteColor];
+        brand.font = [UIFont systemFontOfSize:12 weight:UIFontWeightHeavy];
+        [_sidebar addSubview:brand];
+        
+        UILabel *brandSub = [[UILabel alloc] initWithFrame:CGRectMake(14, 30, kSidebarW - 20, 12)];
+        brandSub.text = @"FLOPDLC";
+        brandSub.textColor = NLAccent();
+        brandSub.font = [UIFont systemFontOfSize:8 weight:UIFontWeightBold];
+        [_sidebar addSubview:brandSub];
+        
+        _topBar = [[UIView alloc] initWithFrame:CGRectMake(kSidebarW, 0, frame.size.width - kSidebarW, 35)];
         _topBar.backgroundColor = [UIColor clearColor];
         _topBar.layer.borderWidth = 0.5;
-        _topBar.layer.borderColor = [UIColor colorWithWhite:0.3 alpha:0.8].CGColor;
+        _topBar.layer.borderColor = NLBorder().CGColor;
         _topBar.userInteractionEnabled = YES;
         
         UIPanGestureRecognizer *pan = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(panAction:)];
         [_topBar addGestureRecognizer:pan];
         [self addSubview:_topBar];
         
-        UIImageView *logoImg = [[UIImageView alloc] initWithImage:CreateFlopDLCFLogo(CGSizeMake(16, 16))];
-        logoImg.frame = CGRectMake(15, 9, 16, 16);
-        [_topBar addSubview:logoImg];
-        
-        UILabel *logoText = [[UILabel alloc] initWithFrame:CGRectMake(35, 0, 100, 35)];
-        logoText.text = @"FlopDLC";
-        logoText.textColor = [UIColor whiteColor];
-        logoText.font = [UIFont systemFontOfSize:16 weight:UIFontWeightHeavy];
-        [_topBar addSubview:logoText];
+        UILabel *pageTitle = [[UILabel alloc] initWithFrame:CGRectMake(14, 0, 160, 35)];
+        pageTitle.text = @"Dashboard";
+        pageTitle.textColor = [UIColor whiteColor];
+        pageTitle.font = [UIFont systemFontOfSize:12 weight:UIFontWeightSemibold];
+        [_topBar addSubview:pageTitle];
         
         _tabs = [NSMutableArray array];
         // LEGIT first, RAGE right beside it: the two aim tabs stay adjacent so switching
@@ -5633,20 +5746,20 @@ static NLButton* RageMakeCycle(NSString* initial, NSArray<NSString*>* labels, NS
         [self addTab:@"SKINS" x:462];
         
         UIButton *mb = [UIButton buttonWithType:UIButtonTypeCustom];
-        mb.frame = CGRectMake(frame.size.width - 60, 10, 15, 15);
+        mb.frame = CGRectMake(_topBar.bounds.size.width - 60, 10, 15, 15);
         [mb setImage:[UIImage systemImageNamed:@"minus"] forState:UIControlStateNormal];
         mb.tintColor = [UIColor lightGrayColor];
         [mb addTarget:self action:@selector(minimizeAction) forControlEvents:UIControlEventTouchUpInside];
         [_topBar addSubview:mb];
         
         UIButton *cb = [UIButton buttonWithType:UIButtonTypeCustom];
-        cb.frame = CGRectMake(frame.size.width - 30, 10, 15, 15);
+        cb.frame = CGRectMake(_topBar.bounds.size.width - 30, 10, 15, 15);
         [cb setImage:[UIImage systemImageNamed:@"xmark"] forState:UIControlStateNormal];
         cb.tintColor = [UIColor lightGrayColor];
         [cb addTarget:self action:@selector(closeAction) forControlEvents:UIControlEventTouchUpInside];
         [_topBar addSubview:cb];
         
-        _content = [[UIView alloc] initWithFrame:CGRectMake(0, 35, frame.size.width, frame.size.height - 35)];
+        _content = [[UIView alloc] initWithFrame:CGRectMake(kSidebarW, 35, frame.size.width - kSidebarW, frame.size.height - 35)];
         [self addSubview:_content];
         
         _scrollView = [[UIScrollView alloc] initWithFrame:_content.bounds];
@@ -5654,7 +5767,7 @@ static NLButton* RageMakeCycle(NSString* initial, NSArray<NSString*>* labels, NS
         _scrollView.showsVerticalScrollIndicator = NO;
         // VISUALS is the tallest tab (the third-person group sits at y 2660 + 240), so the
         // scroll area has to cover it.
-        _scrollView.contentSize = CGSizeMake(frame.size.width, 2960);
+        _scrollView.contentSize = CGSizeMake(frame.size.width - kSidebarW, 2960);
         [_content addSubview:_scrollView];
         
         [self switchToTab:0];
@@ -5805,12 +5918,17 @@ static NLButton* RageMakeCycle(NSString* initial, NSArray<NSString*>* labels, NS
 
 - (void)addTab:(NSString*)title x:(CGFloat)x {
     UIButton *b = [UIButton buttonWithType:UIButtonTypeCustom];
-    b.frame = CGRectMake(x, 0, 50, 35);
+    NSUInteger idx = _tabs.count;
+    b.frame = CGRectMake(8, 52 + idx * 34, kSidebarW - 16, 30);
     [b setTitle:SafeStr(title) forState:UIControlStateNormal];
-    b.titleLabel.font = [UIFont systemFontOfSize:9 weight:UIFontWeightBold];
-    [b setTitleColor:[UIColor lightGrayColor] forState:UIControlStateNormal];
+    b.titleLabel.font = [UIFont systemFontOfSize:10 weight:UIFontWeightBold];
+    b.contentHorizontalAlignment = UIControlContentHorizontalAlignmentLeft;
+    b.contentEdgeInsets = UIEdgeInsetsMake(0, 12, 0, 0);
+    [b setTitleColor:NLTextDim() forState:UIControlStateNormal];
+    b.backgroundColor = [UIColor clearColor];
+    b.layer.cornerRadius = 8;
     [b addTarget:self action:@selector(tabTap:) forControlEvents:UIControlEventTouchUpInside];
-    [_topBar addSubview:b];
+    [_sidebar addSubview:b];
     [_tabs addObject:b];
 }
 
@@ -5828,8 +5946,10 @@ static NLButton* RageMakeCycle(NSString* initial, NSArray<NSString*>* labels, NS
         UIButton *b = _tabs[i];
         if (i == tabIndex) {
             [b setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
+            b.backgroundColor = [NLAccent() colorWithAlphaComponent:0.18];
         } else {
-            [b setTitleColor:[UIColor lightGrayColor] forState:UIControlStateNormal];
+            [b setTitleColor:NLTextDim() forState:UIControlStateNormal];
+            b.backgroundColor = [UIColor clearColor];
         }
     }
     
@@ -9282,7 +9402,8 @@ static void espTick(void) {
             
             
             if (gAimbotEnabled || gAimOnFireEnabled || gSilentAimEnabled || gHotAimbotEnabled || gHotAimOnFireEnabled) {
-                if (gAimbotVisibleOnly && !isVisible) {
+                // Silent aim does not need line of sight; only the visual aimbot does.
+                if (gAimbotVisibleOnly && !gSilentAimEnabled && !isVisible) {
                     continue;
                 }
                 
@@ -10565,6 +10686,10 @@ static bool BuildSilentAimShot(Vec3 from, Vec3 originalTo, Vec3* outTo, void** o
 }
 
 static void hook_FireBulletCommand(void* self, Vec3 from, Vec3 to, void* hits, bool grounded, void* mi) {
+    static std::atomic<bool> seen{false};
+    if (!seen.exchange(true)) {
+        LOG(@"[SA] FireBullet hook reached");
+    }
     Vec3 newTo;
     void* newHits = nullptr;
     if (BuildSilentAimShot(from, to, &newTo, &newHits, self)) {
@@ -10643,6 +10768,22 @@ static void InstallBallisticsHooks(void) {
                 }
             } else {
                 LOG(@"[BALL] fke not found, silent aim disabled");
+            }
+
+            // fkb tail-calls fke with a plain `b`, so the MethodInfo patch above never sees
+            // the real shot. Patch that branch too; the RVAs are for this UnityFramework build.
+            uintptr_t ufBase = UnityFrameworkBase();
+            if (ufBase) {
+                uintptr_t fkeAddr = ufBase + 0x19D8624;
+                uintptr_t callSite = ufBase + 0x19D710C;
+                orig_FireBulletCommand = (fn_FireBulletCommand)fkeAddr;
+                if (PatchBranch(callSite, (uintptr_t)hook_FireBulletCommand)) {
+                    LOG(@"[BALL] fke call-site patched");
+                } else {
+                    LOG(@"[BALL] fke call-site patch failed");
+                }
+            } else {
+                LOG(@"[BALL] UnityFramework base not found");
             }
             
             // Local raycast used to rebuild the hit list for the silent-aim direction.
