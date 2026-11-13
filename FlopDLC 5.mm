@@ -4818,7 +4818,12 @@ static UIImage* CreateKeyIcon(CGSize size, UIColor *color) {
         btn.backgroundColor = [UIColor colorWithRed:0.4 green:0.2 blue:0.8 alpha:1.0];
         btn.layer.cornerRadius = 8;
         btn.titleLabel.font = [UIFont boldSystemFontOfSize:16];
-        [btn setImage:[UIImage systemImageNamed:@"bolt.fill"] forState:UIControlStateNormal];
+        if (@available(iOS 13.0, *)) {
+            UIImage *boltIcon = [UIImage systemImageNamed:@"bolt.fill"];
+            if (boltIcon) {
+                [btn setImage:boltIcon forState:UIControlStateNormal];
+            }
+        }
         btn.tintColor = [UIColor whiteColor];
         btn.imageEdgeInsets = UIEdgeInsetsMake(0, -10, 0, 0);
         [btn addTarget:self action:@selector(activate) forControlEvents:UIControlEventTouchUpInside];
