@@ -1,5 +1,5 @@
 // =========================================================================================
-// FlopDLC.mm — v136.4 (Key System startup crash fixed)
+// FlopDLC.mm — v136.5 (Key system removed, menu scale and scene-switch fixes)
 // =========================================================================================
 // Сборка: clang++ -arch arm64 -miphoneos-version-min=15.0 -isysroot $(xcrun --sdk iphoneos --show-sdk-path) -std=c++17 -fobjc-arc -O2 -fvisibility=hidden -dynamiclib -install_name @rpath/FlopDLC.dylib -framework Foundation -framework UIKit -framework CoreGraphics -framework CoreFoundation -framework QuartzCore -framework AVFoundation FlopDLC.mm -o FlopDLC.dylib
 // =========================================================================================
@@ -34,7 +34,7 @@
 #include <dispatch/dispatch.h>
 #include <CoreFoundation/CoreFoundation.h>
 
-static constexpr const char* kEspVersion = "136.4";
+static constexpr const char* kEspVersion = "136.5";
 
 #define SANE_PTR(p) ((uintptr_t)(p) > 0x100000000 && (uintptr_t)(p) < 0x00007FFFFFFFFFFF)
 
@@ -2221,7 +2221,17 @@ static NSString* getIL2CPPString(void* strObj) {
     gFullbrightEnabled = [d boolForKey:@"wv_fb"];
     gSnowEnabled = [d boolForKey:@"wv_snow"];
     gMenuOpacity = ClampFinite([d floatForKey:@"m_op"], 0.5f, 1.0f, 1.0f);
-    gMenuScale = ClampFinite([d floatForKey:@"m_sc"], 0.8f, 1.2f, 1.0f);
+    // floatForKey returns 0 when the key is absent, and ClampFinite would then pin it to
+    // the 0.8 lower bound. That made the menu open at 1.0 (the open animation) and shrink
+    // to 0.8 on the first tab switch. Default to 1.0 and migrate the old buggy value.
+    if ([d objectForKey:@"m_sc"]) {
+        gMenuScale = ClampFinite([d floatForKey:@"m_sc"], 0.8f, 1.2f, 1.0f);
+        if (fabsf(gMenuScale.load() - 0.8f) < 0.001f) {
+            gMenuScale = 1.0f;
+        }
+    } else {
+        gMenuScale = 1.0f;
+    }
     gMenuBlurEnabled = [d objectForKey:@"m_blur"] ? [d boolForKey:@"m_blur"] : true;
     gMenuAccent = [ConfigManager loadColorForKey:@"m_accent" defaultColor:nil];
     gFullbrightMul = ClampFinite([d floatForKey:@"wv_fbm"], 1.0f, 20.0f, 3.0f);
@@ -2791,7 +2801,7 @@ static void hook_CamLateUpdate(void* self, void* mi) {
     }
     
     // LateUpdate runs after weapon Update — keep spread/recoil at 0 for the next shot
-    if (g_localWeapon && SANE_PTR(g_localWeapon)) {
+    if (alive(g_localWeapon)) {
         BallisticsWeaponTick(g_localWeapon);
     }
     BallisticsTick();
@@ -3408,13 +3418,15 @@ static void SkinApplyEx(bool withEquip) {
     }
 
     // Belt and suspenders: some paths read the backing field directly.
-    *(void**)((uintptr_t)g_localWeapon + 0xE8) = skin.obj;
+    if (alive(g_localWeapon)) {
+        *(void**)((uintptr_t)g_localWeapon + 0xE8) = skin.obj;
+    }
 
     void* exc = nullptr;
     if (gItemFireSkinDtoUpdateMI && p_runtime_invoke) {
         p_runtime_invoke(gItemFireSkinDtoUpdateMI, g_localWeapon, nullptr, &exc);
     }
-    if (SANE_PTR(g_localSceneChar)) {
+    if (alive(g_localSceneChar)) {
         void* hands = *(void**)((uintptr_t)g_localSceneChar + off::kCamHands);
         if (SANE_PTR(hands)) {
             if (withEquip && gHandsEquipMI && p_runtime_invoke) {
@@ -4460,6 +4472,13 @@ static void ChamsTick() {
             return;
         }
         
+        // Scene switch / death: the cached player list still points at destroyed objects.
+        // Drop it instead of walking freed memory from the chams timer.
+        if (!alive(gLocal)) {
+            gCached.clear();
+            return;
+        }
+        
         if (gChamsPlayerColorDirty) {
             for (int i = 0; i < 6; i++) {
                 gChamsMatsPlayer[i] = nullptr;
@@ -4553,29 +4572,6 @@ static UIImage* CreateFlopDLCFLogo(CGSize size) {
         CGContextAddLineToPoint(c, w * 0.85, h * 0.05);
         CGContextStrokePath(c);
         CGContextSetBlendMode(c, kCGBlendModeNormal);
-    }];
-}
-
-static UIImage* CreateKeyIcon(CGSize size, UIColor *color) {
-    UIGraphicsImageRenderer* renderer = [[UIGraphicsImageRenderer alloc] initWithSize:size];
-    return [renderer imageWithActions:^(UIGraphicsImageRendererContext* ctx) {
-        CGContextRef c = ctx.CGContext;
-        CGContextSetStrokeColorWithColor(c, color.CGColor);
-        CGContextSetLineWidth(c, 2.0);
-        CGContextSetLineCap(c, kCGLineCapRound);
-        
-        // Circle part
-        CGContextStrokeEllipseInRect(c, CGRectMake(size.width * 0.2, size.height * 0.2, size.width * 0.4, size.height * 0.4));
-        
-        // Shaft
-        CGContextMoveToPoint(c, size.width * 0.55, size.height * 0.55);
-        CGContextAddLineToPoint(c, size.width * 0.85, size.height * 0.85);
-        CGContextStrokePath(c);
-        
-        // Teeth
-        CGContextMoveToPoint(c, size.width * 0.75, size.height * 0.85);
-        CGContextAddLineToPoint(c, size.width * 0.85, size.height * 0.75);
-        CGContextStrokePath(c);
     }];
 }
 
@@ -4813,177 +4809,6 @@ static UIImage* CreateKeyIcon(CGSize size, UIColor *color) {
         [self.layer addSublayer:emitter];
     }
     return self;
-}
-
-@end
-
-@interface KeySystemView : UIView <UITextFieldDelegate>
-@property (nonatomic, copy) void (^onSuccess)(void);
-- (instancetype)initWithFrame:(CGRect)frame;
-@end
-
-@implementation KeySystemView {
-    UITextField *_keyField;
-    UILabel *_errorLabel;
-    UIView *_mainContainer;
-}
-
-- (instancetype)initWithFrame:(CGRect)frame {
-    self = [super initWithFrame:frame];
-    if (self) {
-        self.backgroundColor = [UIColor colorWithWhite:0.02 alpha:1.0];
-        
-        // Background Logo (Stretched & Angled)
-        UIImageView *bgLogo = [[UIImageView alloc] initWithImage:CreateFlopDLCFLogo(CGSizeMake(800, 800))];
-        bgLogo.contentMode = UIViewContentModeScaleAspectFit;
-        bgLogo.frame = CGRectMake(-200, -100, frame.size.width + 400, frame.size.height + 200);
-        bgLogo.transform = CGAffineTransformMakeRotation(M_PI / 8);
-        bgLogo.alpha = 0.05;
-        [self addSubview:bgLogo];
-        
-        // Glow Effects
-        UIView *glow1 = [[UIView alloc] initWithFrame:CGRectMake(-100, -100, 400, 400)];
-        glow1.backgroundColor = [UIColor colorWithRed:0.4 green:0.1 blue:0.8 alpha:0.3];
-        glow1.layer.cornerRadius = 200;
-        glow1.layer.masksToBounds = YES;
-        [self addSubview:glow1];
-        
-        UIView *glow2 = [[UIView alloc] initWithFrame:CGRectMake(frame.size.width - 200, frame.size.height - 200, 400, 400)];
-        glow2.backgroundColor = [UIColor colorWithRed:0.4 green:0.1 blue:0.8 alpha:0.3];
-        glow2.layer.cornerRadius = 200;
-        glow2.layer.masksToBounds = YES;
-        [self addSubview:glow2];
-        
-        // Snow
-        SnowView *snow = [[SnowView alloc] initWithFrame:frame];
-        [self addSubview:snow];
-        
-        // Main Container (Mobile Friendly)
-        CGFloat cw = MIN(frame.size.width - 40, 340);
-        CGFloat ch = 400;
-        
-        _mainContainer = [[UIView alloc] initWithFrame:CGRectMake((frame.size.width - cw)/2, (frame.size.height - ch)/2, cw, ch)];
-        _mainContainer.backgroundColor = [UIColor colorWithRed:0.08 green:0.08 blue:0.12 alpha:0.95];
-        _mainContainer.layer.cornerRadius = 16;
-        _mainContainer.layer.borderWidth = 1;
-        _mainContainer.layer.borderColor = [UIColor colorWithRed:0.4 green:0.2 blue:0.8 alpha:1.0].CGColor;
-        _mainContainer.clipsToBounds = YES;
-        [self addSubview:_mainContainer];
-        
-        // Logo
-        UIImageView *logo = [[UIImageView alloc] initWithImage:CreateFlopDLCFLogo(CGSizeMake(80, 80))];
-        logo.center = CGPointMake(cw / 2, 60);
-        logo.layer.shadowColor = [UIColor colorWithRed:0.5 green:0.2 blue:1.0 alpha:1.0].CGColor;
-        logo.layer.shadowRadius = 15;
-        logo.layer.shadowOpacity = 0.8;
-        logo.layer.shadowOffset = CGSizeZero;
-        [_mainContainer addSubview:logo];
-        
-        // Title
-        UILabel *title = [[UILabel alloc] initWithFrame:CGRectMake(0, 110, cw, 30)];
-        title.text = @"Key System";
-        title.textColor = [UIColor whiteColor];
-        title.font = [UIFont boldSystemFontOfSize:22];
-        title.textAlignment = NSTextAlignmentCenter;
-        [_mainContainer addSubview:title];
-        
-        // Subtitle
-        UILabel *subtitle = [[UILabel alloc] initWithFrame:CGRectMake(0, 145, cw, 40)];
-        subtitle.text = @"Enter your key to activate FlopDLC.\n(Free Key in @FlopDLC)";
-        subtitle.textColor = [UIColor lightGrayColor];
-        subtitle.font = [UIFont systemFontOfSize:12];
-        subtitle.numberOfLines = 2;
-        subtitle.textAlignment = NSTextAlignmentCenter;
-        [_mainContainer addSubview:subtitle];
-        
-        // Input Field
-        UIView *inputBg = [[UIView alloc] initWithFrame:CGRectMake(20, 200, cw - 40, 50)];
-        inputBg.backgroundColor = [UIColor colorWithWhite:0.05 alpha:1.0];
-        inputBg.layer.cornerRadius = 8;
-        inputBg.layer.borderWidth = 1;
-        inputBg.layer.borderColor = [UIColor colorWithWhite:0.2 alpha:1.0].CGColor;
-        [_mainContainer addSubview:inputBg];
-        
-        UIImageView *inputIcon = [[UIImageView alloc] initWithImage:CreateKeyIcon(CGSizeMake(20, 20), [UIColor colorWithWhite:0.4 alpha:1.0])];
-        inputIcon.frame = CGRectMake(15, 15, 20, 20);
-        [inputBg addSubview:inputIcon];
-        
-        _keyField = [[UITextField alloc] initWithFrame:CGRectMake(45, 0, cw - 90, 50)];
-        _keyField.textColor = [UIColor whiteColor];
-        _keyField.font = [UIFont systemFontOfSize:14];
-        _keyField.placeholder = @"Enter your key...";
-        _keyField.attributedPlaceholder = [[NSAttributedString alloc] initWithString:@"Enter your key..." attributes:@{NSForegroundColorAttributeName: [UIColor grayColor]}];
-        _keyField.autocapitalizationType = UITextAutocapitalizationTypeNone;
-        _keyField.autocorrectionType = UITextAutocorrectionTypeNo;
-        _keyField.delegate = self;
-        [inputBg addSubview:_keyField];
-        
-        // Activate Button
-        UIButton *btn = [UIButton buttonWithType:UIButtonTypeSystem];
-        btn.frame = CGRectMake(20, 270, cw - 40, 50);
-        [btn setTitle:@"Activate Key" forState:UIControlStateNormal];
-        [btn setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
-        btn.backgroundColor = [UIColor colorWithRed:0.4 green:0.2 blue:0.8 alpha:1.0];
-        btn.layer.cornerRadius = 8;
-        btn.titleLabel.font = [UIFont boldSystemFontOfSize:16];
-        [btn addTarget:self action:@selector(activate) forControlEvents:UIControlEventTouchUpInside];
-        [_mainContainer addSubview:btn];
-        
-        _errorLabel = [[UILabel alloc] initWithFrame:CGRectMake(20, 330, cw - 40, 20)];
-        _errorLabel.textColor = [UIColor redColor];
-        _errorLabel.font = [UIFont systemFontOfSize:12];
-        _errorLabel.textAlignment = NSTextAlignmentCenter;
-        [_mainContainer addSubview:_errorLabel];
-        
-        // Bottom Bar
-        UIView *bottomBar = [[UIView alloc] initWithFrame:CGRectMake(0, ch - 40, cw, 40)];
-        bottomBar.backgroundColor = [UIColor colorWithWhite:0.05 alpha:0.5];
-        [_mainContainer addSubview:bottomBar];
-        
-        UIView *topBorder = [[UIView alloc] initWithFrame:CGRectMake(0, 0, cw, 1)];
-        topBorder.backgroundColor = [UIColor colorWithWhite:0.2 alpha:0.5];
-        [bottomBar addSubview:topBorder];
-        
-        UIView *statusView = [[UIView alloc] initWithFrame:CGRectMake((cw - 120)/2, 10, 120, 20)];
-        statusView.backgroundColor = [UIColor colorWithWhite:0.1 alpha:1.0];
-        statusView.layer.cornerRadius = 10;
-        statusView.layer.borderWidth = 1;
-        statusView.layer.borderColor = [UIColor colorWithRed:0.2 green:0.6 blue:0.2 alpha:1.0].CGColor;
-        [bottomBar addSubview:statusView];
-        
-        UIView *dot = [[UIView alloc] initWithFrame:CGRectMake(10, 6, 8, 8)];
-        dot.backgroundColor = [UIColor greenColor];
-        dot.layer.cornerRadius = 4;
-        [statusView addSubview:dot];
-        
-        UILabel *statusText = [[UILabel alloc] initWithFrame:CGRectMake(25, 0, 90, 20)];
-        statusText.text = @"Ready";
-        statusText.textColor = [UIColor whiteColor];
-        statusText.font = [UIFont systemFontOfSize:11];
-        [statusView addSubview:statusText];
-    }
-    return self;
-}
-
-- (void)activate {
-    NSString *entered = _keyField.text;
-    if ([entered isEqualToString:@"FlopDLC1122"]) {
-        [[NSUserDefaults standardUserDefaults] setBool:YES forKey:@"flop_authed"];
-        [[NSUserDefaults standardUserDefaults] synchronize];
-        
-        if (self.onSuccess) {
-            self.onSuccess();
-        }
-        [self removeFromSuperview];
-    } else {
-        _errorLabel.text = @"Неверный ключ!";
-        
-        CAKeyframeAnimation *anim = [CAKeyframeAnimation animationWithKeyPath:@"transform.translation.x"];
-        anim.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionLinear];
-        anim.duration = 0.4;
-        anim.values = @[@(-10), @(10), @(-10), @(10), @(-5), @(5), @(0)];
-        [_mainContainer.layer addAnimation:anim forKey:@"shake"];
-    }
 }
 
 @end
@@ -6234,7 +6059,7 @@ static const CGFloat kSidebarW = 108.0;
         [_sidebar addSubview:brand];
         
         UILabel *brandSub = [[UILabel alloc] initWithFrame:CGRectMake(14, 30, kSidebarW - 20, 12)];
-        brandSub.text = @"v136.3";
+        brandSub.text = @"v136.5";
         brandSub.textColor = NLAccent();
         brandSub.font = [UIFont systemFontOfSize:8 weight:UIFontWeightBold];
         [_sidebar addSubview:brandSub];
@@ -9860,10 +9685,13 @@ static void espTick(void) {
                 void* arr = p_runtime_invoke(p_findPlayerMI, nullptr, a, &exc);
                 if (!exc && arr) {
                     int len = *(int*)((uintptr_t)arr + 0x18);
+                    // Clear even when the list is empty: during a scene switch the old
+                    // players are destroyed but FindObjectsOfType returns 0, and keeping
+                    // the stale pointers makes the next tick dereference freed memory.
+                    gCached.clear();
+                    gLocal = nullptr;
+                    gTeam = 0;
                     if (len > 0) {
-                        gCached.clear();
-                        gLocal = nullptr;
-                        gTeam = 0;
                         for (int i = 0; i < len && i < 500; i++) {
                             void* p = *(void**)((uintptr_t)arr + 0x20 + i*8);
                             if (!alive(p)) {
@@ -9897,6 +9725,16 @@ static void espTick(void) {
         }
         
         if (!alive(gLocal)) {
+            // Scene switch / death: drop the cached local pointers so the camera and
+            // ballistics hooks do not keep writing through a destroyed object.
+            g_localChar = nullptr;
+            g_localSceneChar = nullptr;
+            g_localCamera = nullptr;
+            g_localWeapon = nullptr;
+            g_localCC = nullptr;
+            g_localTransform = nullptr;
+            g_localCamTransform = nullptr;
+            g_localEye = Vec3{0, 0, 0};
             return;
         }
         
@@ -10648,12 +10486,16 @@ static void startMainUI(void) {
                     gMenuOpen = true;
                     gMenuView.hidden = NO;
                     gMenuView.alpha = 0;
-                    gMenuView.transform = CGAffineTransformMakeScale(0.95, 0.95);
+                    CGFloat ms = gMenuScale.load();
+                    if (!std::isfinite(ms) || ms < 0.5f) {
+                        ms = 1.0f;
+                    }
+                    gMenuView.transform = CGAffineTransformMakeScale(0.95 * ms, 0.95 * ms);
                     
                     [gOverlayContainer bringSubviewToFront:gMenuView];
                     [UIView animateWithDuration:0.4 delay:0 usingSpringWithDamping:0.7 initialSpringVelocity:0.5 options:UIViewAnimationOptionAllowUserInteraction animations:^{
                         gMenuView.alpha = 1.0;
-                        gMenuView.transform = CGAffineTransformIdentity;
+                        gMenuView.transform = CGAffineTransformMakeScale(ms, ms);
                     } completion:nil];
                 } @catch (NSException* e) {
                 }
@@ -10695,48 +10537,8 @@ static void startOverlay(void) {
                 gOverlayContainer.userInteractionEnabled = YES;
                 [gMainWin addSubview:gOverlayContainer];
                 
-                BOOL isAuthed = [[NSUserDefaults standardUserDefaults] boolForKey:@"flop_authed"];
-                
-                if (isAuthed) {
-                    startMainUI();
-                } else {
-                    // The styled key screen is built from CoreGraphics/QuartzCore pieces.
-                    // If any of it throws, fall back to a plain alert prompt instead of
-                    // leaving the overlay empty (or letting the exception kill startup).
-                    KeySystemView *keyView = nil;
-                    @try {
-                        keyView = [[KeySystemView alloc] initWithFrame:gMainWin.bounds];
-                    } @catch (NSException* e) {
-                        LOG(@"key view: %@", SafeStr([e reason]));
-                    }
-                    if (keyView) {
-                        keyView.onSuccess = ^{
-                            startMainUI();
-                        };
-                        [gOverlayContainer addSubview:keyView];
-                    } else {
-                        UIAlertController* alert = [UIAlertController alertControllerWithTitle:@"Key System"
-                                                                                       message:@"Enter your key"
-                                                                                preferredStyle:UIAlertControllerStyleAlert];
-                        [alert addTextFieldWithConfigurationHandler:^(UITextField* tf) {
-                            tf.placeholder = @"Enter your key...";
-                            tf.autocapitalizationType = UITextAutocapitalizationTypeNone;
-                            tf.autocorrectionType = UITextAutocorrectionTypeNo;
-                        }];
-                        [alert addAction:[UIAlertAction actionWithTitle:@"Activate" style:UIAlertActionStyleDefault handler:^(UIAlertAction* action) {
-                            NSString* entered = alert.textFields.firstObject.text;
-                            if ([entered isEqualToString:@"FlopDLC1122"]) {
-                                [[NSUserDefaults standardUserDefaults] setBool:YES forKey:@"flop_authed"];
-                                [[NSUserDefaults standardUserDefaults] synchronize];
-                                startMainUI();
-                            }
-                        }]];
-                        UIViewController* root = gMainWin.rootViewController;
-                        if (root) {
-                            [root presentViewController:alert animated:YES completion:nil];
-                        }
-                    }
-                }
+                // Key system removed: the overlay goes straight to the menu.
+                startMainUI();
             } @catch (NSException* e) {
                 LOG(@"startOverlay: %@", SafeStr([e reason]));
             }
@@ -11474,7 +11276,7 @@ static void BallisticsFirePre(void) {
     if (!NoRecoilActive()) {
         return;
     }
-    if (!SANE_PTR(g_localSceneChar)) {
+    if (!alive(g_localSceneChar)) {
         return;
     }
     
@@ -11494,7 +11296,7 @@ static void BallisticsFirePost(void) {
     }
     gFireCamSnapshotValid = false;
     
-    if (!SANE_PTR(g_localSceneChar)) {
+    if (!alive(g_localSceneChar)) {
         return;
     }
     
@@ -11535,7 +11337,7 @@ static void BallisticsTick(void) {
     // SceneLevelCamera owns rot (0x30) and additionalRot (0x38); recoil kick lands in
     // additionalRot. The Unity Camera component is a separate object (0x48), so the
     // write has to target the SceneLevelCamera instance itself.
-    if (noRecoil && SANE_PTR(g_localSceneChar)) {
+    if (noRecoil && alive(g_localSceneChar)) {
         *(Vec2*)((uintptr_t)g_localSceneChar + off::kCamAdditionalRot) = Vec2(0.0f, 0.0f);
     }
     
