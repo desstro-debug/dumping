@@ -1,5 +1,5 @@
 // =========================================================================================
-// FlopDLC.mm — v136.3 (Key System UI Fixed & Mobile Adjusted)
+// FlopDLC.mm — v136.4 (Key System startup crash fixed)
 // =========================================================================================
 // Сборка: clang++ -arch arm64 -miphoneos-version-min=15.0 -isysroot $(xcrun --sdk iphoneos --show-sdk-path) -std=c++17 -fobjc-arc -O2 -fvisibility=hidden -dynamiclib -install_name @rpath/FlopDLC.dylib -framework Foundation -framework UIKit -framework CoreGraphics -framework CoreFoundation -framework QuartzCore -framework AVFoundation FlopDLC.mm -o FlopDLC.dylib
 // =========================================================================================
@@ -34,7 +34,7 @@
 #include <dispatch/dispatch.h>
 #include <CoreFoundation/CoreFoundation.h>
 
-static constexpr const char* kEspVersion = "136.3";
+static constexpr const char* kEspVersion = "136.4";
 
 #define SANE_PTR(p) ((uintptr_t)(p) > 0x100000000 && (uintptr_t)(p) < 0x00007FFFFFFFFFFF)
 
@@ -2470,9 +2470,24 @@ static uintptr_t UnityFrameworkBase(void) {
         return 0;
     }
 
+    // dladdr is resolved through dlsym instead of being called directly. A dylib built
+    // with -undefined dynamic_lookup turns a missing import into a lazy bind, and dyld
+    // halts the process with "missing symbol called" on the first call. Resolving first
+    // lets a missing symbol disable the native patch instead of killing startup.
+    typedef int (*fn_dladdr)(const void*, Dl_info*);
+    static fn_dladdr p_dladdr = nullptr;
+    static bool resolved = false;
+    if (!resolved) {
+        resolved = true;
+        p_dladdr = (fn_dladdr)UFSym("dladdr");
+    }
+    if (!p_dladdr) {
+        return 0;
+    }
+
     Dl_info info;
     memset(&info, 0, sizeof(info));
-    if (dladdr(sym, &info) != 0 && info.dli_fbase) {
+    if (p_dladdr(sym, &info) != 0 && info.dli_fbase) {
         cachedBase = (uintptr_t)info.dli_fbase;
     }
     return cachedBase;
@@ -2516,7 +2531,34 @@ static bool BranchTargets(uintptr_t site, uintptr_t expected) {
     return (site + (uintptr_t)off) == expected;
 }
 
+// __builtin___clear_cache lowers to a call to __clear_cache, which lives in compiler-rt
+// and is not exported by libSystem or libdyld. With -undefined dynamic_lookup (or
+// -nostdlib) that call is a lazy bind, and dyld aborts with "missing symbol called" the
+// first time it runs — which is exactly this patch path, right after the fke hook is
+// installed. sys_icache_invalidate is the libSystem export; resolve it through dlsym so
+// it can never be a lazy bind either.
+typedef void (*fn_sys_icache_invalidate)(void*, size_t);
+static fn_sys_icache_invalidate p_sys_icache_invalidate = nullptr;
+static bool g_icacheResolved = false;
+
+static bool EnsureICacheFlush(void) {
+    if (!g_icacheResolved) {
+        g_icacheResolved = true;
+        p_sys_icache_invalidate = (fn_sys_icache_invalidate)UFSym("sys_icache_invalidate");
+    }
+    return p_sys_icache_invalidate != nullptr;
+}
+
+static void FlushICache(void* start, size_t len) {
+    if (p_sys_icache_invalidate) {
+        p_sys_icache_invalidate(start, len);
+    }
+}
+
 static bool PatchBranch(uintptr_t site, uintptr_t target) {
+    if (!EnsureICacheFlush()) {
+        return false;
+    }
     uint32_t* p = (uint32_t*)site;
     uint32_t w = *p;
     if ((w & 0xFC000000) != 0x14000000) {
@@ -2534,13 +2576,25 @@ static bool PatchBranch(uintptr_t site, uintptr_t target) {
         return false;
     }
     *p = nw;
-    __builtin___clear_cache((char*)p, (char*)p + 4);
+    FlushICache(p, 4);
     return true;
 }
 
 // The dylib can sit more than ±128 MB from UnityFramework, which is outside the range of a
 // single `b`. Allocate a small executable page near the site and jump through it.
 static void* AllocNear(uintptr_t near, size_t size) {
+    // Same lazy-bind hazard as dladdr: resolve vm_allocate before the first call.
+    typedef kern_return_t (*fn_vm_allocate)(vm_map_t, vm_address_t*, vm_size_t, int);
+    static fn_vm_allocate p_vm_allocate = nullptr;
+    static bool resolved = false;
+    if (!resolved) {
+        resolved = true;
+        p_vm_allocate = (fn_vm_allocate)UFSym("vm_allocate");
+    }
+    if (!p_vm_allocate) {
+        return nullptr;
+    }
+
     uintptr_t page = 0x4000;
     uintptr_t base = near & ~(page - 1);
     for (int64_t off = 0; off < 0x8000000; off += page) {
@@ -2550,7 +2604,7 @@ static void* AllocNear(uintptr_t near, size_t size) {
                 continue;
             }
             vm_address_t a = (vm_address_t)addr;
-            if (vm_allocate(mach_task_self(), &a, size, VM_FLAGS_FIXED) == KERN_SUCCESS) {
+            if (p_vm_allocate(mach_task_self(), &a, size, VM_FLAGS_FIXED) == KERN_SUCCESS) {
                 return (void*)a;
             }
         }
@@ -2571,7 +2625,10 @@ static bool PatchBranchFar(uintptr_t site, uintptr_t target) {
     tramp[1] = 0xD61F0200;  // br x16
     // arm64e function pointers carry a PAC in the top bits; `br` needs the raw address.
     *(uint64_t*)&tramp[2] = (uint64_t)target & 0x0000FFFFFFFFFFFFULL;
-    __builtin___clear_cache((char*)tramp, (char*)tramp + 16);
+    if (!EnsureICacheFlush()) {
+        return false;
+    }
+    FlushICache(tramp, 16);
     // W^X: write while RW, then flip the page to RX. If the flip fails the page is still
     // RW (non-executable), so do not point a branch at it.
     kern_return_t kr = vm_protect(mach_task_self(), (vm_address_t)tramp, 0x4000, FALSE,
@@ -10643,11 +10700,42 @@ static void startOverlay(void) {
                 if (isAuthed) {
                     startMainUI();
                 } else {
-                    KeySystemView *keyView = [[KeySystemView alloc] initWithFrame:gMainWin.bounds];
-                    keyView.onSuccess = ^{
-                        startMainUI();
-                    };
-                    [gOverlayContainer addSubview:keyView];
+                    // The styled key screen is built from CoreGraphics/QuartzCore pieces.
+                    // If any of it throws, fall back to a plain alert prompt instead of
+                    // leaving the overlay empty (or letting the exception kill startup).
+                    KeySystemView *keyView = nil;
+                    @try {
+                        keyView = [[KeySystemView alloc] initWithFrame:gMainWin.bounds];
+                    } @catch (NSException* e) {
+                        LOG(@"key view: %@", SafeStr([e reason]));
+                    }
+                    if (keyView) {
+                        keyView.onSuccess = ^{
+                            startMainUI();
+                        };
+                        [gOverlayContainer addSubview:keyView];
+                    } else {
+                        UIAlertController* alert = [UIAlertController alertControllerWithTitle:@"Key System"
+                                                                                       message:@"Enter your key"
+                                                                                preferredStyle:UIAlertControllerStyleAlert];
+                        [alert addTextFieldWithConfigurationHandler:^(UITextField* tf) {
+                            tf.placeholder = @"Enter your key...";
+                            tf.autocapitalizationType = UITextAutocapitalizationTypeNone;
+                            tf.autocorrectionType = UITextAutocorrectionTypeNo;
+                        }];
+                        [alert addAction:[UIAlertAction actionWithTitle:@"Activate" style:UIAlertActionStyleDefault handler:^(UIAlertAction* action) {
+                            NSString* entered = alert.textFields.firstObject.text;
+                            if ([entered isEqualToString:@"FlopDLC1122"]) {
+                                [[NSUserDefaults standardUserDefaults] setBool:YES forKey:@"flop_authed"];
+                                [[NSUserDefaults standardUserDefaults] synchronize];
+                                startMainUI();
+                            }
+                        }]];
+                        UIViewController* root = gMainWin.rootViewController;
+                        if (root) {
+                            [root presentViewController:alert animated:YES completion:nil];
+                        }
+                    }
                 }
             } @catch (NSException* e) {
                 LOG(@"startOverlay: %@", SafeStr([e reason]));
