@@ -4818,14 +4818,6 @@ static UIImage* CreateKeyIcon(CGSize size, UIColor *color) {
         btn.backgroundColor = [UIColor colorWithRed:0.4 green:0.2 blue:0.8 alpha:1.0];
         btn.layer.cornerRadius = 8;
         btn.titleLabel.font = [UIFont boldSystemFontOfSize:16];
-        if (@available(iOS 13.0, *)) {
-            UIImage *boltIcon = [UIImage systemImageNamed:@"bolt.fill"];
-            if (boltIcon) {
-                [btn setImage:boltIcon forState:UIControlStateNormal];
-            }
-        }
-        btn.tintColor = [UIColor whiteColor];
-        btn.imageEdgeInsets = UIEdgeInsetsMake(0, -10, 0, 0);
         [btn addTarget:self action:@selector(activate) forControlEvents:UIControlEventTouchUpInside];
         [_mainContainer addSubview:btn];
         
@@ -10567,31 +10559,14 @@ static void startMainUI(void) {
 static void startOverlay(void) {
     @try {
         UIWindow *mw = nil;
-        if (@available(iOS 13.0, *)) {
-            for (UIScene *s in UIApplication.sharedApplication.connectedScenes) {
-                if (![s isKindOfClass:[UIWindowScene class]]) {
-                    continue;
-                }
-                
-                UIWindowScene *ws = (UIWindowScene*)s;
-                if (ws.activationState != UISceneActivationStateForegroundActive) {
-                    continue;
-                }
-                
-                for (UIWindow *w in ws.windows) {
-                    if (w.isKeyWindow) {
-                        mw = w;
-                        break;
-                    }
-                }
-                if (mw) {
-                    break;
-                }
-            }
-        }
-        
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
+        for (UIWindow *w in UIApplication.sharedApplication.windows) {
+            if (w.isKeyWindow) {
+                mw = w;
+                break;
+            }
+        }
         if (!mw) {
             mw = UIApplication.sharedApplication.keyWindow;
         }
