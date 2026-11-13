@@ -1,7 +1,7 @@
 // =========================================================================================
 // FlopDLC.mm — v136.3 (Key System UI Fixed & Mobile Adjusted)
 // =========================================================================================
-// Сборка: clang++ -arch arm64 -miphoneos-version-min=15.0 -isysroot $(xcrun --sdk iphoneos --show-sdk-path) -std=c++17 -fobjc-arc -O2 -fvisibility=hidden -dynamiclib -install_name @rpath/FlopDLC.dylib -Wl,-undefined,dynamic_lookup -framework Foundation -framework UIKit -framework CoreGraphics -framework CoreFoundation -framework QuartzCore -framework AVFoundation FlopDLC.mm -o FlopDLC.dylib
+// Сборка: clang++ -arch arm64 -miphoneos-version-min=15.0 -isysroot $(xcrun --sdk iphoneos --show-sdk-path) -std=c++17 -fobjc-arc -O2 -fvisibility=hidden -dynamiclib -install_name @rpath/FlopDLC.dylib -framework Foundation -framework UIKit -framework CoreGraphics -framework CoreFoundation -framework QuartzCore -framework AVFoundation FlopDLC.mm -o FlopDLC.dylib
 // =========================================================================================
 
 #import <Foundation/Foundation.h>
@@ -244,6 +244,23 @@ static void CrashSignalHandler(int sig, siginfo_t* info, void* ctx) {
     raise(sig);
 }
 
+// dyld prints the reason it is about to abort ("symbol not found: _x", "image index
+// out of range", ...) to stderr and only then raises SIGABRT. A signal handler cannot
+// read that text, so keep a copy of fd 2 next to the crash log. Without it the crash
+// report shows a dyld frame and nothing else, which is why this one kept coming back.
+static void RedirectStderrToLog(NSString* docs) {
+    if (!docs) {
+        return;
+    }
+    NSString* path = [docs stringByAppendingPathComponent:@"flop_stderr.txt"];
+    int fd = open([path fileSystemRepresentation], O_WRONLY | O_CREAT | O_APPEND, 0644);
+    if (fd < 0) {
+        return;
+    }
+    dup2(fd, STDERR_FILENO);
+    close(fd);
+}
+
 static void InstallCrashHandler(void) {
     @try {
         NSArray* paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
@@ -255,6 +272,8 @@ static void InstallCrashHandler(void) {
         if (!docs) {
             return;
         }
+        
+        RedirectStderrToLog(docs);
         
         gLogDocPath = [docs stringByAppendingPathComponent:@"flop_log.txt"];
         
@@ -2396,6 +2415,38 @@ static bool hook_install(void* mi, void* hook, void** orig) {
     return true;
 }
 
+// UnityFramework is already mapped when bootstrap runs, so take its handle once with
+// RTLD_NOLOAD and resolve il2cpp symbols through it. dlsym(RTLD_DEFAULT, ...) walks
+// dyld's whole image list, and Unity mutates that list while it loads frameworks during
+// startup; a stale entry there is a dyld halt (SIGABRT), not a catchable exception.
+static void* UFHandle(void) {
+    static void* handle = NULL;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        NSString* path = [[[NSBundle mainBundle] privateFrameworksPath]
+                          stringByAppendingPathComponent:@"UnityFramework.framework/UnityFramework"];
+        if (path) {
+            handle = dlopen([path fileSystemRepresentation], RTLD_NOLOAD | RTLD_LAZY);
+        }
+        if (!handle) {
+            handle = dlopen("UnityFramework", RTLD_NOLOAD | RTLD_LAZY);
+        }
+    });
+    return handle;
+}
+
+static void* UFSym(const char* name) {
+    if (!name) {
+        return NULL;
+    }
+    void* h = UFHandle();
+    void* p = h ? dlsym(h, name) : NULL;
+    if (!p) {
+        p = dlsym(RTLD_DEFAULT, name);
+    }
+    return p;
+}
+
 // IL2CPP compiles direct calls to a plain `b`/`bl`, so patching the MethodInfo only
 // catches runtime_invoke/virtual dispatch. These helpers patch the native branch itself.
 static uintptr_t UnityFrameworkBase(void) {
@@ -2410,10 +2461,10 @@ static uintptr_t UnityFrameworkBase(void) {
 
     void* sym = (void*)p_domain_get;
     if (!sym) {
-        sym = dlsym(RTLD_DEFAULT, "il2cpp_domain_get");
+        sym = UFSym("il2cpp_domain_get");
     }
     if (!sym) {
-        sym = dlsym(RTLD_DEFAULT, "il2cpp_init");
+        sym = UFSym("il2cpp_init");
     }
     if (!sym) {
         return 0;
@@ -10615,7 +10666,7 @@ static void bootstrap(void) {
         
         void *dget = nullptr;
         for (int i = 0; i < 300; i++) {
-            dget = dlsym(RTLD_DEFAULT, "il2cpp_domain_get");
+            dget = UFSym("il2cpp_domain_get");
             if (dget) {
                 break;
             }
@@ -10628,12 +10679,12 @@ static void bootstrap(void) {
         sleep(8);
         
         gDomain = ((void*(*)())dget)();
-        p_thread_attach = (fn_thread_attach)dlsym(RTLD_DEFAULT, "il2cpp_thread_attach");
+        p_thread_attach = (fn_thread_attach)UFSym("il2cpp_thread_attach");
         if (p_thread_attach && gDomain) {
             p_thread_attach(gDomain);
         }
         
-        #define RES(f, n) do { f = (decltype(f))dlsym(RTLD_DEFAULT, n); if (!f) { LOG(@"Missing %s", n); return; } } while (0)
+        #define RES(f, n) do { f = (decltype(f))UFSym(n); if (!f) { LOG(@"Missing %s", n); return; } } while (0)
         RES(p_domain_get, "il2cpp_domain_get");
         RES(p_domain_get_assemblies, "il2cpp_domain_get_assemblies");
         RES(p_assembly_get_image, "il2cpp_assembly_get_image");
@@ -10641,25 +10692,25 @@ static void bootstrap(void) {
         RES(p_class_get_method_from_name, "il2cpp_class_get_method_from_name");
         RES(p_class_get_type, "il2cpp_class_get_type");
         RES(p_type_get_object, "il2cpp_type_get_object");
-        p_class_get_name = (fn_class_get_name)dlsym(RTLD_DEFAULT, "il2cpp_class_get_name");
-        p_class_get_namespace = (fn_class_get_namespace)dlsym(RTLD_DEFAULT, "il2cpp_class_get_namespace");
-        p_class_get_parent = (fn_class_get_parent)dlsym(RTLD_DEFAULT, "il2cpp_class_get_parent");
-        p_image_get_class_count = (fn_image_get_class_count)dlsym(RTLD_DEFAULT, "il2cpp_image_get_class_count");
-        p_image_get_class = (fn_image_get_class)dlsym(RTLD_DEFAULT, "il2cpp_image_get_class");
+        p_class_get_name = (fn_class_get_name)UFSym("il2cpp_class_get_name");
+        p_class_get_namespace = (fn_class_get_namespace)UFSym("il2cpp_class_get_namespace");
+        p_class_get_parent = (fn_class_get_parent)UFSym("il2cpp_class_get_parent");
+        p_image_get_class_count = (fn_image_get_class_count)UFSym("il2cpp_image_get_class_count");
+        p_image_get_class = (fn_image_get_class)UFSym("il2cpp_image_get_class");
         RES(p_runtime_invoke, "il2cpp_runtime_invoke");
         RES(p_gchandle_new, "il2cpp_gchandle_new");
         RES(p_gchandle_get_target, "il2cpp_gchandle_get_target");
         RES(p_string_new, "il2cpp_string_new");
         #undef RES
         
-        p_object_new = (fn_object_new)dlsym(RTLD_DEFAULT, "il2cpp_object_new");
-        p_array_new = (fn_array_new)dlsym(RTLD_DEFAULT, "il2cpp_array_new");
-        p_gchandle_free = (fn_gchandle_free)dlsym(RTLD_DEFAULT, "il2cpp_gchandle_free");
-        p_class_get_methods = (fn_class_get_methods)dlsym(RTLD_DEFAULT, "il2cpp_class_get_methods");
-        p_method_get_name = (fn_method_get_name)dlsym(RTLD_DEFAULT, "il2cpp_method_get_name");
-        p_method_get_param_count = (fn_method_get_param_count)dlsym(RTLD_DEFAULT, "il2cpp_method_get_param_count");
-        p_method_get_param = (fn_method_get_param)dlsym(RTLD_DEFAULT, "il2cpp_method_get_param");
-        p_type_get_name = (fn_type_get_name)dlsym(RTLD_DEFAULT, "il2cpp_type_get_name");
+        p_object_new = (fn_object_new)UFSym("il2cpp_object_new");
+        p_array_new = (fn_array_new)UFSym("il2cpp_array_new");
+        p_gchandle_free = (fn_gchandle_free)UFSym("il2cpp_gchandle_free");
+        p_class_get_methods = (fn_class_get_methods)UFSym("il2cpp_class_get_methods");
+        p_method_get_name = (fn_method_get_name)UFSym("il2cpp_method_get_name");
+        p_method_get_param_count = (fn_method_get_param_count)UFSym("il2cpp_method_get_param_count");
+        p_method_get_param = (fn_method_get_param)UFSym("il2cpp_method_get_param");
+        p_type_get_name = (fn_type_get_name)UFSym("il2cpp_type_get_name");
         
         gObjCls = findClass("UnityEngine", "Object");
         gGOCls = findClass("UnityEngine", "GameObject");
