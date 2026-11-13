@@ -26,6 +26,7 @@
 #include <algorithm>
 #include <mach/mach_time.h>
 #include <mach/mach.h>
+#include <mach/mach_vm.h>
 #include <mach/task_info.h>
 #include <mach/vm_param.h>
 #include <mach-o/dyld.h>
@@ -2297,10 +2298,21 @@ static bool hook_install(void* mi, void* hook, void** orig) {
     if (!mi || !hook) {
         return false;
     }
+    if (((uintptr_t)mi & (sizeof(void*) - 1)) != 0) {
+        return false;
+    }
     
     void** slot = (void**)((uintptr_t)mi + 0x0);
-    void* old = *slot;
-    if (!old) {
+    // Read through mach_vm_read_overwrite: a stale/foreign MethodInfo must fail the hook
+    // instead of faulting during bootstrap.
+    void* old = nullptr;
+    mach_vm_size_t got = 0;
+    kern_return_t rk = mach_vm_read_overwrite(mach_task_self(),
+                                              (mach_vm_address_t)slot,
+                                              sizeof(void*),
+                                              (mach_vm_address_t)&old,
+                                              &got);
+    if (rk != KERN_SUCCESS || got != sizeof(void*) || !old) {
         return false;
     }
     
@@ -2323,13 +2335,70 @@ static bool hook_install(void* mi, void* hook, void** orig) {
 // IL2CPP compiles direct calls to a plain `b`/`bl`, so patching the MethodInfo only
 // catches runtime_invoke/virtual dispatch. These helpers patch the native branch itself.
 static uintptr_t UnityFrameworkBase(void) {
-    for (uint32_t i = 0; i < _dyld_image_count(); i++) {
-        const char* name = _dyld_get_image_name(i);
-        if (name && strstr(name, "UnityFramework")) {
-            return (uintptr_t)_dyld_get_image_header(i);
-        }
+    // Do NOT iterate _dyld_image_count()/_dyld_get_image_name(): the image list can change
+    // while another thread loads a framework during startup, and libdyld aborts
+    // (SIGABRT, "image index out of range") when an index goes stale. dladdr() on a
+    // symbol we already resolved is stable and gives us the containing image base.
+    static uintptr_t cachedBase = 0;
+    if (cachedBase) {
+        return cachedBase;
     }
-    return 0;
+
+    void* sym = (void*)p_domain_get;
+    if (!sym) {
+        sym = dlsym(RTLD_DEFAULT, "il2cpp_domain_get");
+    }
+    if (!sym) {
+        sym = dlsym(RTLD_DEFAULT, "il2cpp_init");
+    }
+    if (!sym) {
+        return 0;
+    }
+
+    Dl_info info;
+    memset(&info, 0, sizeof(info));
+    if (dladdr(sym, &info) != 0 && info.dli_fbase) {
+        cachedBase = (uintptr_t)info.dli_fbase;
+    }
+    return cachedBase;
+}
+
+// Safe 4-byte read: returns false instead of faulting when `addr` is not mapped.
+// The fke RVAs are hardcoded, so after a game update they may point outside the
+// UnityFramework image; a raw dereference there would SIGSEGV at startup.
+static bool SafeReadU32(uintptr_t addr, uint32_t* out) {
+    if (!addr || !out) {
+        return false;
+    }
+    mach_vm_size_t got = 0;
+    kern_return_t kr = mach_vm_read_overwrite(mach_task_self(),
+                                              (mach_vm_address_t)addr,
+                                              sizeof(uint32_t),
+                                              (mach_vm_address_t)out,
+                                              &got);
+    return kr == KERN_SUCCESS && got == sizeof(uint32_t);
+}
+
+// Returns true when `site` holds a plain `b` whose resolved target equals `expected`.
+// Used to make sure a hardcoded RVA still points at the instruction we think it does
+// before we overwrite it. Only `b` is accepted because PatchBranch() rewrites the
+// instruction in place as a `b`; a `bl` would need its link register preserved.
+static bool BranchTargets(uintptr_t site, uintptr_t expected) {
+    if (!site) {
+        return false;
+    }
+    uint32_t insn = 0;
+    if (!SafeReadU32(site, &insn)) {
+        return false;
+    }
+    if ((insn & 0xFC000000) != 0x14000000) {
+        return false;
+    }
+    int64_t off = (int64_t)(insn & 0x03FFFFFF) << 2;
+    if (off & (1LL << 27)) {
+        off -= (1LL << 28);
+    }
+    return (site + (uintptr_t)off) == expected;
 }
 
 static bool PatchBranch(uintptr_t site, uintptr_t target) {
@@ -2388,9 +2457,13 @@ static bool PatchBranchFar(uintptr_t site, uintptr_t target) {
     // arm64e function pointers carry a PAC in the top bits; `br` needs the raw address.
     *(uint64_t*)&tramp[2] = (uint64_t)target & 0x0000FFFFFFFFFFFFULL;
     __builtin___clear_cache((char*)tramp, (char*)tramp + 16);
-    // W^X: write while RW, then flip the page to RX.
-    vm_protect(mach_task_self(), (vm_address_t)tramp, 0x4000, FALSE,
-               VM_PROT_READ | VM_PROT_EXECUTE);
+    // W^X: write while RW, then flip the page to RX. If the flip fails the page is still
+    // RW (non-executable), so do not point a branch at it.
+    kern_return_t kr = vm_protect(mach_task_self(), (vm_address_t)tramp, 0x4000, FALSE,
+                                  VM_PROT_READ | VM_PROT_EXECUTE);
+    if (kr != KERN_SUCCESS) {
+        return false;
+    }
     return PatchBranch(site, (uintptr_t)tramp);
 }
 
@@ -3267,6 +3340,7 @@ static void hook_MoveUpdate(void* self, void* mi) {
 
 static void InstallAllHooks(void) {
     @try {
+        LOG(@"[HOOK] install begin");
         void* wepCls = findClass("", "ItemEquipWeaponRange");
         void* moveCls = findClass("", "SceneLevelCharacterMovementLocal");
         void* sceneCamCls = findClass("", "SceneLevelCamera");
@@ -3384,6 +3458,7 @@ static void InstallAllHooks(void) {
             gItemCls, gItemSkinCls, gItemWeaponSkinCls, gDataCls, gWeaponClassCount);
 
         InstallBallisticsHooks();
+        LOG(@"[HOOK] ballistics done");
         
         if (moveCls) {
             void* mi = p_class_get_method_from_name(moveCls, "Update", 0);
@@ -3391,6 +3466,7 @@ static void InstallAllHooks(void) {
                 hook_install(mi, (void*)hook_MoveUpdate, (void**)&orig_MoveUpdate);
             }
         }
+        LOG(@"[HOOK] install complete");
     } @catch (NSException* e) {
         LOG(@"Hooks: %@", SafeStr([e reason]));
     }
@@ -11416,13 +11492,24 @@ static void InstallBallisticsHooks(void) {
             if (ufBase) {
                 uintptr_t fkeAddr = ufBase + 0x19D8624;
                 uintptr_t callSite = ufBase + 0x19D710C;
-                orig_FireBulletCommand = (fn_FireBulletCommand)fkeAddr;
-                int64_t delta = (int64_t)(uintptr_t)hook_FireBulletCommand - (int64_t)callSite;
-                if (PatchBranchFar(callSite, (uintptr_t)hook_FireBulletCommand)) {
-                    gFkePatched = true;
-                    LOG(@"[BALL] fke call-site patched base=%p delta=%lld", (void*)ufBase, (long long)delta);
+                // Only trust the hardcoded RVAs when the call site still branches to the
+                // expected fke address. A game update shifts these, and patching a random
+                // instruction (or calling a wrong orig pointer) aborts the process.
+                if (BranchTargets(callSite, fkeAddr)) {
+                    int64_t delta = (int64_t)(uintptr_t)hook_FireBulletCommand - (int64_t)callSite;
+                    if (PatchBranchFar(callSite, (uintptr_t)hook_FireBulletCommand)) {
+                        // The MethodInfo hook above may already have captured the original
+                        // pointer; only fill it in when that hook was not installed.
+                        if (!orig_FireBulletCommand) {
+                            orig_FireBulletCommand = (fn_FireBulletCommand)fkeAddr;
+                        }
+                        gFkePatched = true;
+                        LOG(@"[BALL] fke call-site patched base=%p delta=%lld", (void*)ufBase, (long long)delta);
+                    } else {
+                        LOG(@"[BALL] fke call-site patch failed base=%p delta=%lld", (void*)ufBase, (long long)delta);
+                    }
                 } else {
-                    LOG(@"[BALL] fke call-site patch failed base=%p delta=%lld", (void*)ufBase, (long long)delta);
+                    LOG(@"[BALL] fke call-site mismatch, native patch skipped base=%p", (void*)ufBase);
                 }
             } else {
                 LOG(@"[BALL] UnityFramework base not found");
