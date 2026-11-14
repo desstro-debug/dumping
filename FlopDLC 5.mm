@@ -300,6 +300,33 @@ static void InstallCrashHandler(void) {
         sigaction(SIGFPE, &sa, NULL);
         sigaction(SIGTRAP, &sa, NULL);
         sigaction(SIGSYS, &sa, NULL);
+        
+        // Objective-C exceptions (nil deref, bad cast, bad array index) never become
+        // Mach signals, so a signal handler alone leaves flop_crash.txt empty — which is
+        // exactly the "crash but no crash log" symptom. Catch them here and dump the same
+        // backtrace before re-raising so the crash is reproducible from the log.
+        NSSetUncaughtExceptionHandler(^(NSException* exc) {
+            @try {
+                if (gCrashFd >= 0) {
+                    char buf[256];
+                    int n = snprintf(buf, sizeof(buf),
+                        "\n=== CRASH objc=%s reason=%s ===\n",
+                        [exc.name UTF8String], [exc.reason UTF8String]);
+                    if (n > 0) {
+                        write(gCrashFd, buf, n);
+                    }
+                    void* frames[64];
+                    int fc = backtrace(frames, 64);
+                    backtrace_symbols_fd(frames, fc, gCrashFd);
+                }
+                if (gLogDocPath) {
+                    NSString* line = [NSString stringWithFormat:@"[FlopDLC] OBJC CRASH %@: %@\n", exc.name, exc.reason];
+                    NSData* data = [line dataUsingEncoding:NSUTF8StringEncoding];
+                    FILE* f = fopen([gLogDocPath UTF8String], "a");
+                    if (f) { fwrite(data.bytes, 1, data.length, f); fclose(f); }
+                }
+            } @catch (...) {}
+        });
     } @catch (NSException* e) {
     }
 }
@@ -374,7 +401,19 @@ static AVAudioPlayer* MakeTonePlayer(float freq, float dur, float amp) {
     }
 }
 
+static std::atomic<bool> gSoundReady{false};
+
+// Lazy: create the tone players only when a hit/kill sound is actually requested,
+// never on a cold launch.
+static void EnsureSound(void) {
+    if (gSoundReady.exchange(true)) {
+        return;
+    }
+    RebuildSoundPlayers();
+}
+
 static void PlayKillSound(void) {
+    EnsureSound();
     if (!gKillPlayer) {
         return;
     }
@@ -385,6 +424,7 @@ static void PlayKillSound(void) {
 }
 
 static void PlayHitSound(void) {
+    EnsureSound();
     if (!gHitPlayer) {
         return;
     }
@@ -870,11 +910,11 @@ static std::atomic<bool> gSpreadFloorEnabled{false};
 static std::atomic<float> gSpreadFloor{0.0f};
 
 // HUD / VISUALS
-static std::atomic<bool> gHeadDotEnabled{true};
-static std::atomic<bool> gDistanceEnabled{true};
+static std::atomic<bool> gHeadDotEnabled{false};
+static std::atomic<bool> gDistanceEnabled{false};
 static std::atomic<bool> gHealthTextEnabled{false};
-static std::atomic<bool> gHitMarkerEnabled{true};
-static std::atomic<bool> gDamageNumbersEnabled{true};
+static std::atomic<bool> gHitMarkerEnabled{false};
+static std::atomic<bool> gDamageNumbersEnabled{false};
 static std::atomic<int> gHitMarkerStyle{0};
 static std::atomic<float> gHitMarkerSize{10.0f};
 static std::atomic<int> gHitMarkerDuration{260};
@@ -1333,8 +1373,8 @@ static std::atomic<bool> gViewmodelFovEnabled{false};
 static std::atomic<float> gViewmodelFovVal{70.0f};
 
 static std::atomic<bool> gNightModeEnabled{false};
-static std::atomic<bool> gKillSoundEnabled{true};
-static std::atomic<bool> gHitSoundEnabled{true};
+static std::atomic<bool> gKillSoundEnabled{false};
+static std::atomic<bool> gHitSoundEnabled{false};
 static std::atomic<bool> gStreamMode{false};
 static std::atomic<bool> gMenuOpen{false};
 static std::atomic<bool> gAttached{false};
@@ -2555,6 +2595,17 @@ static bool AnyFeatureActive(void) {
 
 // Timestamp of the last tick that saw at least one feature enabled.
 static uint64_t gLastFeatureOnMs = 0;
+static std::atomic<bool> gHooksInstalled{false};
+
+// One-time lazy install of gameplay hooks + fps limit. Runs only when the user actually
+// enables something, never on a cold launch with every toggle off.
+static void EnsureHooks(void) {
+    if (gHooksInstalled.exchange(true)) {
+        return;
+    }
+    InstallAllHooks();
+    ApplyFpsLimit();
+}
 
 // Should the per-frame pipeline touch the game right now? True while anything is enabled,
 // plus a short grace window after the last feature goes off so the pipeline can undo what
@@ -2564,6 +2615,7 @@ static uint64_t gLastFeatureOnMs = 0;
 static bool ModActive(void) {
     if (AnyFeatureActive()) {
         gLastFeatureOnMs = NowMs();
+        EnsureHooks();
         return true;
     }
     if (gLastFeatureOnMs == 0) {
@@ -10888,8 +10940,6 @@ static void startOverlay(void) {
 static void bootstrap(void) {
     @autoreleasepool {
         InstallCrashHandler();
-        
-        RebuildSoundPlayers();
         gStatSessionStart = NowMs();
         
         void *dget = nullptr;
@@ -11218,8 +11268,10 @@ static void bootstrap(void) {
         @try {
             [ConfigManager load];
             ConfigResetFeatures();
-            InstallAllHooks();
-            ApplyFpsLimit();
+            // Hooks are installed lazily: the first time a feature is actually enabled,
+            // not at startup. A fresh launch with everything off must not touch game code,
+            // because hook_install writes to foreign memory and can abort a still-loading
+            // scene (SIGSEGV/SIGABRT with no catchable frame).
         } @catch (NSException* e) {
             LOG(@"bootstrap hooks: %@", SafeStr([e reason]));
             return; // Do not start a partially initialized overlay.
