@@ -1,5 +1,5 @@
 // =========================================================================================
-// FlopDLC.mm — v136.6 (ESP/HUD draw-path optimisation)
+// FlopDLC.mm — v136.7 (clean slate on launch, scene-switch guards)
 // =========================================================================================
 // Сборка: clang++ -arch arm64 -miphoneos-version-min=15.0 -isysroot $(xcrun --sdk iphoneos --show-sdk-path) -std=c++17 -fobjc-arc -O2 -fvisibility=hidden -dynamiclib -install_name @rpath/FlopDLC.dylib -framework Foundation -framework UIKit -framework CoreGraphics -framework CoreFoundation -framework QuartzCore -framework AVFoundation FlopDLC.mm -o FlopDLC.dylib
 // =========================================================================================
@@ -34,7 +34,7 @@
 #include <dispatch/dispatch.h>
 #include <CoreFoundation/CoreFoundation.h>
 
-static constexpr const char* kEspVersion = "136.6";
+static constexpr const char* kEspVersion = "136.7";
 
 #define SANE_PTR(p) ((uintptr_t)(p) > 0x100000000 && (uintptr_t)(p) < 0x00007FFFFFFFFFFF)
 
@@ -2348,6 +2348,134 @@ static NSString* getIL2CPPString(void* strObj) {
 }
 
 @end
+
+// Every launch starts with a clean slate: no aimbot, ESP, chams, skin changer,
+// triggerbot, rage, movement or world feature is armed until the user turns it on.
+// Settings (colours, positions, scale, keybinds) still persist.
+static void ConfigResetFeatures(void) {
+    gEspEnabled = false;
+    gSkeletonEnabled = false;
+    gHealthBarEnabled = false;
+    gNameEnabled = false;
+    gTracersEnabled = false;
+    gOofEnabled = false;
+    gWeaponEspEnabled = false;
+    gHeadDotEnabled = false;
+    gDistanceEnabled = false;
+    gHealthTextEnabled = false;
+    gSnapBottomEnabled = false;
+    gBoxFilled = false;
+    gEspFadeEnabled = false;
+    gEspTeamFilter = false;
+    gEspDeadFilter = false;
+    gSkeletonUpperOnly = false;
+
+    gAimbotEnabled = false;
+    gAimOnFireEnabled = false;
+    gSilentAimEnabled = false;
+    gHotAimbotEnabled = false;
+    gHotAimOnFireEnabled = false;
+    gHotEspEnabled = false;
+    gPredictionEnabled = false;
+    gAimbotVisibleOnly = false;
+    gAimJitterEnabled = false;
+    gAimSwitchDelayEnabled = false;
+
+    gSpeedHackEnabled = false;
+    gJumpHackEnabled = false;
+    gKillSoundEnabled = false;
+    gHitSoundEnabled = false;
+
+    gCamFovEnabled = false;
+    gViewmodelFovEnabled = false;
+    gAspectEnabled = false;
+    gTpEnabled = false;
+
+    gRapidFireEnabled = false;
+    gInstantReloadEnabled = false;
+    gUnlimAmmoEnabled = false;
+    gNoSpreadEnabled = false;
+    gNoRecoilEnabled = false;
+    gBallisticsDebug = false;
+    gSpreadFloorEnabled = false;
+
+    gHitMarkerEnabled = false;
+    gDamageNumbersEnabled = false;
+    gHitMarkerShowDamage = false;
+    gDamageNumberOutline = false;
+    gRadarEnabled = false;
+    gCrosshairEnabled = false;
+    gScopeOverlayEnabled = false;
+    gAimLineEnabled = false;
+    gTeamColorEnabled = false;
+    gVisibleColorEnabled = false;
+    gKillFeedEnabled = false;
+    gRadarRotate = false;
+    gFpsEnabled = false;
+    gPanelBackground = false;
+    gDamageStack = false;
+    gPlayerListEnabled = false;
+    gInfoPanelEnabled = false;
+    gEventLogEnabled = false;
+    gAimInfoEnabled = false;
+    gKeybindListEnabled = false;
+    gStatsPanelEnabled = false;
+    gDamageLogEnabled = false;
+    gAimDrawTarget = false;
+    gAimDrawFov = false;
+    gVelocityGraphEnabled = false;
+    gSessionInfoEnabled = false;
+    gDamageLogPanelEnabled = false;
+    gTargetListEnabled = false;
+    gCrosshairDebugEnabled = false;
+    gAmmoBarEnabled = false;
+    gFovCircleEnabled = false;
+    gFovCircleFilled = false;
+
+    gTriggerbotEnabled = false;
+    gTriggerbotVisibleOnly = false;
+    gTriggerbotTeamCheck = false;
+    gTriggerbotScopeOnly = false;
+    gTriggerbotHeadOnly = false;
+
+    gSkinChangerEnabled = false;
+    gChamsPlayerEnabled = false;
+    gChamsWeaponEnabled = false;
+    gChamsPlayerXray = false;
+    gChamsWeaponXray = false;
+
+    gNightModeEnabled = false;
+    gSkyboxEnabled = false;
+    gFullbrightEnabled = false;
+    gSnowEnabled = false;
+    gNoFogEnabled = false;
+    gAmbientTintEnabled = false;
+    gMotionBlurEnabled = false;
+
+    gRageEnabled = false;
+    gRageAutoAim = false;
+    gRageAutoFire = false;
+    gRageAutoScope = false;
+    gRageAutoReload = false;
+    gRageAutoPistol = false;
+    gRageAutoZeus = false;
+    gRageBurst = false;
+    gRageAirStuck = false;
+    gRageAutoStop = false;
+    gRageVisibleOnly = false;
+    gRageTeamCheck = false;
+    gRageBypassSmoke = false;
+    gRageIgnoreTeammatesInFov = false;
+    gRageHitboxExpand = false;
+    gRageLogShots = false;
+    gRagePerTargetStats = false;
+    gRageTeleport = false;
+    gRageAntiAim = false;
+    gRageAntiAimJitter = false;
+    gRageForceBaim = false;
+    gRageOnKey = false;
+    gRageDebug = false;
+}
 
 // CONFIG SLOTS — snapshot the whole NSUserDefaults dictionary under cfg_slot_N.
 static void ConfigSaveSlot(int slot) {
@@ -6108,7 +6236,7 @@ static const CGFloat kSidebarW = 108.0;
         [_sidebar addSubview:brand];
         
         UILabel *brandSub = [[UILabel alloc] initWithFrame:CGRectMake(14, 30, kSidebarW - 20, 12)];
-        brandSub.text = @"v136.6";
+        brandSub.text = @"v136.7";
         brandSub.textColor = NLAccent();
         brandSub.font = [UIFont systemFontOfSize:8 weight:UIFontWeightBold];
         [_sidebar addSubview:brandSub];
@@ -9520,6 +9648,9 @@ static void ApplyFpsLimit(void) {
 
 static void ApplyWorldView(void) {
     @try {
+        if (!alive(gLocal)) {
+            return;
+        }
         bool fb = gFullbrightEnabled.load();
         bool amb = gAmbientTintEnabled.load();
         bool needLights = fb || amb || s_fbWas || s_ambWas;
@@ -9647,6 +9778,9 @@ static void ApplyWorldView(void) {
 
 static void ApplyNightMode(void) {
     @try {
+        if (!alive(gLocal)) {
+            return;
+        }
         if (!p_findVolumeMI || !gVolumeTypeHandle) {
             return;
         }
@@ -10096,7 +10230,7 @@ static void espTick(void) {
             bool needVisCheck = gAimbotVisibleOnly ||
                                 gTriggerbotVisibleOnly.load() ||
                                 (gVisibleColorEnabled && (gEspEnabled || gHotEspEnabled));
-            if (needVisCheck && p_CheckSeen && g_localSceneChar) {
+            if (needVisCheck && p_CheckSeen && alive(g_localSceneChar)) {
                 if (!p_CheckSeen(g_localSceneChar, aimPos, p_checkSeenMI)) {
                     isVisible = false;
                 }
@@ -10928,6 +11062,7 @@ static void bootstrap(void) {
         }
         @try {
             [ConfigManager load];
+            ConfigResetFeatures();
             InstallAllHooks();
             ApplyFpsLimit();
         } @catch (NSException* e) {
