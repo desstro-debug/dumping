@@ -1,5 +1,5 @@
 // =========================================================================================
-// FlopDLC.mm — v136.7 (clean slate on launch, scene-switch guards)
+// FlopDLC.mm — v136.8 (crash signals + heartbeat, night-mode guard)
 // =========================================================================================
 // Сборка: clang++ -arch arm64 -miphoneos-version-min=15.0 -isysroot $(xcrun --sdk iphoneos --show-sdk-path) -std=c++17 -fobjc-arc -O2 -fvisibility=hidden -dynamiclib -install_name @rpath/FlopDLC.dylib -framework Foundation -framework UIKit -framework CoreGraphics -framework CoreFoundation -framework QuartzCore -framework AVFoundation FlopDLC.mm -o FlopDLC.dylib
 // =========================================================================================
@@ -34,7 +34,7 @@
 #include <dispatch/dispatch.h>
 #include <CoreFoundation/CoreFoundation.h>
 
-static constexpr const char* kEspVersion = "136.7";
+static constexpr const char* kEspVersion = "136.8";
 
 #define SANE_PTR(p) ((uintptr_t)(p) > 0x100000000 && (uintptr_t)(p) < 0x00007FFFFFFFFFFF)
 
@@ -296,6 +296,10 @@ static void InstallCrashHandler(void) {
         sigaction(SIGSEGV, &sa, NULL);
         sigaction(SIGBUS, &sa, NULL);
         sigaction(SIGABRT, &sa, NULL);
+        sigaction(SIGILL, &sa, NULL);
+        sigaction(SIGFPE, &sa, NULL);
+        sigaction(SIGTRAP, &sa, NULL);
+        sigaction(SIGSYS, &sa, NULL);
     } @catch (NSException* e) {
     }
 }
@@ -6236,7 +6240,7 @@ static const CGFloat kSidebarW = 108.0;
         [_sidebar addSubview:brand];
         
         UILabel *brandSub = [[UILabel alloc] initWithFrame:CGRectMake(14, 30, kSidebarW - 20, 12)];
-        brandSub.text = @"v136.7";
+        brandSub.text = @"v136.8";
         brandSub.textColor = NLAccent();
         brandSub.font = [UIFont systemFontOfSize:8 weight:UIFontWeightBold];
         [_sidebar addSubview:brandSub];
@@ -9781,6 +9785,12 @@ static void ApplyNightMode(void) {
         if (!alive(gLocal)) {
             return;
         }
+        bool night = gNightModeEnabled.load();
+        static bool s_nightWas = false;
+        if (!night && !s_nightWas) {
+            return;
+        }
+        s_nightWas = night;
         if (!p_findVolumeMI || !gVolumeTypeHandle) {
             return;
         }
@@ -9849,6 +9859,13 @@ static void espTick(void) {
         }
         
         uint64_t tMs = curTime / 1000000ULL;
+        // Heartbeat: if the app is killed by the watchdog instead of a signal, the log
+        // stops here and the last line shows how long the main thread was alive.
+        static uint64_t lastHeartbeat = 0;
+        if (tMs - lastHeartbeat > 1000) {
+            lastHeartbeat = tMs;
+            LOG(@"[HB] tick %llu", tMs);
+        }
         if (tMs - gLastNight > 500) {
             gLastNight = tMs;
             ApplyNightMode();
