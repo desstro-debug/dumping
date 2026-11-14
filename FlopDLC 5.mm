@@ -1,5 +1,5 @@
 // =========================================================================================
-// FlopDLC.mm — v136.9 (every feature off on launch)
+// FlopDLC.mm — v137.0 (idle mod is fully hands-off; match entry fixed)
 // =========================================================================================
 // Сборка: clang++ -arch arm64 -miphoneos-version-min=15.0 -isysroot $(xcrun --sdk iphoneos --show-sdk-path) -std=c++17 -fobjc-arc -O2 -fvisibility=hidden -dynamiclib -install_name @rpath/FlopDLC.dylib -framework Foundation -framework UIKit -framework CoreGraphics -framework CoreFoundation -framework QuartzCore -framework AVFoundation FlopDLC.mm -o FlopDLC.dylib
 // =========================================================================================
@@ -1288,6 +1288,8 @@ static void BallisticsCameraPost(void* camera);
 static void BallisticsFirePre(void);
 static void BallisticsFirePost(void);
 static void InstallBallisticsHooks(void);
+// Installed only once an aim mode that needs a forged shot is actually enabled.
+static void EnsureSilentAimPatch(void);
 static void SetupHudView(void);
 static void HudTick(void);
 static void HudBeginFrame(void);
@@ -1542,11 +1544,19 @@ static void* findClass(const char* ns, const char* name) {
     return nullptr;
 }
 
+// A live il2cpp object has a non-null cached pointer at +0x10. The check has to go through
+// vm_read_overwrite: during a scene switch a cached pointer can outlive the object it points
+// at, and a raw deref of the freed page is a SIGSEGV that no @try can catch. One word per
+// call is cheap enough for the per-frame paths.
 static inline bool alive(void* obj) {
     if (!obj || !SANE_PTR(obj)) {
         return false;
     }
-    return *(void**)((uintptr_t)obj + off::kObjCachedPtr) != nullptr;
+    void* cached = nullptr;
+    if (!ReadMemory((uintptr_t)obj + off::kObjCachedPtr, &cached, sizeof(cached))) {
+        return false;
+    }
+    return cached != nullptr;
 }
 
 static bool getPosFast(void* transform, Vec3& out) {
@@ -2503,6 +2513,65 @@ static void ConfigResetFeatures(void) {
     gRageDebug = false;
 }
 
+// Single source of truth for "is anything enabled?". Keep this list in sync with
+// ConfigResetFeatures: every toggle that function clears must be tested here, otherwise a
+// feature could be on while the per-frame pipeline thinks the mod is idle.
+static bool AnyFeatureActive(void) {
+    return gEspEnabled || gSkeletonEnabled || gHealthBarEnabled || gNameEnabled
+        || gTracersEnabled || gOofEnabled || gWeaponEspEnabled || gHeadDotEnabled
+        || gDistanceEnabled || gHealthTextEnabled || gSnapBottomEnabled || gBoxFilled
+        || gEspFadeEnabled || gEspTeamFilter || gEspDeadFilter || gSkeletonUpperOnly
+        || gCrosshairOutline || gDistanceAbove || gNameBgEnabled || gEspHealthGradient
+        || gEspArmorBar || gEspOffscreenArrows || gEspDistanceShadow || gAimbotEnabled
+        || gAimOnFireEnabled || gSilentAimEnabled || gHotAimbotEnabled || gHotAimOnFireEnabled
+        || gHotEspEnabled || gPredictionEnabled || gAimbotVisibleOnly || gAimbotNoTeam
+        || gAimJitterEnabled || gAimSwitchDelayEnabled || gSpeedHackEnabled || gJumpHackEnabled
+        || gKillSoundEnabled || gHitSoundEnabled || gCamFovEnabled || gViewmodelFovEnabled
+        || gAspectEnabled || gTpEnabled || gTpShowBody || gRapidFireEnabled
+        || gInstantReloadEnabled || gUnlimAmmoEnabled || gNoSpreadEnabled || gNoRecoilEnabled
+        || gBallisticsDebug || gSpreadFloorEnabled || gHitMarkerEnabled || gDamageNumbersEnabled
+        || gHitMarkerShowDamage || gDamageNumberOutline || gRadarEnabled || gCrosshairEnabled
+        || gScopeOverlayEnabled || gAimLineEnabled || gTeamColorEnabled || gVisibleColorEnabled
+        || gKillFeedEnabled || gKillFeedShowKiller || gRadarRotate || gFpsEnabled
+        || gPanelBackground || gDamageStack || gPlayerListEnabled || gPlayerListHealth
+        || gPlayerListDistance || gPlayerListTeam || gPlayerListWeapon || gPlayerListDead
+        || gInfoPanelEnabled || gInfoPanelHealth || gInfoPanelAmmo || gInfoPanelFps
+        || gInfoPanelSpeed || gEventLogEnabled || gWatermarkShowFps || gWatermarkShowTime
+        || gWatermarkShowPlayers || gAimInfoEnabled || gKeybindListEnabled || gStatsPanelEnabled
+        || gDamageLogEnabled || gAimDrawTarget || gAimDrawFov || gVelocityGraphEnabled
+        || gSessionInfoEnabled || gDamageLogPanelEnabled || gTargetListEnabled || gCrosshairDebugEnabled
+        || gAmmoBarEnabled || gFovCircleEnabled || gFovCircleFilled || gTriggerbotEnabled
+        || gTriggerbotVisibleOnly || gTriggerbotTeamCheck || gTriggerbotScopeOnly || gTriggerbotHeadOnly
+        || gSkinChangerEnabled || gChamsPlayerEnabled || gChamsWeaponEnabled || gChamsPlayerXray
+        || gChamsWeaponXray || gNightModeEnabled || gSkyboxEnabled || gFullbrightEnabled
+        || gSnowEnabled || gNoFogEnabled || gAmbientTintEnabled || gMotionBlurEnabled
+        || gRageEnabled || gRageAutoAim || gRageAutoFire || gRageAutoScope
+        || gRageAutoReload || gRageAutoPistol || gRageAutoZeus || gRageBurst
+        || gRageAirStuck || gRageAutoStop || gRageVisibleOnly || gRageTeamCheck
+        || gRageBypassSmoke || gRageIgnoreTeammatesInFov || gRageHitboxExpand || gRageLogShots
+        || gRagePerTargetStats || gRageTeleport || gRageAntiAim || gRageAntiAimJitter
+        || gRageForceBaim || gRageOnKey || gRageDebug;
+}
+
+// Timestamp of the last tick that saw at least one feature enabled.
+static uint64_t gLastFeatureOnMs = 0;
+
+// Should the per-frame pipeline touch the game right now? True while anything is enabled,
+// plus a short grace window after the last feature goes off so the pipeline can undo what
+// it applied (weapon range data, third-person body, world lights). On a fresh launch this
+// is false from the very first tick, so entering a match never walks a scene that is still
+// being built or repaints a full-screen overlay on top of it.
+static bool ModActive(void) {
+    if (AnyFeatureActive()) {
+        gLastFeatureOnMs = NowMs();
+        return true;
+    }
+    if (gLastFeatureOnMs == 0) {
+        return false;
+    }
+    return NowMs() - gLastFeatureOnMs < 8000;
+}
+
 // CONFIG SLOTS — snapshot the whole NSUserDefaults dictionary under cfg_slot_N.
 static void ConfigSaveSlot(int slot) {
     NSUserDefaults *d = [NSUserDefaults standardUserDefaults];
@@ -2942,7 +3011,11 @@ static void ApplyViewmodelFov(void* self) {
 static void TriggerbotTick(void);
 
 static void hook_CamLateUpdate(void* self, void* mi) {
-    if (SANE_PTR(self) && self == g_localSceneChar) {
+    // Idle mod: run the game's own LateUpdate and touch nothing else. The ballistics and
+    // camera helpers only matter while a feature is on, and during a match load they would
+    // be reading a camera that is still being constructed.
+    const bool modActive = ModActive();
+    if (modActive && SANE_PTR(self) && self == g_localSceneChar) {
         BallisticsCameraPre(self);
     }
     
@@ -2950,6 +3023,9 @@ static void hook_CamLateUpdate(void* self, void* mi) {
         orig_CamLateUpdate(self, mi);
     }
     
+    if (!modActive) {
+        return;
+    }
     if (!SANE_PTR(self) || self != g_localSceneChar) {
         return;
     }
@@ -3710,7 +3786,8 @@ static void hook_WepUpdateShotgun(void* self, void* mi) {
     if (orig_WepUpdateShotgun) {
         orig_WepUpdateShotgun(self, mi);
     }
-    if (!SANE_PTR(self)) {
+    // ModActive() also keeps the per-weapon class-name walk out of the idle path.
+    if (!SANE_PTR(self) || !ModActive()) {
         return;
     }
     WeaponCommonTick(self);
@@ -3721,7 +3798,7 @@ static void hook_WepUpdateRange(void* self, void* mi) {
     if (orig_WepUpdateRange) {
         orig_WepUpdateRange(self, mi);
     }
-    if (!SANE_PTR(self)) {
+    if (!SANE_PTR(self) || !ModActive()) {
         return;
     }
     WeaponCommonTick(self);
@@ -3732,7 +3809,7 @@ static void hook_WepUpdate(void* self, void* mi) {
     if (orig_WepUpdate) {
         orig_WepUpdate(self, mi);
     }
-    if (!SANE_PTR(self)) {
+    if (!SANE_PTR(self) || !ModActive()) {
         return;
     }
     
@@ -3743,31 +3820,46 @@ static void hook_WepUpdate(void* self, void* mi) {
 typedef void (*fn_MoveUpdate)(void* self, void* mi);
 static fn_MoveUpdate orig_MoveUpdate = nullptr;
 
+// True only after we actually wrote a hacked value, so switching the toggle off restores
+// the game's value exactly once and an idle mod never writes to the movement component.
+static bool g_speedApplied = false;
+static bool g_jumpApplied = false;
+
 static void hook_MoveUpdate(void* self, void* mi) {
     if (orig_MoveUpdate) {
         orig_MoveUpdate(self, mi);
     }
-    if (!SANE_PTR(self)) {
+    if (!SANE_PTR(self) || !ModActive()) {
         return;
     }
     
-    if (g_origMoveSpeed < 0) {
-        g_origMoveSpeed = *(float*)((uintptr_t)self + off::kMoveSpeed);
-    }
-    if (g_origJumpHeight < 0) {
-        g_origJumpHeight = *(float*)((uintptr_t)self + off::kMoveJumpH);
-    }
+    const bool speedOn = gSpeedHackEnabled.load();
+    const bool jumpOn = gJumpHackEnabled.load();
     
-    if (gSpeedHackEnabled) {
+    if (speedOn) {
+        if (g_origMoveSpeed < 0) {
+            g_origMoveSpeed = *(float*)((uintptr_t)self + off::kMoveSpeed);
+        }
         *(float*)((uintptr_t)self + off::kMoveSpeed) = g_origMoveSpeed * gSpeedHackVal;
-    } else {
-        *(float*)((uintptr_t)self + off::kMoveSpeed) = g_origMoveSpeed;
+        g_speedApplied = true;
+    } else if (g_speedApplied) {
+        if (g_origMoveSpeed >= 0) {
+            *(float*)((uintptr_t)self + off::kMoveSpeed) = g_origMoveSpeed;
+        }
+        g_speedApplied = false;
     }
     
-    if (gJumpHackEnabled) {
+    if (jumpOn) {
+        if (g_origJumpHeight < 0) {
+            g_origJumpHeight = *(float*)((uintptr_t)self + off::kMoveJumpH);
+        }
         *(float*)((uintptr_t)self + off::kMoveJumpH) = g_origJumpHeight * gJumpHackVal;
-    } else {
-        *(float*)((uintptr_t)self + off::kMoveJumpH) = g_origJumpHeight;
+        g_jumpApplied = true;
+    } else if (g_jumpApplied) {
+        if (g_origJumpHeight >= 0) {
+            *(float*)((uintptr_t)self + off::kMoveJumpH) = g_origJumpHeight;
+        }
+        g_jumpApplied = false;
     }
 }
 
@@ -9888,6 +9980,30 @@ static void espTick(void) {
             lastHeartbeat = tMs;
             LOG(@"[HB] tick %llu", tMs);
         }
+
+        // Nothing enabled (the state on every launch): leave the game completely alone.
+        // The player walk, the HUD repaint and the full-screen ESP redraw are only useful
+        // when a feature is on, and during a match load they run against a scene that is
+        // being torn down — freed objects and a watchdog kill are the usual result.
+        static bool wasModActive = false;
+        const bool modActive = ModActive();
+        if (modActive && !wasModActive) {
+            // First tick after the user enables something: take a fresh snapshot right
+            // away instead of waiting up to 500 ms for the periodic refresh.
+            gLastP = 0;
+            gLastNight = 0;
+            gLastWorld = 0;
+        }
+        wasModActive = modActive;
+        if (!modActive) {
+            // Keep the menu's FPS counter alive without touching the game.
+            HudSampleFrame();
+            return;
+        }
+
+        // The silent-aim code patch is installed lazily: see EnsureSilentAimPatch().
+        EnsureSilentAimPatch();
+
         if (tMs - gLastNight > 500) {
             gLastNight = tMs;
             ApplyNightMode();
@@ -11742,6 +11858,55 @@ static void hook_FireBulletCommand(void* self, Vec3 from, Vec3 to, void* hits, b
     }
 }
 
+// The native branch is only rewritten once an aim mode that forges the shot is enabled.
+// Patching it at bootstrap (as the old code did) meant every launch modified live game
+// code even though nothing was on, and that code ran during match entry.
+static void EnsureSilentAimPatch(void) {
+    if (gFkePatched.load()) {
+        return;
+    }
+    if (!(gSilentAimEnabled.load() || gAimOnFireEnabled.load() || gHotAimOnFireEnabled.load())) {
+        return;
+    }
+
+    // One attempt per second at most: a mismatch must not burn CPU on every tick.
+    static uint64_t lastTry = 0;
+    const uint64_t now = NowMs();
+    if (lastTry != 0 && now - lastTry < 1000) {
+        return;
+    }
+    lastTry = now;
+
+    uintptr_t ufBase = UnityFrameworkBase();
+    if (!ufBase) {
+        LOG(@"[BALL] UnityFramework base not found");
+        return;
+    }
+
+    uintptr_t fkeAddr = ufBase + 0x19D8624;
+    uintptr_t callSite = ufBase + 0x19D710C;
+    // Only trust the hardcoded RVAs when the call site still branches to the expected fke
+    // address. A game update shifts these, and patching a random instruction (or calling a
+    // wrong orig pointer) aborts the process.
+    if (!BranchTargets(callSite, fkeAddr)) {
+        LOG(@"[BALL] fke call-site mismatch, native patch skipped base=%p", (void*)ufBase);
+        return;
+    }
+
+    if (!PatchBranchFar(callSite, (uintptr_t)hook_FireBulletCommand)) {
+        LOG(@"[BALL] fke call-site patch failed base=%p", (void*)ufBase);
+        return;
+    }
+
+    // The MethodInfo hook may already have captured the original pointer; only fill it in
+    // when that hook was not installed.
+    if (!orig_FireBulletCommand) {
+        orig_FireBulletCommand = (fn_FireBulletCommand)fkeAddr;
+    }
+    gFkePatched = true;
+    LOG(@"[BALL] fke call-site patched base=%p", (void*)ufBase);
+}
+
 typedef Vec2 (*fn_GetInsideUnitCircle)(void*);
 static fn_GetInsideUnitCircle orig_GetInsideUnitCircle = nullptr;
 
@@ -11806,33 +11971,10 @@ static void InstallBallisticsHooks(void) {
             }
 
             // fkb tail-calls fke with a plain `b`, so the MethodInfo patch above never sees
-            // the real shot. Patch that branch too; the RVAs are for this UnityFramework build.
-            uintptr_t ufBase = UnityFrameworkBase();
-            if (ufBase) {
-                uintptr_t fkeAddr = ufBase + 0x19D8624;
-                uintptr_t callSite = ufBase + 0x19D710C;
-                // Only trust the hardcoded RVAs when the call site still branches to the
-                // expected fke address. A game update shifts these, and patching a random
-                // instruction (or calling a wrong orig pointer) aborts the process.
-                if (BranchTargets(callSite, fkeAddr)) {
-                    int64_t delta = (int64_t)(uintptr_t)hook_FireBulletCommand - (int64_t)callSite;
-                    if (PatchBranchFar(callSite, (uintptr_t)hook_FireBulletCommand)) {
-                        // The MethodInfo hook above may already have captured the original
-                        // pointer; only fill it in when that hook was not installed.
-                        if (!orig_FireBulletCommand) {
-                            orig_FireBulletCommand = (fn_FireBulletCommand)fkeAddr;
-                        }
-                        gFkePatched = true;
-                        LOG(@"[BALL] fke call-site patched base=%p delta=%lld", (void*)ufBase, (long long)delta);
-                    } else {
-                        LOG(@"[BALL] fke call-site patch failed base=%p delta=%lld", (void*)ufBase, (long long)delta);
-                    }
-                } else {
-                    LOG(@"[BALL] fke call-site mismatch, native patch skipped base=%p", (void*)ufBase);
-                }
-            } else {
-                LOG(@"[BALL] UnityFramework base not found");
-            }
+            // the real shot. That branch is patched lazily by EnsureSilentAimPatch(), only
+            // after the user actually enables silent aim / aim-on-fire. Until then the
+            // game's code stays byte-for-byte untouched, which is what keeps match entry
+            // stable with every feature off.
             
             // Local raycast used to rebuild the hit list for the silent-aim direction.
             void* miCalc = p_class_get_method_from_name(rangeCls, "fka", 2);
