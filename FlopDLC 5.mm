@@ -1,5 +1,5 @@
 // =========================================================================================
-// FlopDLC.mm — v136.8 (crash signals + heartbeat, night-mode guard)
+// FlopDLC.mm — v136.9 (every feature off on launch)
 // =========================================================================================
 // Сборка: clang++ -arch arm64 -miphoneos-version-min=15.0 -isysroot $(xcrun --sdk iphoneos --show-sdk-path) -std=c++17 -fobjc-arc -O2 -fvisibility=hidden -dynamiclib -install_name @rpath/FlopDLC.dylib -framework Foundation -framework UIKit -framework CoreGraphics -framework CoreFoundation -framework QuartzCore -framework AVFoundation FlopDLC.mm -o FlopDLC.dylib
 // =========================================================================================
@@ -34,7 +34,7 @@
 #include <dispatch/dispatch.h>
 #include <CoreFoundation/CoreFoundation.h>
 
-static constexpr const char* kEspVersion = "136.8";
+static constexpr const char* kEspVersion = "136.9";
 
 #define SANE_PTR(p) ((uintptr_t)(p) > 0x100000000 && (uintptr_t)(p) < 0x00007FFFFFFFFFFF)
 
@@ -2373,6 +2373,13 @@ static void ConfigResetFeatures(void) {
     gEspTeamFilter = false;
     gEspDeadFilter = false;
     gSkeletonUpperOnly = false;
+    gCrosshairOutline = false;
+    gDistanceAbove = false;
+    gNameBgEnabled = false;
+    gEspHealthGradient = false;
+    gEspArmorBar = false;
+    gEspOffscreenArrows = false;
+    gEspDistanceShadow = false;
 
     gAimbotEnabled = false;
     gAimOnFireEnabled = false;
@@ -2382,6 +2389,7 @@ static void ConfigResetFeatures(void) {
     gHotEspEnabled = false;
     gPredictionEnabled = false;
     gAimbotVisibleOnly = false;
+    gAimbotNoTeam = false;
     gAimJitterEnabled = false;
     gAimSwitchDelayEnabled = false;
 
@@ -2394,6 +2402,7 @@ static void ConfigResetFeatures(void) {
     gViewmodelFovEnabled = false;
     gAspectEnabled = false;
     gTpEnabled = false;
+    gTpShowBody = false;
 
     gRapidFireEnabled = false;
     gInstantReloadEnabled = false;
@@ -2414,13 +2423,26 @@ static void ConfigResetFeatures(void) {
     gTeamColorEnabled = false;
     gVisibleColorEnabled = false;
     gKillFeedEnabled = false;
+    gKillFeedShowKiller = false;
     gRadarRotate = false;
     gFpsEnabled = false;
     gPanelBackground = false;
     gDamageStack = false;
     gPlayerListEnabled = false;
+    gPlayerListHealth = false;
+    gPlayerListDistance = false;
+    gPlayerListTeam = false;
+    gPlayerListWeapon = false;
+    gPlayerListDead = false;
     gInfoPanelEnabled = false;
+    gInfoPanelHealth = false;
+    gInfoPanelAmmo = false;
+    gInfoPanelFps = false;
+    gInfoPanelSpeed = false;
     gEventLogEnabled = false;
+    gWatermarkShowFps = false;
+    gWatermarkShowTime = false;
+    gWatermarkShowPlayers = false;
     gAimInfoEnabled = false;
     gKeybindListEnabled = false;
     gStatsPanelEnabled = false;
@@ -6240,7 +6262,7 @@ static const CGFloat kSidebarW = 108.0;
         [_sidebar addSubview:brand];
         
         UILabel *brandSub = [[UILabel alloc] initWithFrame:CGRectMake(14, 30, kSidebarW - 20, 12)];
-        brandSub.text = @"v136.8";
+        brandSub.text = @"v136.9";
         brandSub.textColor = NLAccent();
         brandSub.font = [UIFont systemFontOfSize:8 weight:UIFontWeightBold];
         [_sidebar addSubview:brandSub];
